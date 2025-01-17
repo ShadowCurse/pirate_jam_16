@@ -1,0 +1,13 @@
+.zig-cache/
+zig-out/
+/release/
+/debug/
+/build/
+/build-*/
+/docgen_tmp/
+.envrc
+.direnv
+/wasm/stygian.js
+/wasm/stygian.wasm
+/wasm/assets
+/wasm/assets/*

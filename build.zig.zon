@@ -1,0 +1,14 @@
+.{
+    .name = "pirate_jam_16",
+    .version = "0.0.0",
+    .dependencies = .{
+        .stygian = .{
+            .path = "../stygian",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+    },
+}
