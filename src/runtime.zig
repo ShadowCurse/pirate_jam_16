@@ -39,6 +39,23 @@ const Ball = struct {
     collider: Physics.Circle,
     velocity: Vec2,
     friction: f32,
+
+    pub fn update(self: *Ball, collision_points: []const ?Physics.CollisionPoint, dt: f32) void {
+        for (collision_points) |collision_point| {
+            if (collision_point) |cp| {
+                if (cp.normal.is_valid()) {
+                    const proj = cp.normal.mul_f32(-self.velocity.dot(cp.normal));
+                    self.velocity = self.velocity.add(proj.mul_f32(2.0));
+                    const point_on_the_circle =
+                        self.collider.position.add(cp.normal.mul_f32(self.collider.radius));
+                    const to_move = cp.position.sub(point_on_the_circle);
+                    self.collider.position = self.collider.position.sub(to_move);
+                }
+            }
+        }
+        self.collider.position = self.collider.position.add(self.velocity.mul_f32(dt));
+        self.velocity = self.velocity.mul_f32(self.friction);
+    }
 };
 
 const Border = struct {
@@ -80,7 +97,7 @@ const Runtime = struct {
                 .radius = 20.0,
             },
             .velocity = .{},
-            .friction = 5.0,
+            .friction = 0.95,
         };
         self.borders = .{
             .{
@@ -119,7 +136,6 @@ const Runtime = struct {
         height: i32,
     ) void {
         _ = memory;
-        _ = dt;
 
         self.screen_quads.reset();
 
@@ -129,16 +145,16 @@ const Runtime = struct {
                     if (key.type == .Pressed) {
                         switch (key.key) {
                             .UP => {
-                                self.ball.collider.position.y -= 1.0;
+                                self.ball.velocity.y -= 10.0;
                             },
                             .DOWN => {
-                                self.ball.collider.position.y += 1.0;
+                                self.ball.velocity.y += 10.0;
                             },
                             .LEFT => {
-                                self.ball.collider.position.x -= 1.0;
+                                self.ball.velocity.x -= 10.0;
                             },
                             .RIGHT => {
-                                self.ball.collider.position.x += 1.0;
+                                self.ball.velocity.x += 10.0;
                             },
                             else => {},
                         }
@@ -156,6 +172,9 @@ const Runtime = struct {
             Physics.circle_rectangle_collision(self.ball.collider, self.borders[2].collider);
         const collision_3 =
             Physics.circle_rectangle_collision(self.ball.collider, self.borders[3].collider);
+        const collisions = [_]?Physics.CollisionPoint{ collision_0, collision_1, collision_2, collision_3 };
+
+        self.ball.update(&collisions, dt);
 
         const collision_color = Color.from_parts(255.0, 0.0, 0.0, 64.0);
         const no_collision_color = Color.from_parts(255.0, 255.0, 255.0, 64.0);
@@ -230,7 +249,7 @@ const Runtime = struct {
             0.0,
             &self.texture_store,
         );
-        for ([_]?Physics.CollisionPoint{ collision_0, collision_1, collision_2, collision_3 }) |collision| {
+        for (collisions) |collision| {
             if (collision) |c| {
                 const c_position = c.position
                     .add((Vec2{ .x = @floatFromInt(width), .y = @floatFromInt(height) }).mul_f32(0.5));
