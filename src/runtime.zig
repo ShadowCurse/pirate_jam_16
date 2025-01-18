@@ -36,12 +36,29 @@ const TABLE_HEIGTH = 514;
 const TABLE_BORDER = 66;
 
 const Ball = struct {
+    id: u8,
     collider: Physics.Circle,
     previous_position: Vec2,
     velocity: Vec2,
     friction: f32,
 
-    pub fn update(self: *Ball, borders: []const Border, dt: f32) void {
+    pub fn update(self: *Ball, borders: []const Border, balls: []const Ball, dt: f32) void {
+        for (balls) |*ball| {
+            if (self.id == ball.id)
+                continue;
+            const collision_point =
+                Physics.circle_circle_collision(self.collider, ball.collider);
+            if (collision_point) |cp| {
+                if (cp.normal.is_valid()) {
+                    const proj = cp.normal.mul_f32(-self.velocity.dot(cp.normal));
+                    self.velocity = self.velocity.add(proj.mul_f32(2.0));
+                    const new_positon =
+                        cp.position.add(cp.normal.mul_f32(self.collider.radius));
+                    self.previous_position = self.collider.position;
+                    self.collider.position = new_positon;
+                }
+            }
+        }
         for (borders) |*border| {
             const collision_point =
                 Physics.circle_rectangle_collision(self.collider, border.collider);
@@ -136,7 +153,7 @@ const Runtime = struct {
     screen_quads: ScreenQuads,
     soft_renderer: SoftRenderer,
 
-    ball: Ball,
+    balls: [16]Ball,
     borders: [4]Border,
 
     mouse_drag: MouseDrag,
@@ -158,14 +175,24 @@ const Runtime = struct {
         self.screen_quads = try ScreenQuads.init(memory, 2048);
         self.soft_renderer = SoftRenderer.init(memory, window, width, height);
 
-        self.ball = .{
-            .collider = .{
-                .radius = 20.0,
-            },
-            .previous_position = .{},
-            .velocity = .{},
-            .friction = 0.95,
-        };
+        for (&self.balls, 0..) |*ball, i| {
+            const row: f32 = @floatFromInt(@divFloor(i, 4));
+            const column: f32 = @floatFromInt(i % 4);
+            const position: Vec2 = .{
+                .x = -60.0 * 2 + column * 60.0 + 30.0,
+                .y = -60.0 * 2 + row * 60.0 + 30.0,
+            };
+            ball.* = .{
+                .id = @intCast(i),
+                .collider = .{
+                    .position = position,
+                    .radius = 20.0,
+                },
+                .previous_position = .{},
+                .velocity = .{},
+                .friction = 0.95,
+            };
+        }
         self.borders = .{
             // left
             .{
@@ -212,17 +239,19 @@ const Runtime = struct {
         self.screen_quads.reset();
 
         if (self.mouse_drag.update(events, dt)) |v| {
-            self.ball.velocity = self.ball.velocity.add(v);
+            for (&self.balls) |*ball| {
+                ball.velocity = ball.velocity.add(v);
+            }
         }
 
         const collision_0 =
-            Physics.circle_rectangle_collision(self.ball.collider, self.borders[0].collider);
+            Physics.circle_rectangle_collision(self.balls[0].collider, self.borders[0].collider);
         const collision_1 =
-            Physics.circle_rectangle_collision(self.ball.collider, self.borders[1].collider);
+            Physics.circle_rectangle_collision(self.balls[0].collider, self.borders[1].collider);
         const collision_2 =
-            Physics.circle_rectangle_collision(self.ball.collider, self.borders[2].collider);
+            Physics.circle_rectangle_collision(self.balls[0].collider, self.borders[2].collider);
         const collision_3 =
-            Physics.circle_rectangle_collision(self.ball.collider, self.borders[3].collider);
+            Physics.circle_rectangle_collision(self.balls[0].collider, self.borders[3].collider);
         const collisions = [_]?Physics.CollisionPoint{
             collision_0,
             collision_1,
@@ -230,7 +259,9 @@ const Runtime = struct {
             collision_3,
         };
 
-        self.ball.update(&self.borders, dt);
+        for (&self.balls) |*ball| {
+            ball.update(&self.borders, &self.balls, dt);
+        }
 
         const collision_color = Color.from_parts(255.0, 0.0, 0.0, 64.0);
         const no_collision_color = Color.from_parts(255.0, 255.0, 255.0, 64.0);
@@ -245,17 +276,6 @@ const Runtime = struct {
                     .x = @floatFromInt(self.texture_store.get_texture(self.texture_poll_table).width),
                     .y = @floatFromInt(self.texture_store.get_texture(self.texture_poll_table).height),
                 },
-            },
-            .{
-                .type = .{ .TextureId = self.texture_ball },
-                .transform = .{
-                    .position = self.ball.collider.position.extend(0.0),
-                },
-                .size = .{
-                    .x = 40.0,
-                    .y = 40.0,
-                },
-                .options = .{ .draw_aabb = true },
             },
             .{
                 .type = .{ .Color = if (collision_0) |_| collision_color else no_collision_color },
@@ -292,6 +312,30 @@ const Runtime = struct {
         };
 
         for (&objects) |*object| {
+            object.to_screen_quad(
+                &self.camera_controller,
+                &self.texture_store,
+                &self.screen_quads,
+            );
+        }
+
+        var ball_objects: [16]Object2d = undefined;
+        for (&self.balls, &ball_objects) |*ball, *bo| {
+            bo.* =
+                .{
+                .type = .{ .TextureId = self.texture_ball },
+                .transform = .{
+                    .position = ball.collider.position.extend(0.0),
+                },
+                .size = .{
+                    .x = 40.0,
+                    .y = 40.0,
+                },
+                .options = .{ .draw_aabb = true },
+            };
+        }
+
+        for (&ball_objects) |*object| {
             object.to_screen_quad(
                 &self.camera_controller,
                 &self.texture_store,
