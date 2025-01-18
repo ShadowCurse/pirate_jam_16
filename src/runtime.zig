@@ -46,10 +46,9 @@ const Ball = struct {
                 if (cp.normal.is_valid()) {
                     const proj = cp.normal.mul_f32(-self.velocity.dot(cp.normal));
                     self.velocity = self.velocity.add(proj.mul_f32(2.0));
-                    const point_on_the_circle =
-                        self.collider.position.add(cp.normal.mul_f32(self.collider.radius));
-                    const to_move = cp.position.sub(point_on_the_circle);
-                    self.collider.position = self.collider.position.sub(to_move);
+                    const new_positon =
+                        cp.position.add(cp.normal.mul_f32(self.collider.radius));
+                    self.collider.position = new_positon;
                 }
             }
         }
@@ -60,6 +59,52 @@ const Ball = struct {
 
 const Border = struct {
     collider: Physics.Rectangle,
+};
+
+const MouseDrag = struct {
+    active: bool = false,
+    sensitivity: f32 = 100.0,
+    v: Vec2 = .{},
+
+    pub fn update(
+        self: *MouseDrag,
+        events: []const Events.Event,
+        dt: f32,
+    ) ?Vec2 {
+        for (events) |event| {
+            switch (event) {
+                .Mouse => |mouse| {
+                    switch (mouse) {
+                        .Button => |button| {
+                            if (button.type == .Pressed) {
+                                self.active = true;
+                            } else {
+                                if (self.active) {
+                                    const v = self.v;
+                                    self.v = .{};
+                                    self.active = false;
+                                    return v;
+                                }
+                            }
+                        },
+                        .Motion => |motion| {
+                            if (self.active) {
+                                self.v = self.v.sub(.{
+                                    .x = @as(f32, @floatFromInt(motion.x)) *
+                                        self.sensitivity * dt,
+                                    .y = @as(f32, @floatFromInt(motion.y)) *
+                                        self.sensitivity * dt,
+                                });
+                            }
+                        },
+                        else => {},
+                    }
+                },
+                else => {},
+            }
+        }
+        return null;
+    }
 };
 
 const Runtime = struct {
@@ -74,6 +119,8 @@ const Runtime = struct {
 
     ball: Ball,
     borders: [4]Border,
+
+    mouse_drag: MouseDrag,
 
     const Self = @This();
 
@@ -125,6 +172,7 @@ const Runtime = struct {
                 },
             },
         };
+        self.mouse_drag = .{};
     }
 
     fn run(
@@ -139,29 +187,8 @@ const Runtime = struct {
 
         self.screen_quads.reset();
 
-        for (events) |event| {
-            switch (event) {
-                .Keyboard => |key| {
-                    if (key.type == .Pressed) {
-                        switch (key.key) {
-                            .UP => {
-                                self.ball.velocity.y -= 10.0;
-                            },
-                            .DOWN => {
-                                self.ball.velocity.y += 10.0;
-                            },
-                            .LEFT => {
-                                self.ball.velocity.x -= 10.0;
-                            },
-                            .RIGHT => {
-                                self.ball.velocity.x += 10.0;
-                            },
-                            else => {},
-                        }
-                    }
-                },
-                else => {},
-            }
+        if (self.mouse_drag.update(events, dt)) |v| {
+            self.ball.velocity = self.ball.velocity.add(v);
         }
 
         const collision_0 =
@@ -249,10 +276,11 @@ const Runtime = struct {
             0.0,
             &self.texture_store,
         );
+        const screen_size: Vec2 = .{ .x = @floatFromInt(width), .y = @floatFromInt(height) };
         for (collisions) |collision| {
             if (collision) |c| {
                 const c_position = c.position
-                    .add((Vec2{ .x = @floatFromInt(width), .y = @floatFromInt(height) }).mul_f32(0.5));
+                    .add(screen_size.mul_f32(0.5));
                 self.soft_renderer
                     .draw_color_rect(c_position, .{ .x = 5.0, .y = 5.0 }, Color.BLUE, false);
                 if (c.normal.is_valid()) {
@@ -260,6 +288,13 @@ const Runtime = struct {
                     self.soft_renderer.draw_line(c_position, c_normal_end, Color.GREEN);
                 }
             }
+        }
+        if (self.mouse_drag.active) {
+            self.soft_renderer.draw_line(
+                screen_size.mul_f32(0.5),
+                screen_size.mul_f32(0.5).add(self.mouse_drag.v),
+                Color.MAGENTA,
+            );
         }
         self.soft_renderer.end_rendering();
     }
