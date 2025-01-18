@@ -29,7 +29,11 @@ const Object2d = _objects.Object2d;
 
 const Runtime = struct {
     camera_controller: CameraController2d,
+
     texture_store: Textures.Store,
+    texture_poll_table: Textures.Texture.Id,
+    texture_ball: Textures.Texture.Id,
+
     screen_quads: ScreenQuads,
     soft_renderer: SoftRenderer,
 
@@ -44,6 +48,9 @@ const Runtime = struct {
     ) !void {
         self.camera_controller = CameraController2d.init(width, height);
         try self.texture_store.init(memory);
+        self.texture_poll_table = self.texture_store.load(memory, "assets/table_prototype.png");
+        self.texture_ball = self.texture_store.load(memory, "assets/ball_prototype.png");
+
         self.screen_quads = try ScreenQuads.init(memory, 2048);
         self.soft_renderer = SoftRenderer.init(memory, window, width, height);
     }
@@ -66,13 +73,23 @@ const Runtime = struct {
 
         const objects = [_]Object2d{
             .{
-                .type = .{ .Color = Color.ORAGE },
+                .type = .{ .TextureId = self.texture_poll_table },
                 .transform = .{
-                    .position = .{},
+                    .position = .{ .z = 0 },
                 },
                 .size = .{
-                    .x = 50.0,
-                    .y = 50.0,
+                    .x = @floatFromInt(self.texture_store.get_texture(self.texture_poll_table).width),
+                    .y = @floatFromInt(self.texture_store.get_texture(self.texture_poll_table).height),
+                },
+            },
+            .{
+                .type = .{ .TextureId = self.texture_ball },
+                .transform = .{
+                    .position = .{ .z = 0 },
+                },
+                .size = .{
+                    .x = 20.0,
+                    .y = 20.0,
                 },
             },
         };
