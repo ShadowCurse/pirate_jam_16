@@ -31,6 +31,20 @@ const Object2d = _objects.Object2d;
 const _math = stygian.math;
 const Vec2 = _math.Vec2;
 
+const TABLE_WIDTH = 896;
+const TABLE_HEIGTH = 514;
+const TABLE_BORDER = 66;
+
+const Ball = struct {
+    collider: Physics.Circle,
+    velocity: Vec2,
+    friction: f32,
+};
+
+const Border = struct {
+    collider: Physics.Rectangle,
+};
+
 const Runtime = struct {
     camera_controller: CameraController2d,
 
@@ -41,8 +55,8 @@ const Runtime = struct {
     screen_quads: ScreenQuads,
     soft_renderer: SoftRenderer,
 
-    circle: Physics.Circle,
-    rectangle: Physics.Rectangle,
+    ball: Ball,
+    borders: [4]Border,
 
     const Self = @This();
 
@@ -61,12 +75,38 @@ const Runtime = struct {
         self.screen_quads = try ScreenQuads.init(memory, 2048);
         self.soft_renderer = SoftRenderer.init(memory, window, width, height);
 
-        self.circle = .{
-            .radius = 20.0,
+        self.ball = .{
+            .collider = .{
+                .radius = 20.0,
+            },
+            .velocity = .{},
+            .friction = 5.0,
         };
-
-        self.rectangle = .{
-            .size = .{ .x = 80.0, .y = 80.0 },
+        self.borders = .{
+            .{
+                .collider = .{
+                    .position = .{ .x = -TABLE_WIDTH / 2 + TABLE_BORDER / 2 },
+                    .size = .{ .x = TABLE_BORDER, .y = TABLE_HEIGTH },
+                },
+            },
+            .{
+                .collider = .{
+                    .position = .{ .x = TABLE_WIDTH / 2 - TABLE_BORDER / 2 },
+                    .size = .{ .x = TABLE_BORDER, .y = TABLE_HEIGTH },
+                },
+            },
+            .{
+                .collider = .{
+                    .position = .{ .y = -TABLE_HEIGTH / 2 + TABLE_BORDER / 2 },
+                    .size = .{ .x = TABLE_WIDTH, .y = TABLE_BORDER },
+                },
+            },
+            .{
+                .collider = .{
+                    .position = .{ .y = TABLE_HEIGTH / 2 - TABLE_BORDER / 2 },
+                    .size = .{ .x = TABLE_WIDTH, .y = TABLE_BORDER },
+                },
+            },
         };
     }
 
@@ -89,16 +129,16 @@ const Runtime = struct {
                     if (key.type == .Pressed) {
                         switch (key.key) {
                             .UP => {
-                                self.circle.position.y -= 1.0;
+                                self.ball.collider.position.y -= 1.0;
                             },
                             .DOWN => {
-                                self.circle.position.y += 1.0;
+                                self.ball.collider.position.y += 1.0;
                             },
                             .LEFT => {
-                                self.circle.position.x -= 1.0;
+                                self.ball.collider.position.x -= 1.0;
                             },
                             .RIGHT => {
-                                self.circle.position.x += 1.0;
+                                self.ball.collider.position.x += 1.0;
                             },
                             else => {},
                         }
@@ -108,7 +148,17 @@ const Runtime = struct {
             }
         }
 
-        const collision = Physics.circle_rectangle_collision(self.circle, self.rectangle);
+        const collision_0 =
+            Physics.circle_rectangle_collision(self.ball.collider, self.borders[0].collider);
+        const collision_1 =
+            Physics.circle_rectangle_collision(self.ball.collider, self.borders[1].collider);
+        const collision_2 =
+            Physics.circle_rectangle_collision(self.ball.collider, self.borders[2].collider);
+        const collision_3 =
+            Physics.circle_rectangle_collision(self.ball.collider, self.borders[3].collider);
+
+        const collision_color = Color.from_parts(255.0, 0.0, 0.0, 64.0);
+        const no_collision_color = Color.from_parts(255.0, 255.0, 255.0, 64.0);
 
         const objects = [_]Object2d{
             .{
@@ -124,22 +174,45 @@ const Runtime = struct {
             .{
                 .type = .{ .TextureId = self.texture_ball },
                 .transform = .{
-                    .position = self.circle.position.extend(0.0),
+                    .position = self.ball.collider.position.extend(0.0),
                 },
                 .size = .{
                     .x = 40.0,
                     .y = 40.0,
                 },
+                .options = .{ .draw_aabb = true },
             },
             .{
-                .type = .{ .Color = if (collision) |_| Color.RED else Color.WHITE },
+                .type = .{ .Color = if (collision_0) |_| collision_color else no_collision_color },
                 .transform = .{
-                    .position = .{ .z = 0 },
+                    .position = self.borders[0].collider.position.extend(0.0),
                 },
-                .size = .{
-                    .x = 80.0,
-                    .y = 80.0,
+                .size = self.borders[0].collider.size,
+                .options = .{ .draw_aabb = true },
+            },
+            .{
+                .type = .{ .Color = if (collision_1) |_| collision_color else no_collision_color },
+                .transform = .{
+                    .position = self.borders[1].collider.position.extend(0.0),
                 },
+                .size = self.borders[1].collider.size,
+                .options = .{ .draw_aabb = true },
+            },
+            .{
+                .type = .{ .Color = if (collision_2) |_| collision_color else no_collision_color },
+                .transform = .{
+                    .position = self.borders[2].collider.position.extend(0.0),
+                },
+                .size = self.borders[2].collider.size,
+                .options = .{ .draw_aabb = true },
+            },
+            .{
+                .type = .{ .Color = if (collision_3) |_| collision_color else no_collision_color },
+                .transform = .{
+                    .position = self.borders[3].collider.position.extend(0.0),
+                },
+                .size = self.borders[3].collider.size,
+                .options = .{ .draw_aabb = true },
             },
         };
 
@@ -157,14 +230,16 @@ const Runtime = struct {
             0.0,
             &self.texture_store,
         );
-        if (collision) |c| {
-            const c_position = c.position
-                .add((Vec2{ .x = @floatFromInt(width), .y = @floatFromInt(height) }).mul_f32(0.5));
-            self.soft_renderer
-                .draw_color_rect(c_position, .{ .x = 5.0, .y = 5.0 }, Color.BLUE, false);
-            if (c.normal.is_valid()) {
-                const c_normal_end = c_position.add(c.normal.mul_f32(20.0));
-                self.soft_renderer.draw_line(c_position, c_normal_end, Color.GREEN);
+        for ([_]?Physics.CollisionPoint{ collision_0, collision_1, collision_2, collision_3 }) |collision| {
+            if (collision) |c| {
+                const c_position = c.position
+                    .add((Vec2{ .x = @floatFromInt(width), .y = @floatFromInt(height) }).mul_f32(0.5));
+                self.soft_renderer
+                    .draw_color_rect(c_position, .{ .x = 5.0, .y = 5.0 }, Color.BLUE, false);
+                if (c.normal.is_valid()) {
+                    const c_normal_end = c_position.add(c.normal.mul_f32(20.0));
+                    self.soft_renderer.draw_line(c_position, c_normal_end, Color.GREEN);
+                }
             }
         }
         self.soft_renderer.end_rendering();
