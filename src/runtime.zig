@@ -37,11 +37,15 @@ const Vec2 = _math.Vec2;
 
 const Ball = struct {
     id: u8,
+    texture_id: Textures.Texture.Id,
     collider: Physics.Circle,
-    previous_position: Vec2,
+    previous_positions: [PREVIOUS_POSITIONS]Vec2,
+    previous_position_index: u32,
     velocity: Vec2,
     friction: f32,
     disabled: bool = false,
+
+    const PREVIOUS_POSITIONS = 64;
 
     pub fn update(self: *Ball, allocator: Allocator, table: *const Table, balls: []const Ball, dt: f32) void {
         if (self.disabled)
@@ -88,7 +92,7 @@ const Ball = struct {
                     );
                 } else {
                     var prev_collider = self.collider;
-                    prev_collider.position = self.previous_position;
+                    prev_collider.position = self.previous_positions[self.previous_position_index];
                     const ncp =
                         Physics.circle_rectangle_closest_collision_point(
                         prev_collider,
@@ -106,6 +110,7 @@ const Ball = struct {
                 }
             }
         }
+
         if (collisions_n != 0) {
             log.info(
                 @src(),
@@ -131,11 +136,15 @@ const Ball = struct {
             self.velocity = self.velocity.add(proj.mul_f32(2.0));
             const new_positon =
                 avg_collision_position.add(avg_collision_normal.mul_f32(self.collider.radius));
-            self.previous_position = self.collider.position;
+            self.previous_positions[self.previous_position_index] = self.collider.position;
+            self.previous_position_index += 1;
+            self.previous_position_index %= PREVIOUS_POSITIONS;
             self.collider.position = new_positon;
         }
 
-        self.previous_position = self.collider.position;
+        self.previous_positions[self.previous_position_index] = self.collider.position;
+        self.previous_position_index += 1;
+        self.previous_position_index %= PREVIOUS_POSITIONS;
         self.collider.position = self.collider.position.add(self.velocity.mul_f32(dt));
         self.velocity = self.velocity.mul_f32(self.friction);
 
@@ -145,6 +154,57 @@ const Ball = struct {
             self.velocity = .{};
             self.disabled = true;
         }
+    }
+
+    fn to_object_2d(
+        self: Ball,
+    ) Object2d {
+        return .{
+            .type = .{ .TextureId = self.texture_id },
+            .transform = .{
+                .position = self.collider.position.extend(0.0),
+            },
+            .size = .{
+                .x = 40.0,
+                .y = 40.0,
+            },
+            // .options = .{ .draw_aabb = true, .no_scale_rotate = true },
+            .options = .{ .draw_aabb = true },
+        };
+    }
+
+    fn previous_positions_to_object_2d(self: Ball) [PREVIOUS_POSITIONS]Object2d {
+        var pp_objects: [PREVIOUS_POSITIONS]Object2d = undefined;
+        var pp_index = self.previous_position_index;
+        const id: u32 = @intCast(self.id);
+        const base_color = Color.from_parts(
+            @intCast((id * 64) % 255),
+            @intCast((id * 17) % 255),
+            @intCast((id * 33) % 255),
+            0,
+        );
+        for (&pp_objects, 0..) |*o, i| {
+            const previous_position = self.previous_positions[pp_index];
+            var color = base_color;
+            color.format.a = @as(u8, @intCast(i)) * 2;
+            o.* = .{
+                .type = .{ .TextureId = self.texture_id },
+                .tint = color,
+                .transform = .{
+                    .position = previous_position.extend(0.0),
+                },
+                .size = .{
+                    .x = 40.0,
+                    .y = 40.0,
+                },
+                // .options = .{ .with_tint = true, .draw_aabb = true, .no_scale_rotate = true },
+                .options = .{ .with_tint = true },
+                // .options = .{ .draw_aabb = true, .no_scale_rotate = true },
+            };
+            pp_index += 1;
+            pp_index %= PREVIOUS_POSITIONS;
+        }
+        return pp_objects;
     }
 };
 
@@ -311,7 +371,7 @@ const Runtime = struct {
 
         self.font = Font.init(memory, &self.texture_store, "assets/Hack-Regular.ttf", 64);
 
-        self.screen_quads = try ScreenQuads.init(memory, 2048);
+        self.screen_quads = try ScreenQuads.init(memory, 4096);
         self.soft_renderer = SoftRenderer.init(memory, window, width, height);
 
         for (&self.balls, 0..) |*ball, i| {
@@ -323,11 +383,13 @@ const Runtime = struct {
             };
             ball.* = .{
                 .id = @intCast(i),
+                .texture_id = self.texture_ball,
                 .collider = .{
                     .position = position,
                     .radius = 20.0,
                 },
-                .previous_position = .{},
+                .previous_positions = [_]Vec2{position} ** 64,
+                .previous_position_index = 0,
                 .velocity = .{},
                 .friction = 0.95,
             };
@@ -386,28 +448,21 @@ const Runtime = struct {
             &self.screen_quads,
         );
 
-        var ball_objects: [4]Object2d = undefined;
-        for (&self.balls, &ball_objects) |*ball, *bo| {
-            bo.* =
-                .{
-                .type = .{ .TextureId = self.texture_ball },
-                .transform = .{
-                    .position = ball.collider.position.extend(0.0),
-                },
-                .size = .{
-                    .x = 40.0,
-                    .y = 40.0,
-                },
-                .options = .{ .draw_aabb = true },
-            };
-        }
-
-        for (&ball_objects) |*object| {
-            object.to_screen_quad(
+        for (&self.balls) |*ball| {
+            const bo = ball.to_object_2d();
+            bo.to_screen_quad(
                 &self.camera_controller,
                 &self.texture_store,
                 &self.screen_quads,
             );
+            const pbo = ball.previous_positions_to_object_2d();
+            for (&pbo) |pb| {
+                pb.to_screen_quad(
+                    &self.camera_controller,
+                    &self.texture_store,
+                    &self.screen_quads,
+                );
+            }
         }
 
         const text_fps = Text.init(
@@ -433,13 +488,20 @@ const Runtime = struct {
                 &self.font,
                 std.fmt.allocPrint(
                     frame_alloc,
-                    "ball id: {d}, position: {d: >8.1}/{d: >8.1}, disabled: {}",
-                    .{ ball.id, ball.collider.position.x, ball.collider.position.y, ball.disabled },
+                    "ball id: {d}, position: {d: >8.1}/{d: >8.1}, disabled: {}, p_index: {d: >2}",
+                    .{
+                        ball.id,
+                        ball.collider.position.x,
+                        ball.collider.position.y,
+                        ball.disabled,
+                        ball.previous_position_index,
+                    },
                 ) catch unreachable,
                 25.0,
                 .{
-                    .x = @as(f32, @floatFromInt(width)) / 2.0 + 100.0,
-                    .y = @as(f32, @floatFromInt(height)) / 2.0 + 200.0 + 25.0 * @as(f32, @floatFromInt(i)),
+                    .x = @as(f32, @floatFromInt(width)) / 2.0 + 300.0,
+                    .y = @as(f32, @floatFromInt(height)) / 2.0 + 200.0 +
+                        25.0 * @as(f32, @floatFromInt(i)),
                 },
                 0.0,
                 .{},
