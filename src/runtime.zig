@@ -12,7 +12,7 @@ pub const log_options = log.Options{
 const Tracing = stygian.tracing;
 pub const tracing_options = Tracing.Options{
     .max_measurements = 256,
-    .enabled = false,
+    .enabled = true,
 };
 
 const sdl = stygian.bindings.sdl;
@@ -34,6 +34,51 @@ const Object2d = _objects.Object2d;
 
 const _math = stygian.math;
 const Vec2 = _math.Vec2;
+
+const UiRect = struct {
+    text: Text,
+
+    pub fn init(position: Vec2, font: *const Font, text: []const u8, text_size: f32) UiRect {
+        return .{
+            .text = Text.init(
+                font,
+                text,
+                text_size,
+                position.extend(0.0),
+                0.0,
+                .{},
+                .{ .dont_clip = true },
+            ),
+        };
+    }
+
+    pub fn to_screen_quads(
+        self: UiRect,
+        allocator: Allocator,
+        mouse_pos: Vec2,
+        screen_quads: *ScreenQuads,
+    ) bool {
+        const text_quads = self.text.to_screen_quads_raw(allocator);
+        const collision_rectangle: Physics.Rectangle = .{
+            .position = self.text.position.xy().add(.{ .y = -self.text.size / 2.0 }),
+            .size = .{
+                .x = text_quads.total_width,
+                .y = self.text.size,
+            },
+        };
+        const intersects = Physics.point_rectangle_intersect(mouse_pos, collision_rectangle);
+        if (intersects) {
+            for (text_quads.quads) |*quad| {
+                quad.color = Color.RED;
+                quad.options.with_tint = true;
+            }
+        }
+        for (text_quads.quads) |quad| {
+            screen_quads.add_quad(quad);
+        }
+        return intersects;
+    }
+};
 
 const Ball = struct {
     id: u8,
@@ -350,6 +395,9 @@ const Runtime = struct {
     screen_quads: ScreenQuads,
     soft_renderer: SoftRenderer,
 
+    show_perf_hover: bool,
+    show_perf: bool,
+
     balls: [4]Ball,
     table: Table,
 
@@ -373,6 +421,9 @@ const Runtime = struct {
 
         self.screen_quads = try ScreenQuads.init(memory, 4096);
         self.soft_renderer = SoftRenderer.init(memory, window, width, height);
+
+        self.show_perf_hover = false;
+        self.show_perf = false;
 
         for (&self.balls, 0..) |*ball, i| {
             const row: f32 = @floatFromInt(@divFloor(i, 4));
@@ -412,23 +463,40 @@ const Runtime = struct {
         const frame_alloc = memory.frame_alloc();
         self.screen_quads.reset();
 
-        Tracing.prepare_next_frame(struct {
-            SoftRenderer,
-            ScreenQuads,
-            _objects,
-        });
-        Tracing.to_screen_quads(
-            struct { SoftRenderer, ScreenQuads, _objects },
-            frame_alloc,
-            &self.screen_quads,
-            &self.font,
-            32.0,
-        );
-        Tracing.zero_current(struct {
-            SoftRenderer,
-            ScreenQuads,
-            _objects,
-        });
+        if (self.show_perf) {
+            Tracing.prepare_next_frame(struct {
+                SoftRenderer,
+                ScreenQuads,
+                _objects,
+            });
+            Tracing.to_screen_quads(
+                struct { SoftRenderer, ScreenQuads, _objects },
+                frame_alloc,
+                &self.screen_quads,
+                &self.font,
+                32.0,
+            );
+            Tracing.zero_current(struct {
+                SoftRenderer,
+                ScreenQuads,
+                _objects,
+            });
+        }
+
+        for (events) |event| {
+            switch (event) {
+                .Mouse => |mouse| {
+                    switch (mouse) {
+                        .Button => |button| {
+                            if (self.show_perf_hover and button.type == .Pressed)
+                                self.show_perf = !self.show_perf;
+                        },
+                        else => {},
+                    }
+                },
+                else => {},
+            }
+        }
 
         if (self.mouse_drag.update(events, dt)) |v| {
             for (&self.balls) |*ball| {
@@ -467,23 +535,25 @@ const Runtime = struct {
             }
         }
 
-        const text_fps = Text.init(
+        const ui_rect = UiRect.init(
+            .{
+                .x = @as(f32, @floatFromInt(window_width)) / 2.0,
+                .y = @as(f32, @floatFromInt(window_height)) / 2.0 + 300.0,
+            },
             &self.font,
+
             std.fmt.allocPrint(
                 frame_alloc,
                 "FPS: {d:.1} FT: {d:.3}s, mouse_pos: {d}:{d}",
                 .{ 1.0 / dt, dt, mouse_x, mouse_y },
             ) catch unreachable,
             32.0,
-            .{
-                .x = @as(f32, @floatFromInt(window_width)) / 2.0,
-                .y = @as(f32, @floatFromInt(window_height)) / 2.0 + 300.0,
-            },
-            0.0,
-            .{},
-            .{ .dont_clip = true },
         );
-        text_fps.to_screen_quads(frame_alloc, &self.screen_quads);
+        self.show_perf_hover = ui_rect.to_screen_quads(
+            frame_alloc,
+            .{ .x = @floatFromInt(mouse_x), .y = @floatFromInt(mouse_y) },
+            &self.screen_quads,
+        );
 
         for (&self.balls, 0..) |*ball, i| {
             const text_ball_info = Text.init(
