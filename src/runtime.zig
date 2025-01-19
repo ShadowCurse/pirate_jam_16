@@ -98,14 +98,16 @@ const MouseDrag = struct {
                 .Mouse => |mouse| {
                     switch (mouse) {
                         .Button => |button| {
-                            if (button.type == .Pressed) {
-                                self.active = true;
-                            } else {
-                                if (self.active) {
-                                    const v = self.v;
-                                    self.v = .{};
-                                    self.active = false;
-                                    return v;
+                            if (button.key == .RMB) {
+                                if (button.type == .Pressed) {
+                                    self.active = true;
+                                } else {
+                                    if (self.active) {
+                                        const v = self.v;
+                                        self.v = .{};
+                                        self.active = false;
+                                        return v;
+                                    }
                                 }
                             }
                         },
@@ -294,13 +296,14 @@ const Runtime = struct {
             Tracing.zero_current(TaceableTypes);
         }
 
-        var mouse_button_pressed = false;
+        var lmb_pressed = false;
         for (events) |event| {
             switch (event) {
                 .Mouse => |mouse| {
                     switch (mouse) {
                         .Button => |button| {
-                            mouse_button_pressed = button.type == .Pressed;
+                            if (button.key == .LMB)
+                                lmb_pressed = button.type == .Pressed;
                         },
                         else => {},
                     }
@@ -310,9 +313,8 @@ const Runtime = struct {
         }
 
         if (self.mouse_drag.update(events, dt)) |v| {
-            for (&self.balls) |*ball| {
-                if (ball.disabled)
-                    continue;
+            if (self.selected_ball) |sb| {
+                const ball = &self.balls[sb];
                 ball.velocity = ball.velocity.add(v);
             }
         }
@@ -355,7 +357,10 @@ const Runtime = struct {
 
         var new_ball_selected: bool = false;
         for (&self.balls) |*ball| {
-            if (ball.is_hovered(mouse_pos_world) and mouse_button_pressed) {
+            if (ball.disabled)
+                continue;
+
+            if (ball.is_hovered(mouse_pos_world) and lmb_pressed) {
                 new_ball_selected = true;
                 self.selected_ball = ball.id;
             }
@@ -378,7 +383,7 @@ const Runtime = struct {
                 }
             }
         }
-        if (!new_ball_selected and mouse_button_pressed)
+        if (!new_ball_selected and lmb_pressed)
             self.selected_ball = null;
 
         const ui_rect = UiRect.init(
@@ -399,7 +404,7 @@ const Runtime = struct {
             frame_alloc,
             mouse_pos,
             &self.screen_quads,
-        ) and mouse_button_pressed)
+        ) and lmb_pressed)
             self.show_perf = !self.show_perf;
 
         for (&self.balls, 0..) |*ball, i| {
