@@ -140,11 +140,11 @@ const Runtime = struct {
     screen_quads: ScreenQuads,
     soft_renderer: SoftRenderer,
 
-    show_perf_hover: bool,
-    show_perf: bool,
-
     balls: [4]Ball,
     table: Table,
+
+    show_perf: bool,
+    selected_ball: ?u32,
 
     mouse_drag: MouseDrag,
 
@@ -166,9 +166,6 @@ const Runtime = struct {
 
         self.screen_quads = try ScreenQuads.init(memory, 4096);
         self.soft_renderer = SoftRenderer.init(memory, window, width, height);
-
-        self.show_perf_hover = false;
-        self.show_perf = false;
 
         for (&self.balls, 0..) |*ball, i| {
             const row: f32 = @floatFromInt(@divFloor(i, 4));
@@ -192,6 +189,9 @@ const Runtime = struct {
         }
         self.table = Table.init(self.texture_poll_table);
 
+        self.show_perf = false;
+        self.selected_ball = null;
+
         self.mouse_drag = .{};
     }
 
@@ -207,6 +207,9 @@ const Runtime = struct {
     ) void {
         const frame_alloc = memory.frame_alloc();
         self.screen_quads.reset();
+
+        const mouse_pos: Vec2 = .{ .x = @floatFromInt(mouse_x), .y = @floatFromInt(mouse_y) };
+        const mouse_pos_world = mouse_pos.add(self.camera_controller.position.xy());
 
         if (self.show_perf) {
             const TaceableTypes = struct {
@@ -226,13 +229,13 @@ const Runtime = struct {
             Tracing.zero_current(TaceableTypes);
         }
 
+        var mouse_button_pressed = false;
         for (events) |event| {
             switch (event) {
                 .Mouse => |mouse| {
                     switch (mouse) {
                         .Button => |button| {
-                            if (self.show_perf_hover and button.type == .Pressed)
-                                self.show_perf = !self.show_perf;
+                            mouse_button_pressed = button.type == .Pressed;
                         },
                         else => {},
                     }
@@ -261,22 +264,33 @@ const Runtime = struct {
             &self.screen_quads,
         );
 
+        var new_ball_selected: bool = false;
         for (&self.balls) |*ball| {
+            if (ball.is_hovered(mouse_pos_world) and mouse_button_pressed) {
+                new_ball_selected = true;
+                self.selected_ball = ball.id;
+            }
             const bo = ball.to_object_2d();
             bo.to_screen_quad(
                 &self.camera_controller,
                 &self.texture_store,
                 &self.screen_quads,
             );
-            const pbo = ball.previous_positions_to_object_2d();
-            for (&pbo) |pb| {
-                pb.to_screen_quad(
-                    &self.camera_controller,
-                    &self.texture_store,
-                    &self.screen_quads,
-                );
+            if (self.selected_ball) |sb| {
+                if (ball.id == sb) {
+                    const pbo = ball.previous_positions_to_object_2d();
+                    for (&pbo) |pb| {
+                        pb.to_screen_quad(
+                            &self.camera_controller,
+                            &self.texture_store,
+                            &self.screen_quads,
+                        );
+                    }
+                }
             }
         }
+        if (!new_ball_selected and mouse_button_pressed)
+            self.selected_ball = null;
 
         const ui_rect = UiRect.init(
             .{
@@ -292,11 +306,12 @@ const Runtime = struct {
             ) catch unreachable,
             32.0,
         );
-        self.show_perf_hover = ui_rect.to_screen_quads(
+        if (ui_rect.to_screen_quads(
             frame_alloc,
-            .{ .x = @floatFromInt(mouse_x), .y = @floatFromInt(mouse_y) },
+            mouse_pos,
             &self.screen_quads,
-        );
+        ) and mouse_button_pressed)
+            self.show_perf = !self.show_perf;
 
         for (&self.balls, 0..) |*ball, i| {
             const text_ball_info = Text.init(

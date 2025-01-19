@@ -153,9 +153,11 @@ pub const Ball = struct {
         }
     }
 
-    pub fn to_object_2d(
-        self: Ball,
-    ) Object2d {
+    pub fn is_hovered(self: Ball, mouse_pos: Vec2) bool {
+        return Physics.point_circle_intersect(mouse_pos, self.collider);
+    }
+
+    pub fn to_object_2d(self: Ball) Object2d {
         const trace_start = trace.start();
         defer trace.end(@src(), trace_start);
 
@@ -202,7 +204,6 @@ pub const Ball = struct {
                 },
                 // .options = .{ .with_tint = true, .draw_aabb = true, .no_scale_rotate = true },
                 .options = .{ .with_tint = true },
-                // .options = .{ .draw_aabb = true, .no_scale_rotate = true },
             };
             pp_index += 1;
             pp_index %= PREVIOUS_POSITIONS;
