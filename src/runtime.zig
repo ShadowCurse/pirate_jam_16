@@ -404,8 +404,10 @@ const Runtime = struct {
         memory: *Memory,
         dt: f32,
         events: []const Events.Event,
-        width: i32,
-        height: i32,
+        window_width: u32,
+        window_height: u32,
+        mouse_x: u32,
+        mouse_y: u32,
     ) void {
         const frame_alloc = memory.frame_alloc();
         self.screen_quads.reset();
@@ -469,19 +471,19 @@ const Runtime = struct {
             &self.font,
             std.fmt.allocPrint(
                 frame_alloc,
-                "FPS: {d:.1} FT: {d:.3}s",
-                .{ 1.0 / dt, dt },
+                "FPS: {d:.1} FT: {d:.3}s, mouse_pos: {d}:{d}",
+                .{ 1.0 / dt, dt, mouse_x, mouse_y },
             ) catch unreachable,
             32.0,
             .{
-                .x = @as(f32, @floatFromInt(width)) / 2.0,
-                .y = @as(f32, @floatFromInt(height)) / 2.0 + 300.0,
+                .x = @as(f32, @floatFromInt(window_width)) / 2.0,
+                .y = @as(f32, @floatFromInt(window_height)) / 2.0 + 300.0,
             },
             0.0,
             .{},
             .{ .dont_clip = true },
         );
-        text_fps.to_screen_quads(&self.screen_quads);
+        text_fps.to_screen_quads(frame_alloc, &self.screen_quads);
 
         for (&self.balls, 0..) |*ball, i| {
             const text_ball_info = Text.init(
@@ -499,15 +501,15 @@ const Runtime = struct {
                 ) catch unreachable,
                 25.0,
                 .{
-                    .x = @as(f32, @floatFromInt(width)) / 2.0 + 300.0,
-                    .y = @as(f32, @floatFromInt(height)) / 2.0 + 200.0 +
+                    .x = @as(f32, @floatFromInt(window_width)) / 2.0,
+                    .y = @as(f32, @floatFromInt(window_height)) / 2.0 + 200.0 +
                         25.0 * @as(f32, @floatFromInt(i)),
                 },
                 0.0,
                 .{},
                 .{ .dont_clip = true },
             );
-            text_ball_info.to_screen_quads(&self.screen_quads);
+            text_ball_info.to_screen_quads(frame_alloc, &self.screen_quads);
         }
 
         self.soft_renderer.start_rendering();
@@ -516,7 +518,10 @@ const Runtime = struct {
             0.0,
             &self.texture_store,
         );
-        const screen_size: Vec2 = .{ .x = @floatFromInt(width), .y = @floatFromInt(height) };
+        const screen_size: Vec2 = .{
+            .x = @floatFromInt(window_width),
+            .y = @floatFromInt(window_height),
+        };
         // for (collisions) |collision| {
         //     if (collision) |c| {
         //         const c_position = c.position
@@ -555,18 +560,36 @@ pub export fn runtime_main(
     events.len = events_len;
     var runtime_ptr: ?*Runtime = @alignCast(@ptrCast(data));
 
-    var width: i32 = undefined;
-    var height: i32 = undefined;
-    sdl.SDL_GetWindowSize(window, &width, &height);
+    var window_width: i32 = undefined;
+    var window_height: i32 = undefined;
+    sdl.SDL_GetWindowSize(window, &window_width, &window_height);
+
+    const window_width_u32: u32 = @intCast(window_width);
+    const window_height_u32: u32 = @intCast(window_height);
+
+    var mouse_x: i32 = undefined;
+    var mouse_y: i32 = undefined;
+    _ = sdl.SDL_GetMouseState(&mouse_x, &mouse_y);
+
+    const mouse_x_u32: u32 = @intCast(mouse_x);
+    const mouse_y_u32: u32 = @intCast(mouse_y);
 
     if (runtime_ptr == null) {
         log.info(@src(), "First time runtime init", .{});
         const game_alloc = memory.game_alloc();
         runtime_ptr = game_alloc.create(Runtime) catch unreachable;
-        runtime_ptr.?.init(window, memory, @intCast(width), @intCast(height)) catch unreachable;
+        runtime_ptr.?.init(window, memory, window_width_u32, window_height_u32) catch unreachable;
     } else {
         var runtime = runtime_ptr.?;
-        runtime.run(memory, dt, events, width, height);
+        runtime.run(
+            memory,
+            dt,
+            events,
+            window_width_u32,
+            window_height_u32,
+            mouse_x_u32,
+            mouse_y_u32,
+        );
     }
     return @ptrCast(runtime_ptr);
 }
