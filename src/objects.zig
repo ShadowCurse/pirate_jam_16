@@ -213,55 +213,135 @@ pub const Ball = struct {
 };
 
 pub const Table = struct {
-    borders: [4]Border,
     texture_id: Textures.Texture.Id,
+    borders: [6]Border,
+    pockets: [6]Pocket,
 
     pub const WIDTH = 896;
     pub const HEIGTH = 514;
     pub const BORDER = 66;
+    pub const POCKET_GAP = 60;
+    pub const POCKET_RADIUS = 60;
+    pub const POCKET_CORNER_OFFSET = 30;
 
     pub const Border = struct {
         collider: Physics.Rectangle,
     };
 
+    pub const Pocket = struct {
+        collider: Physics.Circle,
+    };
+
     pub const trace = Tracing.Measurements(struct {
         to_screen_quad: Tracing.Counter,
         borders_to_screen_quads: Tracing.Counter,
+        pockets_to_screen_quads: Tracing.Counter,
     });
 
     pub fn init(texture_id: Textures.Texture.Id) Table {
         return .{
+            .texture_id = texture_id,
             .borders = .{
                 // left
                 .{
                     .collider = .{
                         .position = .{ .x = -WIDTH / 2 + BORDER / 2 },
-                        .size = .{ .x = BORDER, .y = HEIGTH },
+                        .size = .{ .x = BORDER, .y = HEIGTH - POCKET_GAP * 3.0 },
                     },
                 },
                 // right
                 .{
                     .collider = .{
                         .position = .{ .x = WIDTH / 2 - BORDER / 2 },
-                        .size = .{ .x = BORDER, .y = HEIGTH },
+                        .size = .{ .x = BORDER, .y = HEIGTH - POCKET_GAP * 3.0 },
                     },
                 },
-                // bottom
+                // bottom left
                 .{
                     .collider = .{
-                        .position = .{ .y = -HEIGTH / 2 + BORDER / 2 },
-                        .size = .{ .x = WIDTH, .y = BORDER },
+                        .position = .{ .x = -WIDTH / 4 + POCKET_GAP / 2, .y = -HEIGTH / 2 + BORDER / 2 },
+                        .size = .{ .x = WIDTH / 2 - POCKET_GAP * 2, .y = BORDER },
                     },
                 },
-                // top
+                // bottom right
                 .{
                     .collider = .{
-                        .position = .{ .y = HEIGTH / 2 - BORDER / 2 },
-                        .size = .{ .x = WIDTH, .y = BORDER },
+                        .position = .{ .x = WIDTH / 4 - POCKET_GAP / 2, .y = -HEIGTH / 2 + BORDER / 2 },
+                        .size = .{ .x = WIDTH / 2 - POCKET_GAP * 2, .y = BORDER },
+                    },
+                },
+
+                // top left
+                .{
+                    .collider = .{
+                        .position = .{ .x = -WIDTH / 4 + POCKET_GAP / 2, .y = HEIGTH / 2 - BORDER / 2 },
+                        .size = .{ .x = WIDTH / 2 - POCKET_GAP * 2, .y = BORDER },
+                    },
+                },
+                // top right
+                .{
+                    .collider = .{
+                        .position = .{ .x = WIDTH / 4 - POCKET_GAP / 2, .y = HEIGTH / 2 - BORDER / 2 },
+                        .size = .{ .x = WIDTH / 2 - POCKET_GAP * 2, .y = BORDER },
                     },
                 },
             },
-            .texture_id = texture_id,
+            .pockets = .{
+                // bot left
+                .{
+                    .collider = .{
+                        .position = .{
+                            .x = -WIDTH / 2 + POCKET_CORNER_OFFSET,
+                            .y = -HEIGTH / 2 + POCKET_CORNER_OFFSET,
+                        },
+                        .radius = POCKET_RADIUS,
+                    },
+                },
+                // bot middle
+                .{
+                    .collider = .{
+                        .position = .{ .y = -HEIGTH / 2 },
+                        .radius = POCKET_RADIUS,
+                    },
+                },
+                // bot right
+                .{
+                    .collider = .{
+                        .position = .{
+                            .x = WIDTH / 2 - POCKET_CORNER_OFFSET,
+                            .y = -HEIGTH / 2 + POCKET_CORNER_OFFSET,
+                        },
+                        .radius = POCKET_RADIUS,
+                    },
+                },
+                // top left
+                .{
+                    .collider = .{
+                        .position = .{
+                            .x = -WIDTH / 2 + POCKET_CORNER_OFFSET,
+                            .y = HEIGTH / 2 - POCKET_CORNER_OFFSET,
+                        },
+                        .radius = POCKET_RADIUS,
+                    },
+                },
+                // top middle
+                .{
+                    .collider = .{
+                        .position = .{ .y = HEIGTH / 2 },
+                        .radius = POCKET_RADIUS,
+                    },
+                },
+                // tob right
+                .{
+                    .collider = .{
+                        .position = .{
+                            .x = WIDTH / 2 - POCKET_CORNER_OFFSET,
+                            .y = HEIGTH / 2 - POCKET_CORNER_OFFSET,
+                        },
+                        .radius = POCKET_RADIUS,
+                    },
+                },
+            },
         };
     }
 
@@ -302,6 +382,31 @@ pub const Table = struct {
                 .texture_id = Textures.Texture.ID_SOLID_COLOR,
                 .position = position.xy().extend(0.0),
                 .size = border.collider.size.mul_f32(position.z),
+                .options = .{ .draw_aabb = true },
+            });
+        }
+    }
+
+    pub fn pockets_to_screen_quads(
+        self: Table,
+        camera_controller: *const CameraController2d,
+        screen_quads: *ScreenQuads,
+    ) void {
+        const trace_start = trace.start();
+        defer trace.end(@src(), trace_start);
+
+        const pocket_color = Color.from_parts(64.0, 255.0, 64.0, 64.0);
+        for (&self.pockets) |*pocket| {
+            const position = camera_controller.transform(pocket.collider.position.extend(0.0));
+            const size: Vec2 = .{
+                .x = pocket.collider.radius * 2.0,
+                .y = pocket.collider.radius * 2.0,
+            };
+            screen_quads.add_quad(.{
+                .color = pocket_color,
+                .texture_id = Textures.Texture.ID_SOLID_COLOR,
+                .position = position.xy().extend(0.0),
+                .size = size.mul_f32(position.z),
                 .options = .{ .draw_aabb = true },
             });
         }

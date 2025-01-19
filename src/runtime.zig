@@ -263,6 +263,10 @@ const Runtime = struct {
             &self.camera_controller,
             &self.screen_quads,
         );
+        self.table.pockets_to_screen_quads(
+            &self.camera_controller,
+            &self.screen_quads,
+        );
 
         var new_ball_selected: bool = false;
         for (&self.balls) |*ball| {
