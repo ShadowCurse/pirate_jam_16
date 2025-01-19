@@ -1,6 +1,8 @@
 const std = @import("std");
 const stygian = @import("stygian_runtime");
 
+const Allocator = std.mem.Allocator;
+
 const log = stygian.log;
 // This configures log level for the runtime
 pub const log_options = log.Options{
@@ -18,6 +20,8 @@ const sdl = stygian.bindings.sdl;
 const Color = stygian.color.Color;
 const ScreenQuads = stygian.screen_quads;
 
+const Text = stygian.text;
+const Font = stygian.font;
 const Memory = stygian.memory;
 const Physics = stygian.physics;
 const Textures = stygian.textures;
@@ -31,18 +35,22 @@ const Object2d = _objects.Object2d;
 const _math = stygian.math;
 const Vec2 = _math.Vec2;
 
-const TABLE_WIDTH = 896;
-const TABLE_HEIGTH = 514;
-const TABLE_BORDER = 66;
-
 const Ball = struct {
     id: u8,
     collider: Physics.Circle,
     previous_position: Vec2,
     velocity: Vec2,
     friction: f32,
+    disabled: bool = false,
 
-    pub fn update(self: *Ball, borders: []const Border, balls: []const Ball, dt: f32) void {
+    pub fn update(self: *Ball, allocator: Allocator, table: *const Table, balls: []const Ball, dt: f32) void {
+        if (self.disabled)
+            return;
+
+        const collisions =
+            allocator.alloc(Physics.CollisionPoint, table.borders.len + balls.len) catch unreachable;
+        var collisions_n: u32 = 0;
+
         for (balls) |*ball| {
             if (self.id == ball.id)
                 continue;
@@ -50,26 +58,34 @@ const Ball = struct {
                 Physics.circle_circle_collision(self.collider, ball.collider);
             if (collision_point) |cp| {
                 if (cp.normal.is_valid()) {
-                    const proj = cp.normal.mul_f32(-self.velocity.dot(cp.normal));
-                    self.velocity = self.velocity.add(proj.mul_f32(2.0));
-                    const new_positon =
-                        cp.position.add(cp.normal.mul_f32(self.collider.radius));
-                    self.previous_position = self.collider.position;
-                    self.collider.position = new_positon;
+                    collisions[collisions_n] = cp;
+                    collisions_n += 1;
+                    log.info(
+                        @src(),
+                        "collision of ball: {d} and ball: {d}",
+                        .{ self.id, ball.id },
+                    );
+                } else {
+                    log.info(
+                        @src(),
+                        "invalid normal for collision of ball: {d} and ball: {d}",
+                        .{ self.id, ball.id },
+                    );
                 }
             }
         }
-        for (borders) |*border| {
+        for (&table.borders, 0..) |*border, i| {
             const collision_point =
                 Physics.circle_rectangle_collision(self.collider, border.collider);
             if (collision_point) |cp| {
                 if (cp.normal.is_valid()) {
-                    const proj = cp.normal.mul_f32(-self.velocity.dot(cp.normal));
-                    self.velocity = self.velocity.add(proj.mul_f32(2.0));
-                    const new_positon =
-                        cp.position.add(cp.normal.mul_f32(self.collider.radius));
-                    self.previous_position = self.collider.position;
-                    self.collider.position = new_positon;
+                    collisions[collisions_n] = cp;
+                    collisions_n += 1;
+                    log.info(
+                        @src(),
+                        "collision of ball: {d} and border: {d}",
+                        .{ self.id, i },
+                    );
                 } else {
                     var prev_collider = self.collider;
                     prev_collider.position = self.previous_position;
@@ -78,23 +94,143 @@ const Ball = struct {
                         prev_collider,
                         border.collider,
                     );
-                    const proj = ncp.normal.mul_f32(-self.velocity.dot(ncp.normal));
-                    self.velocity = self.velocity.add(proj.mul_f32(2.0));
-                    const new_positon =
-                        ncp.position.add(ncp.normal.mul_f32(self.collider.radius));
-                    self.previous_position = self.collider.position;
-                    self.collider.position = new_positon;
+                    if (!ncp.normal.is_valid()) @panic("wtf");
+
+                    collisions[collisions_n] = cp;
+                    collisions_n += 1;
+                    log.info(
+                        @src(),
+                        "invalid normal for collision of ball: {d} and border: {d}",
+                        .{ self.id, i },
+                    );
                 }
             }
         }
+        if (collisions_n != 0) {
+            log.info(
+                @src(),
+                "resolving {d} collisions for ball: {d}",
+                .{ collisions_n, self.id },
+            );
+
+            var avg_collision_position: Vec2 = .{};
+            var avg_collision_normal: Vec2 = .{};
+            for (collisions[0..collisions_n]) |*collision| {
+                if (!collision.normal.is_valid())
+                    continue;
+                avg_collision_position = avg_collision_position.add(collision.position);
+                avg_collision_normal = avg_collision_normal.add(collision.normal);
+            }
+            log.assert(@src(), avg_collision_position.is_valid(), "", .{});
+            log.assert(@src(), avg_collision_normal.is_valid(), "", .{});
+
+            avg_collision_position = avg_collision_position.mul_f32(1.0 / @as(f32, @floatFromInt(collisions_n)));
+            avg_collision_normal = avg_collision_normal.mul_f32(1.0 / @as(f32, @floatFromInt(collisions_n)));
+
+            const proj = avg_collision_normal.mul_f32(-self.velocity.dot(avg_collision_normal));
+            self.velocity = self.velocity.add(proj.mul_f32(2.0));
+            const new_positon =
+                avg_collision_position.add(avg_collision_normal.mul_f32(self.collider.radius));
+            self.previous_position = self.collider.position;
+            self.collider.position = new_positon;
+        }
+
         self.previous_position = self.collider.position;
         self.collider.position = self.collider.position.add(self.velocity.mul_f32(dt));
         self.velocity = self.velocity.mul_f32(self.friction);
+
+        if (self.collider.position.x < -Table.WIDTH / 2.0 or Table.WIDTH / 2.0 < self.collider.position.x or
+            self.collider.position.y < -Table.HEIGTH / 2.0 or Table.HEIGTH / 2.0 < self.collider.position.y)
+        {
+            self.velocity = .{};
+            self.disabled = true;
+        }
     }
 };
 
-const Border = struct {
-    collider: Physics.Rectangle,
+const Table = struct {
+    borders: [4]Border,
+    texture_id: Textures.Texture.Id,
+
+    const WIDTH = 896;
+    const HEIGTH = 514;
+    const BORDER = 66;
+
+    const Border = struct {
+        collider: Physics.Rectangle,
+    };
+
+    fn init(texture_id: Textures.Texture.Id) Table {
+        return .{
+            .borders = .{
+                // left
+                .{
+                    .collider = .{
+                        .position = .{ .x = -WIDTH / 2 + BORDER / 2 },
+                        .size = .{ .x = BORDER, .y = HEIGTH },
+                    },
+                },
+                // right
+                .{
+                    .collider = .{
+                        .position = .{ .x = WIDTH / 2 - BORDER / 2 },
+                        .size = .{ .x = BORDER, .y = HEIGTH },
+                    },
+                },
+                // bottom
+                .{
+                    .collider = .{
+                        .position = .{ .y = -HEIGTH / 2 + BORDER / 2 },
+                        .size = .{ .x = WIDTH, .y = BORDER },
+                    },
+                },
+                // top
+                .{
+                    .collider = .{
+                        .position = .{ .y = HEIGTH / 2 - BORDER / 2 },
+                        .size = .{ .x = WIDTH, .y = BORDER },
+                    },
+                },
+            },
+            .texture_id = texture_id,
+        };
+    }
+
+    fn to_screen_quad(
+        self: Table,
+        camera_controller: *const CameraController2d,
+        texture_store: *const Textures.Store,
+        screen_quads: *ScreenQuads,
+    ) void {
+        const table_object: Object2d =
+            .{
+            .type = .{ .TextureId = self.texture_id },
+            .transform = .{},
+            .size = .{
+                .x = @floatFromInt(texture_store.get_texture(self.texture_id).width),
+                .y = @floatFromInt(texture_store.get_texture(self.texture_id).height),
+            },
+        };
+        table_object.to_screen_quad(camera_controller, texture_store, screen_quads);
+    }
+
+    fn borders_to_screen_quads(
+        self: Table,
+        camera_controller: *const CameraController2d,
+        screen_quads: *ScreenQuads,
+    ) void {
+        const border_color = Color.from_parts(255.0, 255.0, 255.0, 64.0);
+        for (&self.borders) |*border| {
+            const position = camera_controller.transform(border.collider.position.extend(0.0));
+            screen_quads.add_quad(.{
+                .color = border_color,
+                .texture_id = Textures.Texture.ID_SOLID_COLOR,
+                .position = position.xy().extend(0.0),
+                .size = border.collider.size.mul_f32(position.z),
+                .options = .{ .draw_aabb = true },
+            });
+        }
+    }
 };
 
 const MouseDrag = struct {
@@ -149,12 +285,13 @@ const Runtime = struct {
     texture_store: Textures.Store,
     texture_poll_table: Textures.Texture.Id,
     texture_ball: Textures.Texture.Id,
+    font: Font,
 
     screen_quads: ScreenQuads,
     soft_renderer: SoftRenderer,
 
-    balls: [16]Ball,
-    borders: [4]Border,
+    balls: [4]Ball,
+    table: Table,
 
     mouse_drag: MouseDrag,
 
@@ -171,6 +308,8 @@ const Runtime = struct {
         try self.texture_store.init(memory);
         self.texture_poll_table = self.texture_store.load(memory, "assets/table_prototype.png");
         self.texture_ball = self.texture_store.load(memory, "assets/ball_prototype.png");
+
+        self.font = Font.init(memory, &self.texture_store, "assets/Hack-Regular.ttf", 64);
 
         self.screen_quads = try ScreenQuads.init(memory, 2048);
         self.soft_renderer = SoftRenderer.init(memory, window, width, height);
@@ -193,36 +332,8 @@ const Runtime = struct {
                 .friction = 0.95,
             };
         }
-        self.borders = .{
-            // left
-            .{
-                .collider = .{
-                    .position = .{ .x = -TABLE_WIDTH / 2 + TABLE_BORDER / 2 },
-                    .size = .{ .x = TABLE_BORDER, .y = TABLE_HEIGTH },
-                },
-            },
-            // right
-            .{
-                .collider = .{
-                    .position = .{ .x = TABLE_WIDTH / 2 - TABLE_BORDER / 2 },
-                    .size = .{ .x = TABLE_BORDER, .y = TABLE_HEIGTH },
-                },
-            },
-            // bottom
-            .{
-                .collider = .{
-                    .position = .{ .y = -TABLE_HEIGTH / 2 + TABLE_BORDER / 2 },
-                    .size = .{ .x = TABLE_WIDTH, .y = TABLE_BORDER },
-                },
-            },
-            // top
-            .{
-                .collider = .{
-                    .position = .{ .y = TABLE_HEIGTH / 2 - TABLE_BORDER / 2 },
-                    .size = .{ .x = TABLE_WIDTH, .y = TABLE_BORDER },
-                },
-            },
-        };
+        self.table = Table.init(self.texture_poll_table);
+
         self.mouse_drag = .{};
     }
 
@@ -234,8 +345,7 @@ const Runtime = struct {
         width: i32,
         height: i32,
     ) void {
-        _ = memory;
-
+        const frame_alloc = memory.frame_alloc();
         self.screen_quads.reset();
 
         if (self.mouse_drag.update(events, dt)) |v| {
@@ -244,82 +354,21 @@ const Runtime = struct {
             }
         }
 
-        const collision_0 =
-            Physics.circle_rectangle_collision(self.balls[0].collider, self.borders[0].collider);
-        const collision_1 =
-            Physics.circle_rectangle_collision(self.balls[0].collider, self.borders[1].collider);
-        const collision_2 =
-            Physics.circle_rectangle_collision(self.balls[0].collider, self.borders[2].collider);
-        const collision_3 =
-            Physics.circle_rectangle_collision(self.balls[0].collider, self.borders[3].collider);
-        const collisions = [_]?Physics.CollisionPoint{
-            collision_0,
-            collision_1,
-            collision_2,
-            collision_3,
-        };
-
         for (&self.balls) |*ball| {
-            ball.update(&self.borders, &self.balls, dt);
+            ball.update(frame_alloc, &self.table, &self.balls, dt);
         }
 
-        const collision_color = Color.from_parts(255.0, 0.0, 0.0, 64.0);
-        const no_collision_color = Color.from_parts(255.0, 255.0, 255.0, 64.0);
+        self.table.to_screen_quad(
+            &self.camera_controller,
+            &self.texture_store,
+            &self.screen_quads,
+        );
+        self.table.borders_to_screen_quads(
+            &self.camera_controller,
+            &self.screen_quads,
+        );
 
-        const objects = [_]Object2d{
-            .{
-                .type = .{ .TextureId = self.texture_poll_table },
-                .transform = .{
-                    .position = .{ .z = 0 },
-                },
-                .size = .{
-                    .x = @floatFromInt(self.texture_store.get_texture(self.texture_poll_table).width),
-                    .y = @floatFromInt(self.texture_store.get_texture(self.texture_poll_table).height),
-                },
-            },
-            .{
-                .type = .{ .Color = if (collision_0) |_| collision_color else no_collision_color },
-                .transform = .{
-                    .position = self.borders[0].collider.position.extend(0.0),
-                },
-                .size = self.borders[0].collider.size,
-                .options = .{ .draw_aabb = true },
-            },
-            .{
-                .type = .{ .Color = if (collision_1) |_| collision_color else no_collision_color },
-                .transform = .{
-                    .position = self.borders[1].collider.position.extend(0.0),
-                },
-                .size = self.borders[1].collider.size,
-                .options = .{ .draw_aabb = true },
-            },
-            .{
-                .type = .{ .Color = if (collision_2) |_| collision_color else no_collision_color },
-                .transform = .{
-                    .position = self.borders[2].collider.position.extend(0.0),
-                },
-                .size = self.borders[2].collider.size,
-                .options = .{ .draw_aabb = true },
-            },
-            .{
-                .type = .{ .Color = if (collision_3) |_| collision_color else no_collision_color },
-                .transform = .{
-                    .position = self.borders[3].collider.position.extend(0.0),
-                },
-                .size = self.borders[3].collider.size,
-                .options = .{ .draw_aabb = true },
-            },
-        };
-
-        for (&objects) |*object| {
-            object.to_screen_quad(
-                &self.camera_controller,
-                &self.texture_store,
-                &self.screen_quads,
-            );
-        }
-
-        var ball_objects: [16]Object2d = undefined;
+        var ball_objects: [4]Object2d = undefined;
         for (&self.balls, &ball_objects) |*ball, *bo| {
             bo.* =
                 .{
@@ -343,6 +392,44 @@ const Runtime = struct {
             );
         }
 
+        const text_fps = Text.init(
+            &self.font,
+            std.fmt.allocPrint(
+                frame_alloc,
+                "FPS: {d:.1} FT: {d:.3}s",
+                .{ 1.0 / dt, dt },
+            ) catch unreachable,
+            32.0,
+            .{
+                .x = @as(f32, @floatFromInt(width)) / 2.0,
+                .y = @as(f32, @floatFromInt(height)) / 2.0 + 300.0,
+            },
+            0.0,
+            .{},
+            .{ .dont_clip = true },
+        );
+        text_fps.to_screen_quads(&self.screen_quads);
+
+        for (&self.balls, 0..) |*ball, i| {
+            const text_ball_info = Text.init(
+                &self.font,
+                std.fmt.allocPrint(
+                    frame_alloc,
+                    "ball id: {d}, position: {d: >8.1}/{d: >8.1}, disabled: {}",
+                    .{ ball.id, ball.collider.position.x, ball.collider.position.y, ball.disabled },
+                ) catch unreachable,
+                25.0,
+                .{
+                    .x = @as(f32, @floatFromInt(width)) / 2.0 + 100.0,
+                    .y = @as(f32, @floatFromInt(height)) / 2.0 - 300.0 + 25.0 * @as(f32, @floatFromInt(i)),
+                },
+                0.0,
+                .{},
+                .{ .dont_clip = true },
+            );
+            text_ball_info.to_screen_quads(&self.screen_quads);
+        }
+
         self.soft_renderer.start_rendering();
         self.screen_quads.render(
             &self.soft_renderer,
@@ -350,18 +437,18 @@ const Runtime = struct {
             &self.texture_store,
         );
         const screen_size: Vec2 = .{ .x = @floatFromInt(width), .y = @floatFromInt(height) };
-        for (collisions) |collision| {
-            if (collision) |c| {
-                const c_position = c.position
-                    .add(screen_size.mul_f32(0.5));
-                self.soft_renderer
-                    .draw_color_rect(c_position, .{ .x = 5.0, .y = 5.0 }, Color.BLUE, false);
-                if (c.normal.is_valid()) {
-                    const c_normal_end = c_position.add(c.normal.mul_f32(20.0));
-                    self.soft_renderer.draw_line(c_position, c_normal_end, Color.GREEN);
-                }
-            }
-        }
+        // for (collisions) |collision| {
+        //     if (collision) |c| {
+        //         const c_position = c.position
+        //             .add(screen_size.mul_f32(0.5));
+        //         self.soft_renderer
+        //             .draw_color_rect(c_position, .{ .x = 5.0, .y = 5.0 }, Color.BLUE, false);
+        //         if (c.normal.is_valid()) {
+        //             const c_normal_end = c_position.add(c.normal.mul_f32(20.0));
+        //             self.soft_renderer.draw_line(c_position, c_normal_end, Color.GREEN);
+        //         }
+        //     }
+        // }
         if (self.mouse_drag.active) {
             self.soft_renderer.draw_line(
                 screen_size.mul_f32(0.5),
