@@ -12,7 +12,7 @@ pub const log_options = log.Options{
 const Tracing = stygian.tracing;
 pub const tracing_options = Tracing.Options{
     .max_measurements = 256,
-    .enabled = true,
+    .enabled = false,
 };
 
 const sdl = stygian.bindings.sdl;
@@ -202,14 +202,14 @@ const Table = struct {
         texture_store: *const Textures.Store,
         screen_quads: *ScreenQuads,
     ) void {
-        const table_object: Object2d =
-            .{
+        const table_object: Object2d = .{
             .type = .{ .TextureId = self.texture_id },
             .transform = .{},
             .size = .{
                 .x = @floatFromInt(texture_store.get_texture(self.texture_id).width),
                 .y = @floatFromInt(texture_store.get_texture(self.texture_id).height),
             },
+            .options = .{ .no_alpha_blend = true },
         };
         table_object.to_screen_quad(camera_controller, texture_store, screen_quads);
     }
@@ -348,6 +348,24 @@ const Runtime = struct {
         const frame_alloc = memory.frame_alloc();
         self.screen_quads.reset();
 
+        Tracing.prepare_next_frame(struct {
+            SoftRenderer,
+            ScreenQuads,
+            _objects,
+        });
+        Tracing.to_screen_quads(
+            struct { SoftRenderer, ScreenQuads, _objects },
+            frame_alloc,
+            &self.screen_quads,
+            &self.font,
+            32.0,
+        );
+        Tracing.zero_current(struct {
+            SoftRenderer,
+            ScreenQuads,
+            _objects,
+        });
+
         if (self.mouse_drag.update(events, dt)) |v| {
             for (&self.balls) |*ball| {
                 ball.velocity = ball.velocity.add(v);
@@ -421,7 +439,7 @@ const Runtime = struct {
                 25.0,
                 .{
                     .x = @as(f32, @floatFromInt(width)) / 2.0 + 100.0,
-                    .y = @as(f32, @floatFromInt(height)) / 2.0 - 300.0 + 25.0 * @as(f32, @floatFromInt(i)),
+                    .y = @as(f32, @floatFromInt(height)) / 2.0 + 200.0 + 25.0 * @as(f32, @floatFromInt(i)),
                 },
                 0.0,
                 .{},
