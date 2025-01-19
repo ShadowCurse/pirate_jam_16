@@ -4,15 +4,16 @@ const stygian = @import("stygian_runtime");
 const Allocator = std.mem.Allocator;
 
 const log = stygian.log;
-const Color = stygian.color.Color;
-const ScreenQuads = stygian.screen_quads;
+const Tracing = stygian.tracing;
 
 const Text = stygian.text;
 const Font = stygian.font;
 const Memory = stygian.memory;
 const Physics = stygian.physics;
+const Color = stygian.color.Color;
 const Textures = stygian.textures;
 const Events = stygian.platform.event;
+const ScreenQuads = stygian.screen_quads;
 const SoftRenderer = stygian.soft_renderer.renderer;
 const CameraController2d = stygian.camera.CameraController2d;
 
@@ -34,7 +35,16 @@ pub const Ball = struct {
 
     pub const PREVIOUS_POSITIONS = 64;
 
+    pub const trace = Tracing.Measurements(struct {
+        update: Tracing.Counter,
+        to_object_2d: Tracing.Counter,
+        previous_positions_to_object_2d: Tracing.Counter,
+    });
+
     pub fn update(self: *Ball, allocator: Allocator, table: *const Table, balls: []const Ball, dt: f32) void {
+        const trace_start = trace.start();
+        defer trace.end(@src(), trace_start);
+
         if (self.disabled)
             return;
 
@@ -146,6 +156,9 @@ pub const Ball = struct {
     pub fn to_object_2d(
         self: Ball,
     ) Object2d {
+        const trace_start = trace.start();
+        defer trace.end(@src(), trace_start);
+
         return .{
             .type = .{ .TextureId = self.texture_id },
             .transform = .{
@@ -161,6 +174,9 @@ pub const Ball = struct {
     }
 
     pub fn previous_positions_to_object_2d(self: Ball) [PREVIOUS_POSITIONS]Object2d {
+        const trace_start = trace.start();
+        defer trace.end(@src(), trace_start);
+
         var pp_objects: [PREVIOUS_POSITIONS]Object2d = undefined;
         var pp_index = self.previous_position_index;
         const id: u32 = @intCast(self.id);
@@ -207,6 +223,11 @@ pub const Table = struct {
         collider: Physics.Rectangle,
     };
 
+    pub const trace = Tracing.Measurements(struct {
+        to_screen_quad: Tracing.Counter,
+        borders_to_screen_quads: Tracing.Counter,
+    });
+
     pub fn init(texture_id: Textures.Texture.Id) Table {
         return .{
             .borders = .{
@@ -249,6 +270,9 @@ pub const Table = struct {
         texture_store: *const Textures.Store,
         screen_quads: *ScreenQuads,
     ) void {
+        const trace_start = trace.start();
+        defer trace.end(@src(), trace_start);
+
         const table_object: Object2d = .{
             .type = .{ .TextureId = self.texture_id },
             .transform = .{},
@@ -266,6 +290,9 @@ pub const Table = struct {
         camera_controller: *const CameraController2d,
         screen_quads: *ScreenQuads,
     ) void {
+        const trace_start = trace.start();
+        defer trace.end(@src(), trace_start);
+
         const border_color = Color.from_parts(255.0, 255.0, 255.0, 64.0);
         for (&self.borders) |*border| {
             const position = camera_controller.transform(border.collider.position.extend(0.0));

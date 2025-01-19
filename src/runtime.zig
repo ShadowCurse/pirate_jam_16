@@ -209,21 +209,21 @@ const Runtime = struct {
         self.screen_quads.reset();
 
         if (self.show_perf) {
-            Tracing.prepare_next_frame(struct {
+            const TaceableTypes = struct {
                 SoftRenderer,
                 ScreenQuads,
-            });
+                Ball,
+                Table,
+            };
+            Tracing.prepare_next_frame(TaceableTypes);
             Tracing.to_screen_quads(
-                struct { SoftRenderer, ScreenQuads },
+                TaceableTypes,
                 frame_alloc,
                 &self.screen_quads,
                 &self.font,
                 32.0,
             );
-            Tracing.zero_current(struct {
-                SoftRenderer,
-                ScreenQuads,
-            });
+            Tracing.zero_current(TaceableTypes);
         }
 
         for (events) |event| {
