@@ -129,6 +129,69 @@ const MouseDrag = struct {
     }
 };
 
+const BallAnimation = struct {
+    ball_id: u8,
+    velocity: Vec2,
+    duration: f32,
+    progress: f32,
+
+    pub fn update(
+        self: *BallAnimation,
+        balls: []Ball,
+        dt: f32,
+    ) bool {
+        const ball = &balls[self.ball_id];
+        ball.collider.position = ball.collider.position.add(self.velocity.mul_f32(dt));
+        self.progress += dt;
+        return self.duration <= self.progress;
+    }
+};
+
+const BallAnimations = struct {
+    animations: [36]BallAnimation = undefined,
+    animation_n: u32 = 0,
+
+    pub fn add(self: *BallAnimations, ball: *const Ball, target: Vec2, duration: f32) void {
+        if (self.animation_n == self.animations.len) {
+            log.err(
+                @src(),
+                "Trying to add ball animation, but there is no available slots for it",
+                .{},
+            );
+            return;
+        }
+        const velocity = target.sub(ball.collider.position).mul_f32(1.0 / duration);
+        self.animations[self.animation_n] = .{
+            .ball_id = ball.id,
+            .velocity = velocity,
+            .duration = duration,
+            .progress = 0,
+        };
+        log.info(@src(), "Adding ball animation in slot: {d}", .{self.animation_n});
+        self.animation_n += 1;
+        log.assert(
+            @src(),
+            self.animation_n < self.animations.len,
+            "Animation counter overflow",
+            .{},
+        );
+    }
+
+    pub fn update(self: *BallAnimations, balls: []Ball, dt: f32) void {
+        var start: u32 = 0;
+        while (start < self.animation_n) {
+            const animation = &self.animations[start];
+            if (animation.update(balls, dt)) {
+                log.info(@src(), "Removing ball animation from slot: {d}", .{start});
+                self.animations[start] = self.animations[self.animation_n - 1];
+                self.animation_n -= 1;
+            } else {
+                start += 1;
+            }
+        }
+    }
+};
+
 const Runtime = struct {
     camera_controller: CameraController2d,
 
@@ -142,6 +205,7 @@ const Runtime = struct {
 
     balls: [4]Ball,
     table: Table,
+    ball_animations: BallAnimations,
 
     show_perf: bool,
     selected_ball: ?u32,
@@ -188,6 +252,7 @@ const Runtime = struct {
             };
         }
         self.table = Table.init(self.texture_poll_table);
+        self.ball_animations = .{};
 
         self.show_perf = false;
         self.selected_ball = null;
@@ -246,13 +311,33 @@ const Runtime = struct {
 
         if (self.mouse_drag.update(events, dt)) |v| {
             for (&self.balls) |*ball| {
+                if (ball.disabled)
+                    continue;
                 ball.velocity = ball.velocity.add(v);
             }
         }
 
         for (&self.balls) |*ball| {
+            if (ball.disabled)
+                continue;
             ball.update(frame_alloc, &self.table, &self.balls, dt);
         }
+
+        for (&self.balls) |*ball| {
+            if (ball.disabled)
+                continue;
+
+            for (&self.table.pockets) |*pocket| {
+                const collision_point =
+                    Physics.circle_circle_collision(ball.collider, pocket.collider);
+                if (collision_point) |_| {
+                    ball.disabled = true;
+                    self.ball_animations.add(ball, pocket.collider.position, 1.0);
+                }
+            }
+        }
+
+        self.ball_animations.update(&self.balls, dt);
 
         self.table.to_screen_quad(
             &self.camera_controller,
