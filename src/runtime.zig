@@ -33,6 +33,7 @@ const Object2d = stygian.objects.Object2d;
 
 const _math = stygian.math;
 const Vec2 = _math.Vec2;
+const Vec3 = _math.Vec3;
 
 const _objects = @import("objects.zig");
 const Ball = _objects.Ball;
@@ -169,6 +170,55 @@ const MouseDrag = struct {
     }
 };
 
+const SmoothStepAnimation = struct {
+    start_position: Vec3,
+    end_position: Vec3,
+    duration: f32,
+    progress: f32,
+
+    pub fn update(self: *SmoothStepAnimation, position: *Vec3, dt: f32) bool {
+        const p = self.progress / self.duration;
+        const t = p * p * (3.0 - 2.0 * p);
+        position.* = self.start_position.lerp(self.end_position, t);
+        self.progress += dt;
+        return self.duration <= self.progress;
+    }
+};
+
+const GameStateChangeAnimation = struct {
+    camera_controller: *CameraController2d,
+    animation: ?SmoothStepAnimation = null,
+    game_state: *GameState,
+    final_game_state: GameState = .{},
+
+    const DURATION = 1.0;
+
+    pub fn set(
+        self: *GameStateChangeAnimation,
+        target_position: Vec2,
+        final_game_state: GameState,
+    ) void {
+        const camera_worl_position = self.camera_controller.world_position().xy();
+        const delta = target_position.sub(camera_worl_position);
+        self.animation = .{
+            .start_position = self.camera_controller.position,
+            .end_position = self.camera_controller.position.add(delta.extend(0.0)),
+            .duration = DURATION,
+            .progress = 0.0,
+        };
+        self.final_game_state = final_game_state;
+    }
+
+    pub fn update(self: *GameStateChangeAnimation, dt: f32) void {
+        if (self.animation) |*a| {
+            if (a.update(&self.camera_controller.position, dt)) {
+                self.animation = null;
+                self.game_state.* = self.final_game_state;
+            }
+        }
+    }
+};
+
 const MoveAnimation = struct {
     velocity: Vec2,
     duration: f32,
@@ -270,6 +320,7 @@ const Runtime = struct {
 
     game_state: GameState,
     input_state: InputState,
+    game_state_change_animation: GameStateChangeAnimation,
 
     balls: [16]Ball,
     table: Table,
@@ -303,6 +354,10 @@ const Runtime = struct {
 
         self.game_state = .{};
         self.input_state = .{};
+        self.game_state_change_animation = .{
+            .camera_controller = &self.camera_controller,
+            .game_state = &self.game_state,
+        };
 
         for (&self.balls, 0..) |*ball, i| {
             const row: f32 = @floatFromInt(@divFloor(i, 4));
@@ -396,6 +451,8 @@ const Runtime = struct {
             }
         }
 
+        self.game_state_change_animation.update(dt);
+
         if (self.game_state.main_menu)
             self.main_menu(
                 memory,
@@ -488,11 +545,10 @@ const Runtime = struct {
             &self.camera_controller,
             &self.screen_quads,
         ) and self.input_state.lmb) {
-            self.game_state.main_menu = false;
             self.game_state.in_game = true;
-            self.camera_controller.position =
-                self.camera_controller.position
-                .add(CAMERA_IN_GAME.sub(CAMERA_MAIN_MENU).extend(0.0));
+            var final_game_state = self.game_state;
+            final_game_state.main_menu = false;
+            self.game_state_change_animation.set(CAMERA_IN_GAME, final_game_state);
         }
 
         const settings_button = UiRect.init(
@@ -507,11 +563,10 @@ const Runtime = struct {
             &self.camera_controller,
             &self.screen_quads,
         ) and self.input_state.lmb) {
-            self.game_state.main_menu = false;
             self.game_state.settings = true;
-            self.camera_controller.position =
-                self.camera_controller.position
-                .add(CAMERA_SETTINGS.sub(CAMERA_MAIN_MENU).extend(0.0));
+            var final_game_state = self.game_state;
+            final_game_state.main_menu = false;
+            self.game_state_change_animation.set(CAMERA_SETTINGS, final_game_state);
         }
     }
 
@@ -542,11 +597,10 @@ const Runtime = struct {
             &self.camera_controller,
             &self.screen_quads,
         ) and self.input_state.lmb) {
-            self.game_state.settings = false;
             self.game_state.main_menu = true;
-            self.camera_controller.position =
-                self.camera_controller.position
-                .add(CAMERA_MAIN_MENU.sub(CAMERA_SETTINGS).extend(0.0));
+            var final_game_state = self.game_state;
+            final_game_state.settings = false;
+            self.game_state_change_animation.set(CAMERA_MAIN_MENU, final_game_state);
         }
     }
 
@@ -654,11 +708,10 @@ const Runtime = struct {
             &self.camera_controller,
             &self.screen_quads,
         ) and self.input_state.lmb) {
-            self.game_state.in_game = false;
             self.game_state.main_menu = true;
-            self.camera_controller.position =
-                self.camera_controller.position
-                .add(CAMERA_MAIN_MENU.sub(CAMERA_IN_GAME).extend(0.0));
+            var final_game_state = self.game_state;
+            final_game_state.in_game = false;
+            self.game_state_change_animation.set(CAMERA_MAIN_MENU, final_game_state);
         }
     }
 
