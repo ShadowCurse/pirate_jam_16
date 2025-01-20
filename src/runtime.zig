@@ -86,6 +86,39 @@ const UiRect = struct {
         }
         return intersects;
     }
+
+    pub fn to_screen_quads_world_space(
+        self: UiRect,
+        allocator: Allocator,
+        mouse_pos: Vec2,
+        camera_controller: *const CameraController2d,
+        screen_quads: *ScreenQuads,
+    ) bool {
+        const text_quads = self.text.to_screen_quads_world_space_raw(allocator, camera_controller);
+        const collision_rectangle: Physics.Rectangle = .{
+            .size = .{
+                .x = text_quads.total_width,
+                .y = self.text.size,
+            },
+        };
+        const rectangle_position: Vec2 =
+            self.text.position.xy().add(.{ .y = -self.text.size / 2.0 });
+        const intersects = Physics.point_rectangle_intersect(
+            mouse_pos,
+            collision_rectangle,
+            rectangle_position,
+        );
+        if (intersects) {
+            for (text_quads.quads) |*quad| {
+                quad.color = Color.RED;
+                quad.options.with_tint = true;
+            }
+        }
+        for (text_quads.quads) |quad| {
+            screen_quads.add_quad(quad);
+        }
+        return intersects;
+    }
 };
 
 const MouseDrag = struct {
@@ -199,6 +232,18 @@ const BallAnimations = struct {
     }
 };
 
+const GameState = packed struct(u8) {
+    main_menu: bool = true,
+    settings: bool = false,
+    in_game: bool = false,
+    debug: bool = true,
+    _: u4 = 0,
+};
+
+const CAMERA_MAIN_MENU: Vec2 = .{ .y = 1000.0 };
+const CAMERA_SETTINGS: Vec2 = .{ .x = 1000.0, .y = 1000.0 };
+const CAMERA_IN_GAME: Vec2 = .{};
+
 const Runtime = struct {
     camera_controller: CameraController2d,
 
@@ -209,6 +254,9 @@ const Runtime = struct {
 
     screen_quads: ScreenQuads,
     soft_renderer: SoftRenderer,
+
+    game_state: GameState,
+    lmb_pressed: bool,
 
     balls: [16]Ball,
     table: Table,
@@ -229,6 +277,8 @@ const Runtime = struct {
         height: u32,
     ) !void {
         self.camera_controller = CameraController2d.init(width, height);
+        self.camera_controller.position = self.camera_controller.position
+            .add(CAMERA_MAIN_MENU.extend(0.0));
         try self.texture_store.init(memory);
         self.texture_poll_table = self.texture_store.load(memory, "assets/table_prototype.png");
         self.texture_ball = self.texture_store.load(memory, "assets/ball_prototype.png");
@@ -237,6 +287,10 @@ const Runtime = struct {
 
         self.screen_quads = try ScreenQuads.init(memory, 4096);
         self.soft_renderer = SoftRenderer.init(memory, window, width, height);
+
+        self.game_state = .{};
+        // TODO have a proper button map
+        self.lmb_pressed = false;
 
         for (&self.balls, 0..) |*ball, i| {
             const row: f32 = @floatFromInt(@divFloor(i, 4));
@@ -292,9 +346,6 @@ const Runtime = struct {
         const frame_alloc = memory.frame_alloc();
         self.screen_quads.reset();
 
-        const mouse_pos: Vec2 = .{ .x = @floatFromInt(mouse_x), .y = @floatFromInt(mouse_y) };
-        const mouse_pos_world = mouse_pos.add(self.camera_controller.position.xy());
-
         if (self.show_perf) {
             const TaceableTypes = struct {
                 SoftRenderer,
@@ -313,14 +364,13 @@ const Runtime = struct {
             Tracing.zero_current(TaceableTypes);
         }
 
-        var lmb_pressed = false;
         for (events) |event| {
             switch (event) {
                 .Mouse => |mouse| {
                     switch (mouse) {
                         .Button => |button| {
                             if (button.key == .LMB)
-                                lmb_pressed = button.type == .Pressed;
+                                self.lmb_pressed = button.type == .Pressed;
                         },
                         else => {},
                     }
@@ -328,6 +378,195 @@ const Runtime = struct {
                 else => {},
             }
         }
+
+        if (self.game_state.main_menu)
+            self.main_menu(
+                memory,
+                dt,
+                events,
+                window_width,
+                window_height,
+                mouse_x,
+                mouse_y,
+            );
+        if (self.game_state.settings)
+            self.settings(
+                memory,
+                dt,
+                events,
+                window_width,
+                window_height,
+                mouse_x,
+                mouse_y,
+            );
+        if (self.game_state.in_game)
+            self.in_game(
+                memory,
+                dt,
+                events,
+                window_width,
+                window_height,
+                mouse_x,
+                mouse_y,
+            );
+        if (self.game_state.debug)
+            self.debug(
+                memory,
+                dt,
+                events,
+                window_width,
+                window_height,
+                mouse_x,
+                mouse_y,
+            );
+
+        self.soft_renderer.start_rendering();
+        self.screen_quads.render(
+            &self.soft_renderer,
+            0.0,
+            &self.texture_store,
+        );
+        const screen_size: Vec2 = .{
+            .x = @floatFromInt(window_width),
+            .y = @floatFromInt(window_height),
+        };
+        // for (collisions) |collision| {
+        //     if (collision) |c| {
+        //         const c_position = c.position
+        //             .add(screen_size.mul_f32(0.5));
+        //         self.soft_renderer
+        //             .draw_color_rect(c_position, .{ .x = 5.0, .y = 5.0 }, Color.BLUE, false);
+        //         if (c.normal.is_valid()) {
+        //             const c_normal_end = c_position.add(c.normal.mul_f32(20.0));
+        //             self.soft_renderer.draw_line(c_position, c_normal_end, Color.GREEN);
+        //         }
+        //     }
+        // }
+        if (self.mouse_drag.active) {
+            self.soft_renderer.draw_line(
+                screen_size.mul_f32(0.5),
+                screen_size.mul_f32(0.5).add(self.mouse_drag.v),
+                Color.MAGENTA,
+            );
+        }
+        self.soft_renderer.end_rendering();
+    }
+
+    fn main_menu(
+        self: *Self,
+        memory: *Memory,
+        dt: f32,
+        events: []const Events.Event,
+        window_width: u32,
+        window_height: u32,
+        mouse_x: u32,
+        mouse_y: u32,
+    ) void {
+        _ = dt;
+        _ = events;
+        _ = window_width;
+        _ = window_height;
+
+        const frame_alloc = memory.frame_alloc();
+
+        const mouse_pos: Vec2 = .{ .x = @floatFromInt(mouse_x), .y = @floatFromInt(mouse_y) };
+        const mouse_pos_world = mouse_pos.add(self.camera_controller.position.xy());
+
+        const start_button = UiRect.init(
+            CAMERA_MAIN_MENU,
+            &self.font,
+            "Start",
+            32.0,
+        );
+        if (start_button.to_screen_quads_world_space(
+            frame_alloc,
+            mouse_pos_world,
+            &self.camera_controller,
+            &self.screen_quads,
+        ) and self.lmb_pressed) {
+            self.game_state.main_menu = false;
+            self.game_state.in_game = true;
+            self.camera_controller.position =
+                self.camera_controller.position
+                .add(CAMERA_IN_GAME.sub(CAMERA_MAIN_MENU).extend(0.0));
+        }
+
+        const settings_button = UiRect.init(
+            CAMERA_MAIN_MENU.add(.{ .y = 50.0 }),
+            &self.font,
+            "Settings",
+            32.0,
+        );
+        if (settings_button.to_screen_quads_world_space(
+            frame_alloc,
+            mouse_pos_world,
+            &self.camera_controller,
+            &self.screen_quads,
+        ) and self.lmb_pressed) {
+            self.game_state.main_menu = false;
+            self.game_state.settings = true;
+            self.camera_controller.position =
+                self.camera_controller.position
+                .add(CAMERA_SETTINGS.sub(CAMERA_MAIN_MENU).extend(0.0));
+        }
+    }
+
+    fn settings(
+        self: *Self,
+        memory: *Memory,
+        dt: f32,
+        events: []const Events.Event,
+        window_width: u32,
+        window_height: u32,
+        mouse_x: u32,
+        mouse_y: u32,
+    ) void {
+        _ = dt;
+        _ = events;
+        _ = window_width;
+        _ = window_height;
+
+        const frame_alloc = memory.frame_alloc();
+
+        const mouse_pos: Vec2 = .{ .x = @floatFromInt(mouse_x), .y = @floatFromInt(mouse_y) };
+        const mouse_pos_world = mouse_pos.add(self.camera_controller.position.xy());
+
+        const back_button = UiRect.init(
+            CAMERA_SETTINGS,
+            &self.font,
+            "Back",
+            32.0,
+        );
+        if (back_button.to_screen_quads_world_space(
+            frame_alloc,
+            mouse_pos_world,
+            &self.camera_controller,
+            &self.screen_quads,
+        ) and self.lmb_pressed) {
+            self.game_state.settings = false;
+            self.game_state.main_menu = true;
+            self.camera_controller.position =
+                self.camera_controller.position
+                .add(CAMERA_MAIN_MENU.sub(CAMERA_SETTINGS).extend(0.0));
+        }
+    }
+
+    fn in_game(
+        self: *Self,
+        memory: *Memory,
+        dt: f32,
+        events: []const Events.Event,
+        window_width: u32,
+        window_height: u32,
+        mouse_x: u32,
+        mouse_y: u32,
+    ) void {
+        _ = window_width;
+        _ = window_height;
+
+        const frame_alloc = memory.frame_alloc();
+        const mouse_pos: Vec2 = .{ .x = @floatFromInt(mouse_x), .y = @floatFromInt(mouse_y) };
+        const mouse_pos_world = mouse_pos.add(self.camera_controller.position.xy());
 
         if (self.mouse_drag.update(events, dt)) |v| {
             if (self.selected_ball) |sb| {
@@ -381,7 +620,7 @@ const Runtime = struct {
 
         var new_ball_selected: bool = false;
         for (&self.balls) |*ball| {
-            if (!ball.disabled and ball.is_hovered(mouse_pos_world) and lmb_pressed) {
+            if (!ball.disabled and ball.is_hovered(mouse_pos_world) and self.lmb_pressed) {
                 new_ball_selected = true;
                 self.selected_ball = ball.id;
             }
@@ -404,87 +643,94 @@ const Runtime = struct {
                 }
             }
         }
-        if (!new_ball_selected and lmb_pressed)
+        if (!new_ball_selected and self.lmb_pressed)
             self.selected_ball = null;
 
-        const ui_rect = UiRect.init(
+        const back_button = UiRect.init(
+            .{ .x = -550.0 },
+            &self.font,
+            "Back",
+            32.0,
+        );
+        if (back_button.to_screen_quads_world_space(
+            frame_alloc,
+            mouse_pos_world,
+            &self.camera_controller,
+            &self.screen_quads,
+        ) and self.lmb_pressed) {
+            self.game_state.in_game = false;
+            self.game_state.main_menu = true;
+            self.camera_controller.position =
+                self.camera_controller.position
+                .add(CAMERA_MAIN_MENU.sub(CAMERA_IN_GAME).extend(0.0));
+        }
+    }
+
+    fn debug(
+        self: *Self,
+        memory: *Memory,
+        dt: f32,
+        events: []const Events.Event,
+        window_width: u32,
+        window_height: u32,
+        mouse_x: u32,
+        mouse_y: u32,
+    ) void {
+        _ = events;
+
+        const frame_alloc = memory.frame_alloc();
+        const mouse_pos: Vec2 = .{ .x = @floatFromInt(mouse_x), .y = @floatFromInt(mouse_y) };
+
+        const perf_button = UiRect.init(
             .{
                 .x = @as(f32, @floatFromInt(window_width)) / 2.0,
                 .y = @as(f32, @floatFromInt(window_height)) / 2.0 + 300.0,
             },
             &self.font,
-
             std.fmt.allocPrint(
                 frame_alloc,
-                "FPS: {d:.1} FT: {d:.3}s, mouse_pos: {d}:{d}",
-                .{ 1.0 / dt, dt, mouse_x, mouse_y },
+                "FPS: {d:.1} FT: {d:.3}s, mouse_pos: {d}:{d}, camera_pos: {d}:{d}",
+                .{
+                    1.0 / dt,
+                    dt,
+                    mouse_x,
+                    mouse_y,
+                    self.camera_controller.position.x,
+                    self.camera_controller.position.y,
+                },
             ) catch unreachable,
             32.0,
         );
-        if (ui_rect.to_screen_quads(
-            frame_alloc,
-            mouse_pos,
-            &self.screen_quads,
-        ) and lmb_pressed)
+        if (perf_button.to_screen_quads(frame_alloc, mouse_pos, &self.screen_quads) and
+            self.lmb_pressed)
             self.show_perf = !self.show_perf;
 
-        for (&self.balls, 0..) |*ball, i| {
-            const text_ball_info = Text.init(
-                &self.font,
-                std.fmt.allocPrint(
-                    frame_alloc,
-                    "ball id: {d}, position: {d: >8.1}/{d: >8.1}, disabled: {}, p_index: {d: >2}",
-                    .{
-                        ball.id,
-                        ball.body.position.x,
-                        ball.body.position.y,
-                        ball.disabled,
-                        ball.previous_position_index,
-                    },
-                ) catch unreachable,
-                25.0,
-                .{
-                    .x = @as(f32, @floatFromInt(window_width)) / 2.0,
-                    .y = @as(f32, @floatFromInt(window_height)) / 2.0 + 200.0 +
-                        25.0 * @as(f32, @floatFromInt(i)),
-                },
-                0.0,
-                .{},
-                .{ .dont_clip = true },
-            );
-            text_ball_info.to_screen_quads(frame_alloc, &self.screen_quads);
-        }
-
-        self.soft_renderer.start_rendering();
-        self.screen_quads.render(
-            &self.soft_renderer,
-            0.0,
-            &self.texture_store,
-        );
-        const screen_size: Vec2 = .{
-            .x = @floatFromInt(window_width),
-            .y = @floatFromInt(window_height),
-        };
-        // for (collisions) |collision| {
-        //     if (collision) |c| {
-        //         const c_position = c.position
-        //             .add(screen_size.mul_f32(0.5));
-        //         self.soft_renderer
-        //             .draw_color_rect(c_position, .{ .x = 5.0, .y = 5.0 }, Color.BLUE, false);
-        //         if (c.normal.is_valid()) {
-        //             const c_normal_end = c_position.add(c.normal.mul_f32(20.0));
-        //             self.soft_renderer.draw_line(c_position, c_normal_end, Color.GREEN);
-        //         }
-        //     }
+        // for (&self.balls, 0..) |*ball, i| {
+        //     const text_ball_info = Text.init(
+        //         &self.font,
+        //         std.fmt.allocPrint(
+        //             frame_alloc,
+        //             "ball id: {d}, position: {d: >8.1}/{d: >8.1}, disabled: {}, p_index: {d: >2}",
+        //             .{
+        //                 ball.id,
+        //                 ball.body.position.x,
+        //                 ball.body.position.y,
+        //                 ball.disabled,
+        //                 ball.previous_position_index,
+        //             },
+        //         ) catch unreachable,
+        //         25.0,
+        //         .{
+        //             .x = @as(f32, @floatFromInt(window_width)) / 2.0,
+        //             .y = @as(f32, @floatFromInt(window_height)) / 2.0 + 200.0 +
+        //                 25.0 * @as(f32, @floatFromInt(i)),
+        //         },
+        //         0.0,
+        //         .{},
+        //         .{ .dont_clip = true },
+        //     );
+        //     text_ball_info.to_screen_quads(frame_alloc, &self.screen_quads);
         // }
-        if (self.mouse_drag.active) {
-            self.soft_renderer.draw_line(
-                screen_size.mul_f32(0.5),
-                screen_size.mul_f32(0.5).add(self.mouse_drag.v),
-                Color.MAGENTA,
-            );
-        }
-        self.soft_renderer.end_rendering();
     }
 };
 
@@ -514,8 +760,8 @@ pub export fn runtime_main(
     var mouse_y: i32 = undefined;
     _ = sdl.SDL_GetMouseState(&mouse_x, &mouse_y);
 
-    const mouse_x_u32: u32 = @intCast(mouse_x);
-    const mouse_y_u32: u32 = @intCast(mouse_y);
+    const mouse_x_u32: u32 = @intCast(@max(mouse_x, 0));
+    const mouse_y_u32: u32 = @intCast(@max(mouse_y, 0));
 
     if (runtime_ptr == null) {
         log.info(@src(), "First time runtime init", .{});
