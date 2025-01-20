@@ -244,6 +244,13 @@ const CAMERA_MAIN_MENU: Vec2 = .{ .y = 1000.0 };
 const CAMERA_SETTINGS: Vec2 = .{ .x = 1000.0, .y = 1000.0 };
 const CAMERA_IN_GAME: Vec2 = .{};
 
+const InputState = struct {
+    lmb: bool = false,
+    rmb: bool = false,
+    mouse_pos: Vec2 = .{},
+    mouse_pos_world: Vec2 = .{},
+};
+
 const Runtime = struct {
     camera_controller: CameraController2d,
 
@@ -256,7 +263,7 @@ const Runtime = struct {
     soft_renderer: SoftRenderer,
 
     game_state: GameState,
-    lmb_pressed: bool,
+    input_state: InputState,
 
     balls: [16]Ball,
     table: Table,
@@ -289,8 +296,7 @@ const Runtime = struct {
         self.soft_renderer = SoftRenderer.init(memory, window, width, height);
 
         self.game_state = .{};
-        // TODO have a proper button map
-        self.lmb_pressed = false;
+        self.input_state = .{};
 
         for (&self.balls, 0..) |*ball, i| {
             const row: f32 = @floatFromInt(@divFloor(i, 4));
@@ -364,13 +370,18 @@ const Runtime = struct {
             Tracing.zero_current(TaceableTypes);
         }
 
+        self.input_state.mouse_pos = .{ .x = @floatFromInt(mouse_x), .y = @floatFromInt(mouse_y) };
+        self.input_state.mouse_pos_world = self.input_state.mouse_pos.add(self.camera_controller.position.xy());
+
         for (events) |event| {
             switch (event) {
                 .Mouse => |mouse| {
                     switch (mouse) {
                         .Button => |button| {
                             if (button.key == .LMB)
-                                self.lmb_pressed = button.type == .Pressed;
+                                self.input_state.lmb = button.type == .Pressed;
+                            if (button.key == .RMB)
+                                self.input_state.rmb = button.type == .Pressed;
                         },
                         else => {},
                     }
@@ -386,8 +397,6 @@ const Runtime = struct {
                 events,
                 window_width,
                 window_height,
-                mouse_x,
-                mouse_y,
             );
         if (self.game_state.settings)
             self.settings(
@@ -396,8 +405,6 @@ const Runtime = struct {
                 events,
                 window_width,
                 window_height,
-                mouse_x,
-                mouse_y,
             );
         if (self.game_state.in_game)
             self.in_game(
@@ -406,8 +413,6 @@ const Runtime = struct {
                 events,
                 window_width,
                 window_height,
-                mouse_x,
-                mouse_y,
             );
         if (self.game_state.debug)
             self.debug(
@@ -416,8 +421,6 @@ const Runtime = struct {
                 events,
                 window_width,
                 window_height,
-                mouse_x,
-                mouse_y,
             );
 
         self.soft_renderer.start_rendering();
@@ -459,8 +462,6 @@ const Runtime = struct {
         events: []const Events.Event,
         window_width: u32,
         window_height: u32,
-        mouse_x: u32,
-        mouse_y: u32,
     ) void {
         _ = dt;
         _ = events;
@@ -468,9 +469,6 @@ const Runtime = struct {
         _ = window_height;
 
         const frame_alloc = memory.frame_alloc();
-
-        const mouse_pos: Vec2 = .{ .x = @floatFromInt(mouse_x), .y = @floatFromInt(mouse_y) };
-        const mouse_pos_world = mouse_pos.add(self.camera_controller.position.xy());
 
         const start_button = UiRect.init(
             CAMERA_MAIN_MENU,
@@ -480,10 +478,10 @@ const Runtime = struct {
         );
         if (start_button.to_screen_quads_world_space(
             frame_alloc,
-            mouse_pos_world,
+            self.input_state.mouse_pos_world,
             &self.camera_controller,
             &self.screen_quads,
-        ) and self.lmb_pressed) {
+        ) and self.input_state.lmb) {
             self.game_state.main_menu = false;
             self.game_state.in_game = true;
             self.camera_controller.position =
@@ -499,10 +497,10 @@ const Runtime = struct {
         );
         if (settings_button.to_screen_quads_world_space(
             frame_alloc,
-            mouse_pos_world,
+            self.input_state.mouse_pos_world,
             &self.camera_controller,
             &self.screen_quads,
-        ) and self.lmb_pressed) {
+        ) and self.input_state.lmb) {
             self.game_state.main_menu = false;
             self.game_state.settings = true;
             self.camera_controller.position =
@@ -518,8 +516,6 @@ const Runtime = struct {
         events: []const Events.Event,
         window_width: u32,
         window_height: u32,
-        mouse_x: u32,
-        mouse_y: u32,
     ) void {
         _ = dt;
         _ = events;
@@ -527,9 +523,6 @@ const Runtime = struct {
         _ = window_height;
 
         const frame_alloc = memory.frame_alloc();
-
-        const mouse_pos: Vec2 = .{ .x = @floatFromInt(mouse_x), .y = @floatFromInt(mouse_y) };
-        const mouse_pos_world = mouse_pos.add(self.camera_controller.position.xy());
 
         const back_button = UiRect.init(
             CAMERA_SETTINGS,
@@ -539,10 +532,10 @@ const Runtime = struct {
         );
         if (back_button.to_screen_quads_world_space(
             frame_alloc,
-            mouse_pos_world,
+            self.input_state.mouse_pos_world,
             &self.camera_controller,
             &self.screen_quads,
-        ) and self.lmb_pressed) {
+        ) and self.input_state.lmb) {
             self.game_state.settings = false;
             self.game_state.main_menu = true;
             self.camera_controller.position =
@@ -558,16 +551,11 @@ const Runtime = struct {
         events: []const Events.Event,
         window_width: u32,
         window_height: u32,
-        mouse_x: u32,
-        mouse_y: u32,
     ) void {
         _ = window_width;
         _ = window_height;
 
         const frame_alloc = memory.frame_alloc();
-        const mouse_pos: Vec2 = .{ .x = @floatFromInt(mouse_x), .y = @floatFromInt(mouse_y) };
-        const mouse_pos_world = mouse_pos.add(self.camera_controller.position.xy());
-
         if (self.mouse_drag.update(events, dt)) |v| {
             if (self.selected_ball) |sb| {
                 const ball = &self.balls[sb];
@@ -620,7 +608,9 @@ const Runtime = struct {
 
         var new_ball_selected: bool = false;
         for (&self.balls) |*ball| {
-            if (!ball.disabled and ball.is_hovered(mouse_pos_world) and self.lmb_pressed) {
+            if (!ball.disabled and ball.is_hovered(self.input_state.mouse_pos_world) and
+                self.input_state.lmb)
+            {
                 new_ball_selected = true;
                 self.selected_ball = ball.id;
             }
@@ -643,7 +633,7 @@ const Runtime = struct {
                 }
             }
         }
-        if (!new_ball_selected and self.lmb_pressed)
+        if (!new_ball_selected and self.input_state.lmb)
             self.selected_ball = null;
 
         const back_button = UiRect.init(
@@ -654,10 +644,10 @@ const Runtime = struct {
         );
         if (back_button.to_screen_quads_world_space(
             frame_alloc,
-            mouse_pos_world,
+            self.input_state.mouse_pos_world,
             &self.camera_controller,
             &self.screen_quads,
-        ) and self.lmb_pressed) {
+        ) and self.input_state.lmb) {
             self.game_state.in_game = false;
             self.game_state.main_menu = true;
             self.camera_controller.position =
@@ -673,14 +663,10 @@ const Runtime = struct {
         events: []const Events.Event,
         window_width: u32,
         window_height: u32,
-        mouse_x: u32,
-        mouse_y: u32,
     ) void {
         _ = events;
 
         const frame_alloc = memory.frame_alloc();
-        const mouse_pos: Vec2 = .{ .x = @floatFromInt(mouse_x), .y = @floatFromInt(mouse_y) };
-
         const perf_button = UiRect.init(
             .{
                 .x = @as(f32, @floatFromInt(window_width)) / 2.0,
@@ -693,16 +679,16 @@ const Runtime = struct {
                 .{
                     1.0 / dt,
                     dt,
-                    mouse_x,
-                    mouse_y,
+                    self.input_state.mouse_pos.x,
+                    self.input_state.mouse_pos.y,
                     self.camera_controller.position.x,
                     self.camera_controller.position.y,
                 },
             ) catch unreachable,
             32.0,
         );
-        if (perf_button.to_screen_quads(frame_alloc, mouse_pos, &self.screen_quads) and
-            self.lmb_pressed)
+        if (perf_button.to_screen_quads(frame_alloc, self.input_state.mouse_pos, &self.screen_quads) and
+            self.input_state.lmb)
             self.show_perf = !self.show_perf;
 
         // for (&self.balls, 0..) |*ball, i| {
