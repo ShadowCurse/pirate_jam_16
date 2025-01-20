@@ -39,285 +39,16 @@ const _objects = @import("objects.zig");
 const Ball = _objects.Ball;
 const Table = _objects.Table;
 
-const UiPanel = struct {
-    position: Vec2,
-    size: Vec2,
-    color: Color,
+const _animations = @import("animations.zig");
+const GameStateChangeAnimation = _animations.GameStateChangeAnimation;
 
-    pub fn init(position: Vec2, size: Vec2, color: Color) UiPanel {
-        return .{
-            .position = position,
-            .size = size,
-            .color = color,
-        };
-    }
+const _ui = @import("ui.zig");
+const UiText = _ui.UiText;
+const UiPanel = _ui.UiPanel;
 
-    pub fn to_screen_quad(
-        self: UiPanel,
-        camera_controller: *const CameraController2d,
-        screen_quads: *ScreenQuads,
-    ) void {
-        const position = camera_controller.transform(self.position.extend(0.0));
-        screen_quads.add_quad(.{
-            .color = self.color,
-            .texture_id = Textures.Texture.ID_SOLID_COLOR,
-            .position = position.xy().extend(0.0),
-            .size = self.size.mul_f32(position.z),
-            .options = .{ .clip = false, .no_scale_rotate = true, .no_alpha_blend = true },
-        });
-    }
-};
+const Game = @import("game.zig");
 
-const UiText = struct {
-    text: Text,
-
-    pub fn init(position: Vec2, font: *const Font, text: []const u8, text_size: f32) UiText {
-        return .{
-            .text = Text.init(
-                font,
-                text,
-                text_size,
-                position.extend(0.0),
-                0.0,
-                .{},
-                .{ .dont_clip = true },
-            ),
-        };
-    }
-
-    pub fn to_screen_quads(
-        self: UiText,
-        allocator: Allocator,
-        mouse_pos: Vec2,
-        screen_quads: *ScreenQuads,
-    ) bool {
-        const text_quads = self.text.to_screen_quads_raw(allocator);
-        const collision_rectangle: Physics.Rectangle = .{
-            .size = .{
-                .x = text_quads.total_width,
-                .y = self.text.size,
-            },
-        };
-        const rectangle_position: Vec2 =
-            self.text.position.xy().add(.{ .y = -self.text.size / 2.0 });
-        const intersects = Physics.point_rectangle_intersect(
-            mouse_pos,
-            collision_rectangle,
-            rectangle_position,
-        );
-        if (intersects) {
-            for (text_quads.quads) |*quad| {
-                quad.color = Color.RED;
-                quad.options.with_tint = true;
-            }
-        }
-        for (text_quads.quads) |quad| {
-            screen_quads.add_quad(quad);
-        }
-        return intersects;
-    }
-
-    pub fn to_screen_quads_world_space(
-        self: UiText,
-        allocator: Allocator,
-        mouse_pos: Vec2,
-        camera_controller: *const CameraController2d,
-        screen_quads: *ScreenQuads,
-    ) bool {
-        const text_quads = self.text.to_screen_quads_world_space_raw(allocator, camera_controller);
-        const collision_rectangle: Physics.Rectangle = .{
-            .size = .{
-                .x = text_quads.total_width,
-                .y = self.text.size,
-            },
-        };
-        const rectangle_position: Vec2 =
-            self.text.position.xy().add(.{ .y = -self.text.size / 2.0 });
-        const intersects = Physics.point_rectangle_intersect(
-            mouse_pos,
-            collision_rectangle,
-            rectangle_position,
-        );
-        if (intersects) {
-            for (text_quads.quads) |*quad| {
-                quad.color = Color.RED;
-                quad.options.with_tint = true;
-            }
-        }
-        for (text_quads.quads) |quad| {
-            screen_quads.add_quad(quad);
-        }
-        return intersects;
-    }
-};
-
-const MouseDrag = struct {
-    active: bool = false,
-    sensitivity: f32 = 100.0,
-    v: Vec2 = .{},
-
-    pub fn update(
-        self: *MouseDrag,
-        events: []const Events.Event,
-        dt: f32,
-    ) ?Vec2 {
-        for (events) |event| {
-            switch (event) {
-                .Mouse => |mouse| {
-                    switch (mouse) {
-                        .Button => |button| {
-                            if (button.key == .RMB) {
-                                if (button.type == .Pressed) {
-                                    self.active = true;
-                                } else {
-                                    if (self.active) {
-                                        const v = self.v;
-                                        self.v = .{};
-                                        self.active = false;
-                                        return v;
-                                    }
-                                }
-                            }
-                        },
-                        .Motion => |motion| {
-                            if (self.active) {
-                                self.v = self.v.sub(.{
-                                    .x = @as(f32, @floatFromInt(motion.x)) *
-                                        self.sensitivity * dt,
-                                    .y = @as(f32, @floatFromInt(motion.y)) *
-                                        self.sensitivity * dt,
-                                });
-                            }
-                        },
-                        else => {},
-                    }
-                },
-                else => {},
-            }
-        }
-        return null;
-    }
-};
-
-const SmoothStepAnimation = struct {
-    start_position: Vec3,
-    end_position: Vec3,
-    duration: f32,
-    progress: f32,
-
-    pub fn update(self: *SmoothStepAnimation, position: *Vec3, dt: f32) bool {
-        const p = self.progress / self.duration;
-        const t = p * p * (3.0 - 2.0 * p);
-        position.* = self.start_position.lerp(self.end_position, t);
-        self.progress += dt;
-        return self.duration <= self.progress;
-    }
-};
-
-const GameStateChangeAnimation = struct {
-    camera_controller: *CameraController2d,
-    animation: ?SmoothStepAnimation = null,
-    game_state: *GameState,
-    final_game_state: GameState = .{},
-
-    const DURATION = 1.0;
-
-    pub fn set(
-        self: *GameStateChangeAnimation,
-        target_position: Vec2,
-        final_game_state: GameState,
-    ) void {
-        const camera_worl_position = self.camera_controller.world_position().xy();
-        const delta = target_position.sub(camera_worl_position);
-        self.animation = .{
-            .start_position = self.camera_controller.position,
-            .end_position = self.camera_controller.position.add(delta.extend(0.0)),
-            .duration = DURATION,
-            .progress = 0.0,
-        };
-        self.final_game_state = final_game_state;
-    }
-
-    pub fn update(self: *GameStateChangeAnimation, dt: f32) void {
-        if (self.animation) |*a| {
-            if (a.update(&self.camera_controller.position, dt)) {
-                self.animation = null;
-                self.game_state.* = self.final_game_state;
-            }
-        }
-    }
-};
-
-const MoveAnimation = struct {
-    velocity: Vec2,
-    duration: f32,
-    progress: f32,
-
-    pub fn update(
-        self: *MoveAnimation,
-        position: *Vec2,
-        dt: f32,
-    ) bool {
-        position.* = position.add(self.velocity.mul_f32(dt));
-        self.progress += dt;
-        return self.duration <= self.progress;
-    }
-};
-
-const BallAnimations = struct {
-    animations: [36]BallAnimation = undefined,
-    animation_n: u32 = 0,
-
-    const BallAnimation = struct {
-        ball_id: u8,
-        move_animation: MoveAnimation,
-    };
-
-    pub fn add(self: *BallAnimations, ball: *const Ball, target: Vec2, duration: f32) void {
-        if (self.animation_n == self.animations.len) {
-            log.err(
-                @src(),
-                "Trying to add ball animation, but there is no available slots for it",
-                .{},
-            );
-            return;
-        }
-        const velocity = target.sub(ball.body.position).mul_f32(1.0 / duration);
-        self.animations[self.animation_n] = .{
-            .ball_id = ball.id,
-            .move_animation = .{
-                .velocity = velocity,
-                .duration = duration,
-                .progress = 0,
-            },
-        };
-        log.info(@src(), "Adding ball animation in slot: {d}", .{self.animation_n});
-        self.animation_n += 1;
-        log.assert(
-            @src(),
-            self.animation_n < self.animations.len,
-            "Animation counter overflow",
-            .{},
-        );
-    }
-
-    pub fn update(self: *BallAnimations, balls: []Ball, dt: f32) void {
-        var start: u32 = 0;
-        while (start < self.animation_n) {
-            const animation = &self.animations[start];
-            const ball = &balls[animation.ball_id];
-            if (animation.move_animation.update(&ball.body.position, dt)) {
-                log.info(@src(), "Removing ball animation from slot: {d}", .{start});
-                self.animations[start] = self.animations[self.animation_n - 1];
-                self.animation_n -= 1;
-            } else {
-                start += 1;
-            }
-        }
-    }
-};
-
-const GameState = packed struct(u8) {
+pub const GameState = packed struct(u8) {
     main_menu: bool = true,
     settings: bool = false,
     in_game: bool = false,
@@ -325,11 +56,11 @@ const GameState = packed struct(u8) {
     _: u4 = 0,
 };
 
-const CAMERA_MAIN_MENU: Vec2 = .{ .y = 1000.0 };
-const CAMERA_SETTINGS: Vec2 = .{ .x = 1000.0, .y = 1000.0 };
-const CAMERA_IN_GAME: Vec2 = .{};
+pub const CAMERA_MAIN_MENU: Vec2 = .{ .y = 1000.0 };
+pub const CAMERA_SETTINGS: Vec2 = .{ .x = 1000.0, .y = 1000.0 };
+pub const CAMERA_IN_GAME: Vec2 = .{};
 
-const InputState = struct {
+pub const InputState = struct {
     lmb: bool = false,
     rmb: bool = false,
     mouse_pos: Vec2 = .{},
@@ -350,15 +81,9 @@ const Runtime = struct {
     game_state: GameState,
     input_state: InputState,
     game_state_change_animation: GameStateChangeAnimation,
-
-    balls: [16]Ball,
-    table: Table,
-    ball_animations: BallAnimations,
+    game: Game,
 
     show_perf: bool,
-    selected_ball: ?u32,
-
-    mouse_drag: MouseDrag,
 
     const Self = @This();
 
@@ -387,46 +112,9 @@ const Runtime = struct {
             .camera_controller = &self.camera_controller,
             .game_state = &self.game_state,
         };
-
-        for (&self.balls, 0..) |*ball, i| {
-            const row: f32 = @floatFromInt(@divFloor(i, 4));
-            const column: f32 = @floatFromInt(i % 4);
-            const position: Vec2 = .{
-                .x = -60.0 * 2 + column * 60.0 + 30.0,
-                .y = -60.0 * 2 + row * 60.0 + 30.0,
-            };
-            const id: u8 = @intCast(i);
-            const color = Color.from_parts(
-                @intCast((i * 64) % 255),
-                @intCast((i * 17) % 255),
-                @intCast((i * 33) % 255),
-                255,
-            );
-            ball.* = .{
-                .id = id,
-                .texture_id = self.texture_ball,
-                .color = color,
-                .body = .{
-                    .position = position,
-                    .velocity = .{},
-                    .restitution = 1.0,
-                    .friction = 0.95,
-                    .inv_mass = 1.0,
-                },
-                .collider = .{
-                    .radius = 20.0,
-                },
-                .previous_positions = [_]Vec2{position} ** 64,
-                .previous_position_index = 0,
-            };
-        }
-        self.table = Table.init(self.texture_poll_table);
-        self.ball_animations = .{};
+        self.game.init(self.texture_ball, self.texture_poll_table);
 
         self.show_perf = false;
-        self.selected_ball = null;
-
-        self.mouse_drag = .{};
     }
 
     fn run(
@@ -460,8 +148,13 @@ const Runtime = struct {
             Tracing.zero_current(TaceableTypes);
         }
 
-        self.input_state.mouse_pos = .{ .x = @floatFromInt(mouse_x), .y = @floatFromInt(mouse_y) };
-        self.input_state.mouse_pos_world = self.input_state.mouse_pos.add(self.camera_controller.position.xy());
+        self.input_state.mouse_pos = .{
+            .x = @floatFromInt(mouse_x),
+            .y = @floatFromInt(mouse_y),
+        };
+        self.input_state.mouse_pos_world = self.input_state.mouse_pos.add(
+            self.camera_controller.position.xy(),
+        );
 
         for (events) |event| {
             switch (event) {
@@ -537,10 +230,10 @@ const Runtime = struct {
         //         }
         //     }
         // }
-        if (self.mouse_drag.active) {
+        if (self.game.mouse_drag.active) {
             self.soft_renderer.draw_line(
                 screen_size.mul_f32(0.5),
-                screen_size.mul_f32(0.5).add(self.mouse_drag.v),
+                screen_size.mul_f32(0.5).add(self.game.mouse_drag.v),
                 Color.MAGENTA,
             );
         }
@@ -574,6 +267,8 @@ const Runtime = struct {
             &self.camera_controller,
             &self.screen_quads,
         ) and self.input_state.lmb) {
+            self.game.restart();
+
             self.game_state.in_game = true;
             var final_game_state = self.game_state;
             final_game_state.main_menu = false;
@@ -645,85 +340,9 @@ const Runtime = struct {
         _ = window_height;
 
         const frame_alloc = memory.frame_alloc();
-        if (self.mouse_drag.update(events, dt)) |v| {
-            if (self.selected_ball) |sb| {
-                const ball = &self.balls[sb];
-                ball.body.velocity = ball.body.velocity.add(v);
-            }
-        }
 
-        for (&self.balls) |*ball| {
-            if (ball.disabled)
-                continue;
-            ball.update(&self.table, &self.balls, dt);
-        }
-
-        for (&self.balls) |*ball| {
-            if (ball.disabled)
-                continue;
-
-            for (&self.table.pockets) |*pocket| {
-                const collision_point =
-                    Physics.circle_circle_collision(
-                    ball.collider,
-                    ball.body.position,
-                    pocket.collider,
-                    pocket.body.position,
-                );
-                if (collision_point) |_| {
-                    if (self.selected_ball == ball.id)
-                        self.selected_ball = null;
-                    ball.disabled = true;
-                    self.ball_animations.add(ball, pocket.body.position, 1.0);
-                }
-            }
-        }
-
-        self.ball_animations.update(&self.balls, dt);
-
-        self.table.to_screen_quad(
-            &self.camera_controller,
-            &self.texture_store,
-            &self.screen_quads,
-        );
-        self.table.borders_to_screen_quads(
-            &self.camera_controller,
-            &self.screen_quads,
-        );
-        self.table.pockets_to_screen_quads(
-            &self.camera_controller,
-            &self.screen_quads,
-        );
-
-        var new_ball_selected: bool = false;
-        for (&self.balls) |*ball| {
-            if (!ball.disabled and ball.is_hovered(self.input_state.mouse_pos_world) and
-                self.input_state.lmb)
-            {
-                new_ball_selected = true;
-                self.selected_ball = ball.id;
-            }
-            const bo = ball.to_object_2d();
-            bo.to_screen_quad(
-                &self.camera_controller,
-                &self.texture_store,
-                &self.screen_quads,
-            );
-            if (self.selected_ball) |sb| {
-                if (ball.id == sb) {
-                    const pbo = ball.previous_positions_to_object_2d();
-                    for (&pbo) |pb| {
-                        pb.to_screen_quad(
-                            &self.camera_controller,
-                            &self.texture_store,
-                            &self.screen_quads,
-                        );
-                    }
-                }
-            }
-        }
-        if (!new_ball_selected and self.input_state.lmb)
-            self.selected_ball = null;
+        self.game.update(events, &self.input_state, dt);
+        self.game.draw(&self.camera_controller, &self.texture_store, &self.screen_quads);
 
         const UI_BACKGROUND_COLOR = Color.GREY;
         // UI section
