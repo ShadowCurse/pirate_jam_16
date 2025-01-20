@@ -21,6 +21,10 @@ const Table = _objects.Table;
 const _animations = @import("animations.zig");
 const BallAnimations = _animations.BallAnimations;
 
+player_turn: bool,
+player_score: u32,
+opponent_score: u32,
+
 balls: [16]Ball,
 table: Table,
 ball_animations: BallAnimations,
@@ -45,6 +49,10 @@ pub fn init(
 }
 
 pub fn restart(self: *Self) void {
+    self.player_turn = true;
+    self.player_score = 0;
+    self.opponent_score = 0;
+
     for (&self.balls, 0..) |*ball, i| {
         const row: f32 = @floatFromInt(@divFloor(i, 4));
         const column: f32 = @floatFromInt(i % 4);
@@ -88,6 +96,7 @@ pub fn update(
         if (self.selected_ball) |sb| {
             const ball = &self.balls[sb];
             ball.body.velocity = ball.body.velocity.add(v);
+            self.player_turn = !self.player_turn;
         }
     }
 

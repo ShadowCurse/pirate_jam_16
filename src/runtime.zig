@@ -345,6 +345,8 @@ const Runtime = struct {
         self.game.draw(&self.camera_controller, &self.texture_store, &self.screen_quads);
 
         const UI_BACKGROUND_COLOR = Color.GREY;
+        const UI_BACKGROUND_COLOR_PLAYING = Color.GREEN;
+
         // UI section
         const top_panel = UiPanel.init(
             .{ .y = -300.0 },
@@ -360,19 +362,19 @@ const Runtime = struct {
         );
         bot_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
 
-        const left_info_panel = UiPanel.init(
-            .{ .x = -550.0, .y = -290.0 },
-            .{ .x = 120.0, .y = 80.0 },
-            UI_BACKGROUND_COLOR,
+        const left_info_opponent_panel = UiPanel.init(
+            .{ .x = -550.0, .y = -165 },
+            .{ .x = 140.0, .y = 320.0 },
+            if (!self.game.player_turn) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
         );
-        left_info_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
+        left_info_opponent_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
 
-        const left_ball_panel = UiPanel.init(
-            .{ .x = -550.0 },
-            .{ .x = 120.0, .y = 400.0 },
-            UI_BACKGROUND_COLOR,
+        const left_info_player_panel = UiPanel.init(
+            .{ .x = -550.0, .y = 165 },
+            .{ .x = 140.0, .y = 320.0 },
+            if (self.game.player_turn) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
         );
-        left_ball_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
+        left_info_player_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
 
         const right_cue_panel = UiPanel.init(
             .{ .x = 550.0 },
@@ -382,7 +384,7 @@ const Runtime = struct {
         right_cue_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
 
         const back_button = UiText.init(
-            .{ .x = -550.0, .y = 300.0 },
+            .{ .x = -550.0, .y = 350.0 },
             &self.font,
             "Back",
             32.0,
