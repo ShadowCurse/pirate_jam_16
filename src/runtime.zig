@@ -39,10 +39,39 @@ const _objects = @import("objects.zig");
 const Ball = _objects.Ball;
 const Table = _objects.Table;
 
-const UiRect = struct {
+const UiPanel = struct {
+    position: Vec2,
+    size: Vec2,
+    color: Color,
+
+    pub fn init(position: Vec2, size: Vec2, color: Color) UiPanel {
+        return .{
+            .position = position,
+            .size = size,
+            .color = color,
+        };
+    }
+
+    pub fn to_screen_quad(
+        self: UiPanel,
+        camera_controller: *const CameraController2d,
+        screen_quads: *ScreenQuads,
+    ) void {
+        const position = camera_controller.transform(self.position.extend(0.0));
+        screen_quads.add_quad(.{
+            .color = self.color,
+            .texture_id = Textures.Texture.ID_SOLID_COLOR,
+            .position = position.xy().extend(0.0),
+            .size = self.size.mul_f32(position.z),
+            .options = .{ .clip = false, .no_scale_rotate = true, .no_alpha_blend = true },
+        });
+    }
+};
+
+const UiText = struct {
     text: Text,
 
-    pub fn init(position: Vec2, font: *const Font, text: []const u8, text_size: f32) UiRect {
+    pub fn init(position: Vec2, font: *const Font, text: []const u8, text_size: f32) UiText {
         return .{
             .text = Text.init(
                 font,
@@ -57,7 +86,7 @@ const UiRect = struct {
     }
 
     pub fn to_screen_quads(
-        self: UiRect,
+        self: UiText,
         allocator: Allocator,
         mouse_pos: Vec2,
         screen_quads: *ScreenQuads,
@@ -89,7 +118,7 @@ const UiRect = struct {
     }
 
     pub fn to_screen_quads_world_space(
-        self: UiRect,
+        self: UiText,
         allocator: Allocator,
         mouse_pos: Vec2,
         camera_controller: *const CameraController2d,
@@ -533,7 +562,7 @@ const Runtime = struct {
 
         const frame_alloc = memory.frame_alloc();
 
-        const start_button = UiRect.init(
+        const start_button = UiText.init(
             CAMERA_MAIN_MENU,
             &self.font,
             "Start",
@@ -551,7 +580,7 @@ const Runtime = struct {
             self.game_state_change_animation.set(CAMERA_IN_GAME, final_game_state);
         }
 
-        const settings_button = UiRect.init(
+        const settings_button = UiText.init(
             CAMERA_MAIN_MENU.add(.{ .y = 50.0 }),
             &self.font,
             "Settings",
@@ -585,7 +614,7 @@ const Runtime = struct {
 
         const frame_alloc = memory.frame_alloc();
 
-        const back_button = UiRect.init(
+        const back_button = UiText.init(
             CAMERA_SETTINGS,
             &self.font,
             "Back",
@@ -696,8 +725,45 @@ const Runtime = struct {
         if (!new_ball_selected and self.input_state.lmb)
             self.selected_ball = null;
 
-        const back_button = UiRect.init(
+        const UI_BACKGROUND_COLOR = Color.GREY;
+        // UI section
+        const top_panel = UiPanel.init(
+            .{ .y = -300.0 },
+            .{ .x = 800.0, .y = 60.0 },
+            UI_BACKGROUND_COLOR,
+        );
+        top_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
+
+        const bot_panel = UiPanel.init(
+            .{ .y = 300.0 },
+            .{ .x = 800.0, .y = 60.0 },
+            UI_BACKGROUND_COLOR,
+        );
+        bot_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
+
+        const left_info_panel = UiPanel.init(
+            .{ .x = -550.0, .y = -290.0 },
+            .{ .x = 120.0, .y = 80.0 },
+            UI_BACKGROUND_COLOR,
+        );
+        left_info_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
+
+        const left_ball_panel = UiPanel.init(
             .{ .x = -550.0 },
+            .{ .x = 120.0, .y = 400.0 },
+            UI_BACKGROUND_COLOR,
+        );
+        left_ball_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
+
+        const right_cue_panel = UiPanel.init(
+            .{ .x = 550.0 },
+            .{ .x = 140.0, .y = 600.0 },
+            UI_BACKGROUND_COLOR,
+        );
+        right_cue_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
+
+        const back_button = UiText.init(
+            .{ .x = -550.0, .y = 300.0 },
             &self.font,
             "Back",
             32.0,
@@ -726,7 +792,7 @@ const Runtime = struct {
         _ = events;
 
         const frame_alloc = memory.frame_alloc();
-        const perf_button = UiRect.init(
+        const perf_button = UiText.init(
             .{
                 .x = @as(f32, @floatFromInt(window_width)) / 2.0,
                 .y = @as(f32, @floatFromInt(window_height)) / 2.0 + 300.0,
