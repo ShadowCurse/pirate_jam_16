@@ -169,19 +169,17 @@ const MouseDrag = struct {
     }
 };
 
-const BallAnimation = struct {
-    ball_id: u8,
+const MoveAnimation = struct {
     velocity: Vec2,
     duration: f32,
     progress: f32,
 
     pub fn update(
-        self: *BallAnimation,
-        balls: []Ball,
+        self: *MoveAnimation,
+        position: *Vec2,
         dt: f32,
     ) bool {
-        const ball = &balls[self.ball_id];
-        ball.body.position = ball.body.position.add(self.velocity.mul_f32(dt));
+        position.* = position.add(self.velocity.mul_f32(dt));
         self.progress += dt;
         return self.duration <= self.progress;
     }
@@ -190,6 +188,11 @@ const BallAnimation = struct {
 const BallAnimations = struct {
     animations: [36]BallAnimation = undefined,
     animation_n: u32 = 0,
+
+    const BallAnimation = struct {
+        ball_id: u8,
+        move_animation: MoveAnimation,
+    };
 
     pub fn add(self: *BallAnimations, ball: *const Ball, target: Vec2, duration: f32) void {
         if (self.animation_n == self.animations.len) {
@@ -203,9 +206,11 @@ const BallAnimations = struct {
         const velocity = target.sub(ball.body.position).mul_f32(1.0 / duration);
         self.animations[self.animation_n] = .{
             .ball_id = ball.id,
-            .velocity = velocity,
-            .duration = duration,
-            .progress = 0,
+            .move_animation = .{
+                .velocity = velocity,
+                .duration = duration,
+                .progress = 0,
+            },
         };
         log.info(@src(), "Adding ball animation in slot: {d}", .{self.animation_n});
         self.animation_n += 1;
@@ -221,7 +226,8 @@ const BallAnimations = struct {
         var start: u32 = 0;
         while (start < self.animation_n) {
             const animation = &self.animations[start];
-            if (animation.update(balls, dt)) {
+            const ball = &balls[animation.ball_id];
+            if (animation.move_animation.update(&ball.body.position, dt)) {
                 log.info(@src(), "Removing ball animation from slot: {d}", .{start});
                 self.animations[start] = self.animations[self.animation_n - 1];
                 self.animation_n -= 1;
