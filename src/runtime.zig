@@ -245,9 +245,17 @@ const Runtime = struct {
                 .x = -60.0 * 2 + column * 60.0 + 30.0,
                 .y = -60.0 * 2 + row * 60.0 + 30.0,
             };
+            const id: u8 = @intCast(i);
+            const color = Color.from_parts(
+                @intCast((i * 64) % 255),
+                @intCast((i * 17) % 255),
+                @intCast((i * 33) % 255),
+                255,
+            );
             ball.* = .{
-                .id = @intCast(i),
+                .id = id,
                 .texture_id = self.texture_ball,
+                .color = color,
                 .body = .{
                     .position = position,
                     .velocity = .{},
@@ -331,7 +339,7 @@ const Runtime = struct {
         for (&self.balls) |*ball| {
             if (ball.disabled)
                 continue;
-            ball.update(frame_alloc, &self.table, &self.balls, dt);
+            ball.update(&self.table, &self.balls, dt);
         }
 
         for (&self.balls) |*ball| {
@@ -347,6 +355,8 @@ const Runtime = struct {
                     pocket.body.position,
                 );
                 if (collision_point) |_| {
+                    if (self.selected_ball == ball.id)
+                        self.selected_ball = null;
                     ball.disabled = true;
                     self.ball_animations.add(ball, pocket.body.position, 1.0);
                 }
@@ -371,10 +381,7 @@ const Runtime = struct {
 
         var new_ball_selected: bool = false;
         for (&self.balls) |*ball| {
-            if (ball.disabled)
-                continue;
-
-            if (ball.is_hovered(mouse_pos_world) and lmb_pressed) {
+            if (!ball.disabled and ball.is_hovered(mouse_pos_world) and lmb_pressed) {
                 new_ball_selected = true;
                 self.selected_ball = ball.id;
             }

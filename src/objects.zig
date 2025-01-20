@@ -26,6 +26,7 @@ const Vec2 = _math.Vec2;
 pub const Ball = struct {
     id: u8,
     texture_id: Textures.Texture.Id,
+    color: Color,
 
     body: Physics.Body,
     collider: Physics.Circle,
@@ -145,6 +146,7 @@ pub const Ball = struct {
 
         return .{
             .type = .{ .TextureId = self.texture_id },
+            .tint = self.color,
             .transform = .{
                 .position = self.body.position.extend(0.0),
             },
@@ -153,7 +155,7 @@ pub const Ball = struct {
                 .y = 40.0,
             },
             // .options = .{ .draw_aabb = true, .no_scale_rotate = true },
-            .options = .{ .draw_aabb = true },
+            .options = .{ .draw_aabb = true, .with_tint = true },
         };
     }
 
@@ -163,13 +165,8 @@ pub const Ball = struct {
 
         var pp_objects: [PREVIOUS_POSITIONS]Object2d = undefined;
         var pp_index = self.previous_position_index;
-        const id: u32 = @intCast(self.id);
-        const base_color = Color.from_parts(
-            @intCast((id * 64) % 255),
-            @intCast((id * 17) % 255),
-            @intCast((id * 33) % 255),
-            0,
-        );
+        var base_color = self.color;
+        base_color.format.a = 0;
         for (&pp_objects, 0..) |*o, i| {
             const previous_position = self.previous_positions[pp_index];
             var color = base_color;
@@ -184,7 +181,6 @@ pub const Ball = struct {
                     .x = 40.0,
                     .y = 40.0,
                 },
-                // .options = .{ .with_tint = true, .draw_aabb = true, .no_scale_rotate = true },
                 .options = .{ .with_tint = true },
             };
             pp_index += 1;
