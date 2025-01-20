@@ -26,11 +26,12 @@ const Vec2 = _math.Vec2;
 pub const Ball = struct {
     id: u8,
     texture_id: Textures.Texture.Id,
+
+    body: Physics.Body,
     collider: Physics.Circle,
+
     previous_positions: [PREVIOUS_POSITIONS]Vec2,
     previous_position_index: u32,
-    velocity: Vec2,
-    friction: f32,
     disabled: bool = false,
 
     pub const PREVIOUS_POSITIONS = 64;
@@ -41,26 +42,29 @@ pub const Ball = struct {
         previous_positions_to_object_2d: Tracing.Counter,
     });
 
-    pub fn update(self: *Ball, allocator: Allocator, table: *const Table, balls: []const Ball, dt: f32) void {
+    // TODO do only one pass over all combinations
+    // TODO maybe add a rotation calculations as well
+    // TODO friction application seems not very physics based
+    pub fn update(self: *Ball, table: *const Table, balls: []Ball, dt: f32) void {
         const trace_start = trace.start();
         defer trace.end(@src(), trace_start);
 
         if (self.disabled)
             return;
 
-        const collisions =
-            allocator.alloc(Physics.CollisionPoint, table.borders.len + balls.len) catch unreachable;
-        var collisions_n: u32 = 0;
-
         for (balls) |*ball| {
             if (self.id == ball.id)
                 continue;
             const collision_point =
-                Physics.circle_circle_collision(self.collider, ball.collider);
+                Physics.circle_circle_collision(
+                self.collider,
+                self.body.position,
+                ball.collider,
+                ball.body.position,
+            );
             if (collision_point) |cp| {
                 if (cp.normal.is_valid()) {
-                    collisions[collisions_n] = cp;
-                    collisions_n += 1;
+                    Physics.apply_collision_impulse(&self.body, &ball.body, cp);
                     log.info(
                         @src(),
                         "collision of ball: {d} and ball: {d}",
@@ -77,28 +81,34 @@ pub const Ball = struct {
         }
         for (&table.borders, 0..) |*border, i| {
             const collision_point =
-                Physics.circle_rectangle_collision(self.collider, border.collider);
+                Physics.circle_rectangle_collision(
+                self.collider,
+                self.body.position,
+                border.collider,
+                border.body.position,
+            );
             if (collision_point) |cp| {
                 if (cp.normal.is_valid()) {
-                    collisions[collisions_n] = cp;
-                    collisions_n += 1;
+                    Physics.apply_collision_impulse_static(&self.body, &border.body, cp);
                     log.info(
                         @src(),
                         "collision of ball: {d} and border: {d}",
                         .{ self.id, i },
                     );
                 } else {
-                    var prev_collider = self.collider;
-                    prev_collider.position = self.previous_positions[self.previous_position_index];
                     const ncp =
-                        Physics.circle_rectangle_closest_collision_point(
-                        prev_collider,
+                        Physics.point_rectangle_closest_collision_point(
+                        self.previous_positions[self.previous_position_index],
                         border.collider,
+                        border.body.position,
                     );
-                    if (!ncp.normal.is_valid()) @panic("wtf");
-
-                    collisions[collisions_n] = cp;
-                    collisions_n += 1;
+                    log.assert(
+                        @src(),
+                        ncp.normal.is_valid(),
+                        "prevous position collision produced invalid normal",
+                        .{},
+                    );
+                    Physics.apply_collision_impulse_static(&self.body, &border.body, ncp);
                     log.info(
                         @src(),
                         "invalid normal for collision of ball: {d} and border: {d}",
@@ -108,53 +118,25 @@ pub const Ball = struct {
             }
         }
 
-        if (collisions_n != 0) {
-            log.info(
-                @src(),
-                "resolving {d} collisions for ball: {d}",
-                .{ collisions_n, self.id },
-            );
-
-            var avg_collision_position: Vec2 = .{};
-            var avg_collision_normal: Vec2 = .{};
-            for (collisions[0..collisions_n]) |*collision| {
-                if (!collision.normal.is_valid())
-                    continue;
-                avg_collision_position = avg_collision_position.add(collision.position);
-                avg_collision_normal = avg_collision_normal.add(collision.normal);
-            }
-            log.assert(@src(), avg_collision_position.is_valid(), "", .{});
-            log.assert(@src(), avg_collision_normal.is_valid(), "", .{});
-
-            avg_collision_position = avg_collision_position.mul_f32(1.0 / @as(f32, @floatFromInt(collisions_n)));
-            avg_collision_normal = avg_collision_normal.mul_f32(1.0 / @as(f32, @floatFromInt(collisions_n)));
-
-            const proj = avg_collision_normal.mul_f32(-self.velocity.dot(avg_collision_normal));
-            self.velocity = self.velocity.add(proj.mul_f32(2.0));
-            const new_positon =
-                avg_collision_position.add(avg_collision_normal.mul_f32(self.collider.radius));
-            self.previous_positions[self.previous_position_index] = self.collider.position;
-            self.previous_position_index += 1;
-            self.previous_position_index %= PREVIOUS_POSITIONS;
-            self.collider.position = new_positon;
-        }
-
-        self.previous_positions[self.previous_position_index] = self.collider.position;
+        self.previous_positions[self.previous_position_index] = self.body.position;
         self.previous_position_index += 1;
         self.previous_position_index %= PREVIOUS_POSITIONS;
-        self.collider.position = self.collider.position.add(self.velocity.mul_f32(dt));
-        self.velocity = self.velocity.mul_f32(self.friction);
+        self.body.position = self.body.position.add(self.body.velocity.mul_f32(dt));
+        self.body.velocity = self.body.velocity.mul_f32(self.body.friction);
 
-        if (self.collider.position.x < -Table.WIDTH / 2.0 or Table.WIDTH / 2.0 < self.collider.position.x or
-            self.collider.position.y < -Table.HEIGTH / 2.0 or Table.HEIGTH / 2.0 < self.collider.position.y)
+        log.assert(@src(), self.body.position.is_valid(), "Body position is invalid", .{});
+        log.assert(@src(), self.body.velocity.is_valid(), "Body velocity is invalid", .{});
+
+        if (self.body.position.x < -Table.WIDTH / 2.0 or Table.WIDTH / 2.0 < self.body.position.x or
+            self.body.position.y < -Table.HEIGTH / 2.0 or Table.HEIGTH / 2.0 < self.body.position.y)
         {
-            self.velocity = .{};
+            self.body.velocity = .{};
             self.disabled = true;
         }
     }
 
     pub fn is_hovered(self: Ball, mouse_pos: Vec2) bool {
-        return Physics.point_circle_intersect(mouse_pos, self.collider);
+        return Physics.point_circle_intersect(mouse_pos, self.collider, self.body.position);
     }
 
     pub fn to_object_2d(self: Ball) Object2d {
@@ -164,7 +146,7 @@ pub const Ball = struct {
         return .{
             .type = .{ .TextureId = self.texture_id },
             .transform = .{
-                .position = self.collider.position.extend(0.0),
+                .position = self.body.position.extend(0.0),
             },
             .size = .{
                 .x = 40.0,
@@ -225,10 +207,12 @@ pub const Table = struct {
     pub const POCKET_CORNER_OFFSET = 30;
 
     pub const Border = struct {
+        body: Physics.Body,
         collider: Physics.Rectangle,
     };
 
     pub const Pocket = struct {
+        body: Physics.Body,
         collider: Physics.Circle,
     };
 
@@ -244,44 +228,56 @@ pub const Table = struct {
             .borders = .{
                 // left
                 .{
-                    .collider = .{
+                    .body = .{
                         .position = .{ .x = -WIDTH / 2 + BORDER / 2 },
+                    },
+                    .collider = .{
                         .size = .{ .x = BORDER, .y = HEIGTH - POCKET_GAP * 3.0 },
                     },
                 },
                 // right
                 .{
-                    .collider = .{
+                    .body = .{
                         .position = .{ .x = WIDTH / 2 - BORDER / 2 },
+                    },
+                    .collider = .{
                         .size = .{ .x = BORDER, .y = HEIGTH - POCKET_GAP * 3.0 },
                     },
                 },
                 // bottom left
                 .{
-                    .collider = .{
+                    .body = .{
                         .position = .{ .x = -WIDTH / 4 + POCKET_GAP / 2, .y = -HEIGTH / 2 + BORDER / 2 },
+                    },
+                    .collider = .{
                         .size = .{ .x = WIDTH / 2 - POCKET_GAP * 2, .y = BORDER },
                     },
                 },
                 // bottom right
                 .{
-                    .collider = .{
+                    .body = .{
                         .position = .{ .x = WIDTH / 4 - POCKET_GAP / 2, .y = -HEIGTH / 2 + BORDER / 2 },
+                    },
+                    .collider = .{
                         .size = .{ .x = WIDTH / 2 - POCKET_GAP * 2, .y = BORDER },
                     },
                 },
 
                 // top left
                 .{
-                    .collider = .{
+                    .body = .{
                         .position = .{ .x = -WIDTH / 4 + POCKET_GAP / 2, .y = HEIGTH / 2 - BORDER / 2 },
+                    },
+                    .collider = .{
                         .size = .{ .x = WIDTH / 2 - POCKET_GAP * 2, .y = BORDER },
                     },
                 },
                 // top right
                 .{
-                    .collider = .{
+                    .body = .{
                         .position = .{ .x = WIDTH / 4 - POCKET_GAP / 2, .y = HEIGTH / 2 - BORDER / 2 },
+                    },
+                    .collider = .{
                         .size = .{ .x = WIDTH / 2 - POCKET_GAP * 2, .y = BORDER },
                     },
                 },
@@ -289,55 +285,67 @@ pub const Table = struct {
             .pockets = .{
                 // bot left
                 .{
-                    .collider = .{
+                    .body = .{
                         .position = .{
                             .x = -WIDTH / 2 + POCKET_CORNER_OFFSET,
                             .y = -HEIGTH / 2 + POCKET_CORNER_OFFSET,
                         },
+                    },
+                    .collider = .{
                         .radius = POCKET_RADIUS,
                     },
                 },
                 // bot middle
                 .{
-                    .collider = .{
+                    .body = .{
                         .position = .{ .y = -HEIGTH / 2 },
+                    },
+                    .collider = .{
                         .radius = POCKET_RADIUS,
                     },
                 },
                 // bot right
                 .{
-                    .collider = .{
+                    .body = .{
                         .position = .{
                             .x = WIDTH / 2 - POCKET_CORNER_OFFSET,
                             .y = -HEIGTH / 2 + POCKET_CORNER_OFFSET,
                         },
+                    },
+                    .collider = .{
                         .radius = POCKET_RADIUS,
                     },
                 },
                 // top left
                 .{
-                    .collider = .{
+                    .body = .{
                         .position = .{
                             .x = -WIDTH / 2 + POCKET_CORNER_OFFSET,
                             .y = HEIGTH / 2 - POCKET_CORNER_OFFSET,
                         },
+                    },
+                    .collider = .{
                         .radius = POCKET_RADIUS,
                     },
                 },
                 // top middle
                 .{
-                    .collider = .{
+                    .body = .{
                         .position = .{ .y = HEIGTH / 2 },
+                    },
+                    .collider = .{
                         .radius = POCKET_RADIUS,
                     },
                 },
                 // tob right
                 .{
-                    .collider = .{
+                    .body = .{
                         .position = .{
                             .x = WIDTH / 2 - POCKET_CORNER_OFFSET,
                             .y = HEIGTH / 2 - POCKET_CORNER_OFFSET,
                         },
+                    },
+                    .collider = .{
                         .radius = POCKET_RADIUS,
                     },
                 },
@@ -376,7 +384,7 @@ pub const Table = struct {
 
         const border_color = Color.from_parts(255.0, 255.0, 255.0, 64.0);
         for (&self.borders) |*border| {
-            const position = camera_controller.transform(border.collider.position.extend(0.0));
+            const position = camera_controller.transform(border.body.position.extend(0.0));
             screen_quads.add_quad(.{
                 .color = border_color,
                 .texture_id = Textures.Texture.ID_SOLID_COLOR,
@@ -397,7 +405,7 @@ pub const Table = struct {
 
         const pocket_color = Color.from_parts(64.0, 255.0, 64.0, 64.0);
         for (&self.pockets) |*pocket| {
-            const position = camera_controller.transform(pocket.collider.position.extend(0.0));
+            const position = camera_controller.transform(pocket.body.position.extend(0.0));
             const size: Vec2 = .{
                 .x = pocket.collider.radius * 2.0,
                 .y = pocket.collider.radius * 2.0,

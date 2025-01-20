@@ -63,13 +63,18 @@ const UiRect = struct {
     ) bool {
         const text_quads = self.text.to_screen_quads_raw(allocator);
         const collision_rectangle: Physics.Rectangle = .{
-            .position = self.text.position.xy().add(.{ .y = -self.text.size / 2.0 }),
             .size = .{
                 .x = text_quads.total_width,
                 .y = self.text.size,
             },
         };
-        const intersects = Physics.point_rectangle_intersect(mouse_pos, collision_rectangle);
+        const rectangle_position: Vec2 =
+            self.text.position.xy().add(.{ .y = -self.text.size / 2.0 });
+        const intersects = Physics.point_rectangle_intersect(
+            mouse_pos,
+            collision_rectangle,
+            rectangle_position,
+        );
         if (intersects) {
             for (text_quads.quads) |*quad| {
                 quad.color = Color.RED;
@@ -143,7 +148,7 @@ const BallAnimation = struct {
         dt: f32,
     ) bool {
         const ball = &balls[self.ball_id];
-        ball.collider.position = ball.collider.position.add(self.velocity.mul_f32(dt));
+        ball.body.position = ball.body.position.add(self.velocity.mul_f32(dt));
         self.progress += dt;
         return self.duration <= self.progress;
     }
@@ -162,7 +167,7 @@ const BallAnimations = struct {
             );
             return;
         }
-        const velocity = target.sub(ball.collider.position).mul_f32(1.0 / duration);
+        const velocity = target.sub(ball.body.position).mul_f32(1.0 / duration);
         self.animations[self.animation_n] = .{
             .ball_id = ball.id,
             .velocity = velocity,
@@ -205,7 +210,7 @@ const Runtime = struct {
     screen_quads: ScreenQuads,
     soft_renderer: SoftRenderer,
 
-    balls: [4]Ball,
+    balls: [16]Ball,
     table: Table,
     ball_animations: BallAnimations,
 
@@ -243,14 +248,18 @@ const Runtime = struct {
             ball.* = .{
                 .id = @intCast(i),
                 .texture_id = self.texture_ball,
-                .collider = .{
+                .body = .{
                     .position = position,
+                    .velocity = .{},
+                    .restitution = 1.0,
+                    .friction = 0.95,
+                    .inv_mass = 1.0,
+                },
+                .collider = .{
                     .radius = 20.0,
                 },
                 .previous_positions = [_]Vec2{position} ** 64,
                 .previous_position_index = 0,
-                .velocity = .{},
-                .friction = 0.95,
             };
         }
         self.table = Table.init(self.texture_poll_table);
@@ -315,7 +324,7 @@ const Runtime = struct {
         if (self.mouse_drag.update(events, dt)) |v| {
             if (self.selected_ball) |sb| {
                 const ball = &self.balls[sb];
-                ball.velocity = ball.velocity.add(v);
+                ball.body.velocity = ball.body.velocity.add(v);
             }
         }
 
@@ -331,10 +340,15 @@ const Runtime = struct {
 
             for (&self.table.pockets) |*pocket| {
                 const collision_point =
-                    Physics.circle_circle_collision(ball.collider, pocket.collider);
+                    Physics.circle_circle_collision(
+                    ball.collider,
+                    ball.body.position,
+                    pocket.collider,
+                    pocket.body.position,
+                );
                 if (collision_point) |_| {
                     ball.disabled = true;
-                    self.ball_animations.add(ball, pocket.collider.position, 1.0);
+                    self.ball_animations.add(ball, pocket.body.position, 1.0);
                 }
             }
         }
@@ -415,8 +429,8 @@ const Runtime = struct {
                     "ball id: {d}, position: {d: >8.1}/{d: >8.1}, disabled: {}, p_index: {d: >2}",
                     .{
                         ball.id,
-                        ball.collider.position.x,
-                        ball.collider.position.y,
+                        ball.body.position.x,
+                        ball.body.position.y,
                         ball.disabled,
                         ball.previous_position_index,
                     },
