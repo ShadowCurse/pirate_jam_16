@@ -34,6 +34,7 @@ pub const Ball = struct {
     previous_positions: [PREVIOUS_POSITIONS]Vec2,
     previous_position_index: u32,
     disabled: bool = false,
+    stationary: bool = true,
 
     pub const PREVIOUS_POSITIONS = 64;
 
@@ -124,6 +125,13 @@ pub const Ball = struct {
         self.previous_position_index %= PREVIOUS_POSITIONS;
         self.body.position = self.body.position.add(self.body.velocity.mul_f32(dt));
         self.body.velocity = self.body.velocity.mul_f32(self.body.friction);
+
+        if (self.body.velocity.len_squared() < 0.1) {
+            self.body.velocity = .{};
+            self.stationary = true;
+        } else {
+            self.stationary = false;
+        }
 
         log.assert(@src(), self.body.position.is_valid(), "Body position is invalid", .{});
         log.assert(@src(), self.body.velocity.is_valid(), "Body velocity is invalid", .{});

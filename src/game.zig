@@ -22,6 +22,7 @@ const _animations = @import("animations.zig");
 const BallAnimations = _animations.BallAnimations;
 
 player_turn: bool,
+turn_taken: bool,
 player_score: u32,
 opponent_score: u32,
 
@@ -50,6 +51,7 @@ pub fn init(
 
 pub fn restart(self: *Self) void {
     self.player_turn = true;
+    self.turn_taken = false;
     self.player_score = 0;
     self.opponent_score = 0;
 
@@ -92,12 +94,28 @@ pub fn update(
     input_state: *const InputState,
     dt: f32,
 ) void {
-    if (self.mouse_drag.update(events, dt)) |v| {
-        if (self.selected_ball) |sb| {
-            const ball = &self.balls[sb];
-            ball.body.velocity = ball.body.velocity.add(v);
-            self.player_turn = !self.player_turn;
+    if (!self.turn_taken) {
+        if (self.mouse_drag.update(events, dt)) |v| {
+            if (self.selected_ball) |sb| {
+                const ball = &self.balls[sb];
+                ball.body.velocity = ball.body.velocity.add(v);
+                self.turn_taken = true;
+            }
         }
+        var new_ball_selected: bool = false;
+        for (&self.balls) |*ball| {
+            if (ball.disabled)
+                continue;
+
+            if (ball.is_hovered(input_state.mouse_pos_world) and
+                input_state.lmb)
+            {
+                new_ball_selected = true;
+                self.selected_ball = ball.id;
+            }
+        }
+        if (!new_ball_selected and input_state.lmb)
+            self.selected_ball = null;
     }
 
     for (&self.balls) |*ball| {
@@ -106,18 +124,9 @@ pub fn update(
         ball.update(&self.table, &self.balls, dt);
     }
 
-    var new_ball_selected: bool = false;
     for (&self.balls) |*ball| {
         if (ball.disabled)
             continue;
-
-        if (ball.is_hovered(input_state.mouse_pos_world) and
-            input_state.lmb)
-        {
-            new_ball_selected = true;
-            self.selected_ball = ball.id;
-        }
-
         for (&self.table.pockets) |*pocket| {
             const collision_point =
                 Physics.circle_circle_collision(
@@ -129,13 +138,27 @@ pub fn update(
             if (collision_point) |_| {
                 if (self.selected_ball == ball.id)
                     self.selected_ball = null;
+                if (self.player_turn) {
+                    self.player_score += 1;
+                } else {
+                    self.opponent_score += 1;
+                }
                 ball.disabled = true;
                 self.ball_animations.add(ball, pocket.body.position, 1.0);
             }
         }
     }
-    if (!new_ball_selected and input_state.lmb)
-        self.selected_ball = null;
+
+    var disabled_or_stationary: u8 = 0;
+    for (&self.balls) |*ball| {
+        if (ball.disabled or ball.stationary) {
+            disabled_or_stationary += 1;
+        }
+    }
+    if (self.turn_taken and disabled_or_stationary == self.balls.len) {
+        self.player_turn = !self.player_turn;
+        self.turn_taken = false;
+    }
 
     self.ball_animations.update(&self.balls, dt);
 }

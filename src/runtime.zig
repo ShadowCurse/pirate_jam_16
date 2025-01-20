@@ -376,6 +376,42 @@ const Runtime = struct {
         );
         left_info_player_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
 
+        const opponent_score = std.fmt.allocPrint(
+            frame_alloc,
+            "Score: {d}",
+            .{self.game.opponent_score},
+        ) catch unreachable;
+        const opponent_score_text = UiText.init(
+            .{ .x = -550.0, .y = -165 },
+            &self.font,
+            opponent_score,
+            25.0,
+        );
+        _ = opponent_score_text.to_screen_quads_world_space(
+            frame_alloc,
+            self.input_state.mouse_pos_world,
+            &self.camera_controller,
+            &self.screen_quads,
+        );
+
+        const player_score = std.fmt.allocPrint(
+            frame_alloc,
+            "Score: {d}",
+            .{self.game.player_score},
+        ) catch unreachable;
+        const player_score_text = UiText.init(
+            .{ .x = -550.0, .y = 165 },
+            &self.font,
+            player_score,
+            25.0,
+        );
+        _ = player_score_text.to_screen_quads_world_space(
+            frame_alloc,
+            self.input_state.mouse_pos_world,
+            &self.camera_controller,
+            &self.screen_quads,
+        );
+
         const right_cue_panel = UiPanel.init(
             .{ .x = 550.0 },
             .{ .x = 140.0, .y = 600.0 },
