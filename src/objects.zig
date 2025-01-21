@@ -29,6 +29,9 @@ const InputState = runtime.InputState;
 const _game = @import("game.zig");
 const Owner = _game.Owner;
 
+const _animations = @import("animations.zig");
+const SmoothStepAnimation = _animations.SmoothStepAnimation;
+
 const _ui = @import("ui.zig");
 const UiText = _ui.UiText;
 const UiPanel = _ui.UiPanel;
@@ -587,5 +590,99 @@ pub const Table = struct {
                 .options = .{ .draw_aabb = true },
             });
         }
+    }
+};
+
+pub const Cue = struct {
+    texture_id: Textures.Texture.Id,
+    position: Vec2,
+    rotation: f32,
+    storage_index: u8,
+    storage_position: Vec2,
+    state: State,
+
+    const CUE_HEIGHT = 450;
+    const STORAGE_POSITION: Vec2 = .{ .x = 650.0 };
+    const STORAGE_WIDTH = 120;
+    const STORAGE_CUE_WIDTH = 60;
+    const AIM_BALL_OFFSET = Ball.RADIUS + 2;
+
+    pub const State = enum {
+        Storage,
+        Aiming,
+        Playing,
+    };
+
+    pub fn init(texture_id: Textures.Texture.Id, storage_index: u8) Cue {
+        const storage_position = STORAGE_POSITION.add(
+            .{ .x = -STORAGE_WIDTH + @as(f32, @floatFromInt(storage_index)) * STORAGE_CUE_WIDTH },
+        );
+        return .{
+            .texture_id = texture_id,
+            .position = storage_position,
+            .rotation = 0.0,
+            .storage_index = storage_index,
+            .storage_position = storage_position,
+            .state = .Storage,
+        };
+    }
+
+    pub fn update(
+        self: *Cue,
+        ball_position: ?*const Vec2,
+        hit_vector: ?*const Vec2,
+    ) void {
+        switch (self.state) {
+            .Storage => {
+                self.position =
+                    self.position.add(self.storage_position.sub(self.position).mul_f32(0.2));
+                self.rotation -= self.rotation * 0.2;
+            },
+            .Aiming => {
+                const bp = ball_position.?;
+                const hv = hit_vector.?.neg();
+
+                const hv_len = hv.len();
+                if (hv_len == 0.0)
+                    return;
+
+                const hv_normalized = hv.normalize();
+                const cue_postion = bp.add(
+                    hv_normalized
+                        .mul_f32(AIM_BALL_OFFSET +
+                        CUE_HEIGHT / 2 +
+                        hv_len),
+                );
+                const c = hv_normalized.cross(.{ .y = 1 });
+                const d = hv_normalized.dot(.{ .y = 1 });
+                const cue_rotation = if (c < 0.0) -std.math.acos(d) else std.math.acos(d);
+
+                self.position =
+                    self.position.add(cue_postion.sub(self.position).mul_f32(0.2));
+                self.rotation += (cue_rotation - self.rotation) * 0.2;
+            },
+            .Playing => {},
+        }
+    }
+
+    pub fn to_screen_quad(
+        self: Cue,
+        camera_controller: *const CameraController2d,
+        texture_store: *const Textures.Store,
+        screen_quads: *ScreenQuads,
+    ) void {
+        const object: Object2d = .{
+            .type = .{ .TextureId = self.texture_id },
+            .transform = .{
+                .position = self.position.extend(0.0),
+                .rotation = self.rotation,
+            },
+            .size = .{
+                .x = @floatFromInt(texture_store.get_texture(self.texture_id).width),
+                .y = @floatFromInt(texture_store.get_texture(self.texture_id).height),
+            },
+            .options = .{},
+        };
+        object.to_screen_quad(camera_controller, texture_store, screen_quads);
     }
 };

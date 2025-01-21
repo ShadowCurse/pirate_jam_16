@@ -21,6 +21,7 @@ const InputState = runtime.InputState;
 const _objects = @import("objects.zig");
 const Ball = _objects.Ball;
 const Table = _objects.Table;
+const Cue = _objects.Cue;
 
 const _animations = @import("animations.zig");
 const BallAnimations = _animations.BallAnimations;
@@ -36,8 +37,9 @@ opponent_hp_overhead: i32,
 
 texture_ball: Textures.Texture.Id,
 balls: [MAX_BALLS]Ball,
-table: Table,
 ball_animations: BallAnimations,
+table: Table,
+cue: Cue,
 
 selected_ball: ?u32,
 mouse_drag: MouseDrag,
@@ -55,15 +57,17 @@ pub fn init(
     self: *Self,
     texture_ball: Textures.Texture.Id,
     texture_poll_table: Textures.Texture.Id,
+    texture_cue: Textures.Texture.Id,
 ) void {
     self.texture_ball = texture_ball;
     self.restart();
     self.table = Table.init(texture_poll_table);
-    self.selected_ball = null;
-    self.mouse_drag = .{};
+    self.cue = Cue.init(texture_cue, 1);
 }
 
 pub fn restart(self: *Self) void {
+    self.mouse_drag = .{};
+    self.selected_ball = null;
     self.turn_owner = .Player;
     self.turn_taken = false;
 
@@ -116,6 +120,24 @@ pub fn update(
         }
         if (!new_ball_selected and input_state.lmb)
             self.selected_ball = null;
+
+        if (self.mouse_drag.active) {
+            if (self.selected_ball) |sb| {
+                self.cue.state = .Aiming;
+                const ball_pos = &self.balls[sb].body.position;
+                const hit_vector = &self.mouse_drag.v;
+                self.cue.update(ball_pos, hit_vector);
+            } else {
+                self.cue.state = .Storage;
+                self.cue.update(null, null);
+            }
+        } else {
+            self.cue.state = .Storage;
+            self.cue.update(null, null);
+        }
+    } else {
+        self.cue.state = .Storage;
+        self.cue.update(null, null);
     }
 
     for (&self.balls) |*ball| {
@@ -209,6 +231,7 @@ pub fn draw(
         camera_controller,
         screen_quads,
     );
+    self.cue.to_screen_quad(camera_controller, texture_store, screen_quads);
 
     for (&self.balls) |*ball| {
         const bo = ball.to_object_2d();
