@@ -76,9 +76,6 @@ const Runtime = struct {
     camera_controller: CameraController2d,
 
     texture_store: Textures.Store,
-    texture_poll_table: Textures.Texture.Id,
-    texture_cue: Textures.Texture.Id,
-    texture_ball: Textures.Texture.Id,
     font: Font,
 
     screen_quads: ScreenQuads,
@@ -104,12 +101,7 @@ const Runtime = struct {
         self.camera_controller.position = self.camera_controller.position
             .add(CAMERA_MAIN_MENU.extend(0.0));
         try self.texture_store.init(memory);
-        self.texture_poll_table = self.texture_store.load(memory, "assets/table_prototype.png");
-        self.texture_cue = self.texture_store.load(memory, "assets/cue_prototype.png");
-        self.texture_ball = self.texture_store.load(memory, "assets/ball_prototype.png");
-
         self.font = Font.init(memory, &self.texture_store, "assets/Hack-Regular.ttf", 64);
-
         self.screen_quads = try ScreenQuads.init(memory, 4096);
         self.soft_renderer = SoftRenderer.init(memory, window, width, height);
 
@@ -119,7 +111,7 @@ const Runtime = struct {
             .camera_controller = &self.camera_controller,
             .game_state = &self.game_state,
         };
-        self.game.init(self.texture_ball, self.texture_poll_table, self.texture_cue);
+        self.game.init(memory, &self.texture_store);
 
         self.show_perf = false;
     }

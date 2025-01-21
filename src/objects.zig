@@ -704,3 +704,144 @@ pub const Cue = struct {
         object.to_screen_quad(camera_controller, texture_store, screen_quads);
     }
 };
+
+pub const Inventory = struct {
+    items: [MAX_ITEMS]Item.Tag,
+    items_n: u32,
+
+    cues: [MAX_CUE]Item.Tag,
+    cues_n: u32,
+
+    const MAX_ITEMS = 4;
+    const MAX_CUE = 2;
+    const ITEMS_POSITION: Vec2 = .{ .x = -100.0, .y = 310.0 };
+    const ITEMS_WIDTH = 600;
+    const ITEM_WIDTH = 100;
+    const ITEM_GAP = 50;
+    const CUE_STORAGE_POSITION: Vec2 = .{ .x = -525.0 };
+    const CUE_STORAGE_WIDTH = 90;
+    const CUE_STORAGE_CUE_WIDTH = 45;
+
+    pub const Item = struct {
+        pub const Tag = enum(u32) {
+            BallSpiky = 0,
+            BallHealthy = 1,
+            BallArmored = 2,
+            BallLight = 3,
+            BallHeavy = 4,
+            BallGravity = 5,
+            BallRunner = 6,
+            BallRingOfLight = 7,
+
+            CueHP = 8,
+            CueDamage = 9,
+            CueWiggleBall = 10,
+            CueScope = 11,
+            CueSecondBarrel = 12,
+            CueSilencer = 13,
+            CueRocketBooster = 14,
+
+            Cue50CAL = 15,
+            CueShotgun = 16,
+        };
+
+        pub const Info = struct {
+            texture_id: Textures.Texture.Id,
+            name: []const u8,
+            description: []const u8,
+        };
+
+        pub const Infos = struct {
+            infos: [@typeInfo(Tag).Enum.fields.len]Info,
+
+            pub fn get(self: Infos, tag: Tag) *const Info {
+                return &self.infos[@intFromEnum(tag)];
+            }
+        };
+    };
+
+    pub fn init() Inventory {
+        return .{
+            .items = undefined,
+            .items_n = 0,
+            .cues = undefined,
+            .cues_n = 0,
+        };
+    }
+
+    pub fn add_item(self: *Inventory, item: Item.Tag) bool {
+        if (@intFromEnum(item) < @intFromEnum(Item.Tag.Cue50CAL)) {
+            if (self.items.len == self.items_n)
+                return false;
+
+            self.items[self.items_n] = item;
+            self.items_n += 1;
+            return true;
+        } else {
+            if (self.cues.len == self.cues_n)
+                return false;
+
+            self.cues[self.cues_n] = item;
+            self.cues_n += 1;
+            return true;
+        }
+    }
+
+    pub fn remove_item(self: *Inventory, item: Item.Tag) void {
+        if (@intFromEnum(item) < @intFromEnum(Item.Tag.Cue50CAL)) {
+            for (self.items[0..self.items_n], 0..) |*it, i| {
+                if (it == item) {
+                    self.items[i] = self.items[self.items_n - 1];
+                    self.items_n -= 1;
+                }
+            }
+        } else {
+            for (self.cues[0..self.cues_n], 0..) |*it, i| {
+                if (it == item) {
+                    self.cues[i] = self.cues[self.cues_n - 1];
+                    self.cues_n -= 1;
+                }
+            }
+        }
+    }
+
+    pub fn to_screen_quads(
+        self: Inventory,
+        item_infos: *const Item.Infos,
+        camera_controller: *const CameraController2d,
+        texture_store: *const Textures.Store,
+        screen_quads: *ScreenQuads,
+    ) void {
+        for (self.items[0..self.items_n], 0..) |item, i| {
+            const item_info = item_infos.infos[@intFromEnum(item)];
+            const item_position = ITEMS_POSITION.add(
+                .{ .x = -ITEMS_WIDTH / 2 + ITEM_GAP / 2 + ITEM_WIDTH / 2 + @as(f32, @floatFromInt(i)) * (ITEM_WIDTH + ITEM_GAP) },
+            );
+
+            const object: Object2d = .{
+                .type = .{ .TextureId = item_info.texture_id },
+                .transform = .{
+                    .position = item_position.extend(0.0),
+                },
+                .options = .{ .no_scale_rotate = true },
+            };
+            object.to_screen_quad(camera_controller, texture_store, screen_quads);
+        }
+
+        for (self.cues[0..self.cues_n], 0..) |cue, i| {
+            const cue_info = item_infos.infos[@intFromEnum(cue)];
+
+            const cue_position = CUE_STORAGE_POSITION.add(
+                .{ .x = -CUE_STORAGE_WIDTH / 2 + CUE_STORAGE_CUE_WIDTH / 2 + @as(f32, @floatFromInt(i)) * CUE_STORAGE_CUE_WIDTH },
+            );
+            const object: Object2d = .{
+                .type = .{ .TextureId = cue_info.texture_id },
+                .transform = .{
+                    .position = cue_position.extend(0.0),
+                },
+                .options = .{ .no_scale_rotate = true },
+            };
+            object.to_screen_quad(camera_controller, texture_store, screen_quads);
+        }
+    }
+};

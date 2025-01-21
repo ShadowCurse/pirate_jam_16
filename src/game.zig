@@ -5,6 +5,7 @@ const stygian = @import("stygian_runtime");
 const log = stygian.log;
 
 const Font = stygian.font;
+const Memory = stygian.memory;
 const Physics = stygian.physics;
 const Textures = stygian.textures;
 const Color = stygian.color.Color;
@@ -22,6 +23,7 @@ const _objects = @import("objects.zig");
 const Ball = _objects.Ball;
 const Table = _objects.Table;
 const Cue = _objects.Cue;
+const Inventory = _objects.Inventory;
 
 const _animations = @import("animations.zig");
 const BallAnimations = _animations.BallAnimations;
@@ -34,6 +36,9 @@ player_hp_overhead: i32,
 
 opponent_hp: i32,
 opponent_hp_overhead: i32,
+
+item_infos: Inventory.Item.Infos,
+inventory: Inventory,
 
 texture_ball: Textures.Texture.Id,
 balls: [MAX_BALLS]Ball,
@@ -61,17 +66,32 @@ const Self = @This();
 
 pub fn init(
     self: *Self,
-    texture_ball: Textures.Texture.Id,
-    texture_poll_table: Textures.Texture.Id,
-    texture_cue: Textures.Texture.Id,
+    memory: *Memory,
+    texture_store: *Textures.Store,
 ) void {
-    self.texture_ball = texture_ball;
+    self.texture_ball = texture_store.load(memory, "assets/ball_prototype.png");
+    self.table = Table.init(texture_store.load(memory, "assets/table_prototype.png"));
+    self.cue = Cue.init(texture_store.load(memory, "assets/cue_prototype.png"), 0);
+
+    inline for (&self.item_infos.infos, 0..) |*info, i| {
+        info.* = .{
+            .texture_id = Textures.Texture.ID_DEBUG,
+            .name = std.fmt.comptimePrint("item info: {d}", .{i}),
+            .description = std.fmt.comptimePrint("item description: {d}", .{i}),
+        };
+    }
+
     self.restart();
-    self.table = Table.init(texture_poll_table);
-    self.cue = Cue.init(texture_cue, 0);
 }
 
 pub fn restart(self: *Self) void {
+    self.inventory = Inventory.init();
+    _ = self.inventory.add_item(.BallSpiky);
+    _ = self.inventory.add_item(.BallSpiky);
+    _ = self.inventory.add_item(.BallSpiky);
+    _ = self.inventory.add_item(.BallSpiky);
+    _ = self.inventory.add_item(.Cue50CAL);
+    _ = self.inventory.add_item(.Cue50CAL);
     self.turn_owner = .Player;
     self.turn_state = .NotTaken;
     self.selected_ball = null;
@@ -279,4 +299,11 @@ pub fn draw(
             }
         }
     }
+
+    self.inventory.to_screen_quads(
+        &self.item_infos,
+        camera_controller,
+        texture_store,
+        screen_quads,
+    );
 }
