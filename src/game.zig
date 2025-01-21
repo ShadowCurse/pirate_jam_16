@@ -190,6 +190,7 @@ pub fn update(
 pub fn draw(
     self: *Self,
     allocator: Allocator,
+    input_state: *const InputState,
     camera_controller: *const CameraController2d,
     font: *const Font,
     texture_store: *const Textures.Store,
@@ -224,6 +225,14 @@ pub fn draw(
         );
         if (self.selected_ball) |sb| {
             if (ball.id == sb) {
+                if (!self.mouse_drag.active)
+                    _ = ball.info_panel_to_screen_quads(
+                        allocator,
+                        input_state,
+                        font,
+                        camera_controller,
+                        screen_quads,
+                    );
                 const pbo = ball.previous_positions_to_object_2d();
                 for (&pbo) |pb| {
                     pb.to_screen_quad(

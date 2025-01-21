@@ -344,6 +344,7 @@ const Runtime = struct {
         self.game.update(events, &self.input_state, dt);
         self.game.draw(
             frame_alloc,
+            &self.input_state,
             &self.camera_controller,
             &self.font,
             &self.texture_store,

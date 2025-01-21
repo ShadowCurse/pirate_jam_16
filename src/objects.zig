@@ -23,8 +23,15 @@ const Object2d = _objects.Object2d;
 const _math = stygian.math;
 const Vec2 = _math.Vec2;
 
+const runtime = @import("runtime.zig");
+const InputState = runtime.InputState;
+
 const _game = @import("game.zig");
 const Owner = _game.Owner;
+
+const _ui = @import("ui.zig");
+const UiText = _ui.UiText;
+const UiPanel = _ui.UiPanel;
 
 pub const Ball = struct {
     id: u8,
@@ -48,6 +55,8 @@ pub const Ball = struct {
     // This is sprite size dependent because I don't scale balls for perf gains.
     pub const RADIUS = 10;
     pub const HP_TEXT_SIZE = 20;
+    pub const INFO_PANEL_OFFSET: Vec2 = .{ .y = -100.0 };
+    pub const INFO_PANEL_SIZE: Vec2 = .{ .x = 100.0, .y = 150.0 };
     pub const PREVIOUS_POSITIONS = 64;
 
     pub const trace = Tracing.Measurements(struct {
@@ -254,6 +263,77 @@ pub const Ball = struct {
             .{ .dont_clip = true },
         );
         text.to_screen_quads_world_space(allocator, camera_controller, screen_quads);
+    }
+
+    pub fn info_panel_to_screen_quads(
+        self: Ball,
+        allocator: Allocator,
+        input_state: *const InputState,
+        font: *const Font,
+        camera_controller: *const CameraController2d,
+        screen_quads: *ScreenQuads,
+    ) bool {
+        const panel_position = self.body.position.add(INFO_PANEL_OFFSET);
+        const info_panel = UiPanel.init(
+            panel_position,
+            INFO_PANEL_SIZE,
+            Color.GREY,
+        );
+        info_panel.to_screen_quad(camera_controller, screen_quads);
+
+        {
+            const hp = std.fmt.allocPrint(
+                allocator,
+                "HP: {d}",
+                .{self.hp},
+            ) catch unreachable;
+            const text = Text.init(
+                font,
+                hp,
+                HP_TEXT_SIZE,
+                panel_position.add(.{ .y = -40.0 }).extend(0.0),
+                0.0,
+                .{},
+                .{ .dont_clip = true },
+            );
+            text.to_screen_quads_world_space(allocator, camera_controller, screen_quads);
+        }
+
+        {
+            const hp = std.fmt.allocPrint(
+                allocator,
+                "Damage: {d}",
+                .{self.damage},
+            ) catch unreachable;
+            const text = Text.init(
+                font,
+                hp,
+                HP_TEXT_SIZE,
+                panel_position.add(.{ .y = -20.0 }).extend(0.0),
+                0.0,
+                .{},
+                .{ .dont_clip = true },
+            );
+            text.to_screen_quads_world_space(allocator, camera_controller, screen_quads);
+        }
+
+        const refill = std.fmt.allocPrint(
+            allocator,
+            "Refill ball HP with {d} overhead HP",
+            .{self.max_hp - self.hp},
+        ) catch unreachable;
+        const refill_text = UiText.init(
+            panel_position.add(.{ .y = 40.0 }),
+            font,
+            refill,
+            25.0,
+        );
+        return refill_text.to_screen_quads_world_space(
+            allocator,
+            input_state.mouse_pos_world,
+            camera_controller,
+            screen_quads,
+        );
     }
 
     pub fn previous_positions_to_object_2d(self: Ball) [PREVIOUS_POSITIONS]Object2d {
