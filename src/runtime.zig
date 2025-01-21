@@ -365,47 +365,81 @@ const Runtime = struct {
         const left_info_opponent_panel = UiPanel.init(
             .{ .x = -550.0, .y = -165 },
             .{ .x = 140.0, .y = 320.0 },
-            if (!self.game.player_turn) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
+            if (self.game.turn_owner == .Opponent) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
         );
         left_info_opponent_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
 
         const left_info_player_panel = UiPanel.init(
             .{ .x = -550.0, .y = 165 },
             .{ .x = 140.0, .y = 320.0 },
-            if (self.game.player_turn) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
+            if (self.game.turn_owner == .Player) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
         );
         left_info_player_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
 
-        const opponent_score = std.fmt.allocPrint(
+        const opponent_hp = std.fmt.allocPrint(
             frame_alloc,
-            "Score: {d}",
-            .{self.game.opponent_score},
+            "HP: {d}",
+            .{self.game.opponent_hp},
         ) catch unreachable;
-        const opponent_score_text = UiText.init(
-            .{ .x = -550.0, .y = -165 },
+        const opponent_hp_text = UiText.init(
+            .{ .x = -550.0, .y = -200 },
             &self.font,
-            opponent_score,
+            opponent_hp,
             25.0,
         );
-        _ = opponent_score_text.to_screen_quads_world_space(
+        _ = opponent_hp_text.to_screen_quads_world_space(
+            frame_alloc,
+            self.input_state.mouse_pos_world,
+            &self.camera_controller,
+            &self.screen_quads,
+        );
+        const opponent_hp_overhead = std.fmt.allocPrint(
+            frame_alloc,
+            "HP overhead: {d}",
+            .{self.game.opponent_hp_overhead},
+        ) catch unreachable;
+        const opponent_hp_overhead_text = UiText.init(
+            .{ .x = -550.0, .y = -160 },
+            &self.font,
+            opponent_hp_overhead,
+            25.0,
+        );
+        _ = opponent_hp_overhead_text.to_screen_quads_world_space(
             frame_alloc,
             self.input_state.mouse_pos_world,
             &self.camera_controller,
             &self.screen_quads,
         );
 
-        const player_score = std.fmt.allocPrint(
+        const player_hp = std.fmt.allocPrint(
             frame_alloc,
-            "Score: {d}",
-            .{self.game.player_score},
+            "HP: {d}",
+            .{self.game.player_hp},
         ) catch unreachable;
-        const player_score_text = UiText.init(
-            .{ .x = -550.0, .y = 165 },
+        const player_hp_text = UiText.init(
+            .{ .x = -550.0, .y = 160 },
             &self.font,
-            player_score,
+            player_hp,
             25.0,
         );
-        _ = player_score_text.to_screen_quads_world_space(
+        _ = player_hp_text.to_screen_quads_world_space(
+            frame_alloc,
+            self.input_state.mouse_pos_world,
+            &self.camera_controller,
+            &self.screen_quads,
+        );
+        const player_hp_overhead = std.fmt.allocPrint(
+            frame_alloc,
+            "HP overhead: {d}",
+            .{self.game.player_hp_overhead},
+        ) catch unreachable;
+        const player_hp_overhead_text = UiText.init(
+            .{ .x = -550.0, .y = 200 },
+            &self.font,
+            player_hp_overhead,
+            25.0,
+        );
+        _ = player_hp_overhead_text.to_screen_quads_world_space(
             frame_alloc,
             self.input_state.mouse_pos_world,
             &self.camera_controller,

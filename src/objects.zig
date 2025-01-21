@@ -23,18 +23,27 @@ const Object2d = _objects.Object2d;
 const _math = stygian.math;
 const Vec2 = _math.Vec2;
 
+const _game = @import("game.zig");
+const Owner = _game.Owner;
+
 pub const Ball = struct {
     id: u8,
     texture_id: Textures.Texture.Id,
     color: Color,
 
+    owner: Owner,
+    hp: i32,
+    max_hp: i32,
+    damage: i32,
+    heal: i32,
+
     body: Physics.Body,
     collider: Physics.Circle,
+    disabled: bool = false,
+    stationary: bool = true,
 
     previous_positions: [PREVIOUS_POSITIONS]Vec2,
     previous_position_index: u32,
-    disabled: bool = false,
-    stationary: bool = true,
 
     pub const PREVIOUS_POSITIONS = 64;
 
@@ -47,7 +56,13 @@ pub const Ball = struct {
     // TODO do only one pass over all combinations
     // TODO maybe add a rotation calculations as well
     // TODO friction application seems not very physics based
-    pub fn update(self: *Ball, table: *const Table, balls: []Ball, dt: f32) void {
+    pub fn update(
+        self: *Ball,
+        table: *const Table,
+        balls: []Ball,
+        turn_owner: Owner,
+        dt: f32,
+    ) void {
         const trace_start = trace.start();
         defer trace.end(@src(), trace_start);
 
@@ -65,6 +80,26 @@ pub const Ball = struct {
                 ball.body.position,
             );
             if (collision_point) |cp| {
+                if (self.owner == turn_owner) {
+                    if (ball.owner == turn_owner) {
+                        self.hp += ball.heal;
+                        ball.hp += self.heal;
+                    } else {
+                        const d = @min(self.damage, ball.hp);
+                        self.hp += d;
+                        ball.hp -= d;
+                    }
+                } else {
+                    if (ball.owner == turn_owner) {
+                        const d = @min(ball.damage, self.hp);
+                        self.hp -= d;
+                        ball.hp += d;
+                    } else {
+                        // nothing happens if 2 oppenents balls collide during players turn
+                        // and vise versa
+                    }
+                }
+
                 if (cp.normal.is_valid()) {
                     Physics.apply_collision_impulse(&self.body, &ball.body, cp);
                     log.info(

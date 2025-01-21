@@ -21,17 +21,28 @@ const Table = _objects.Table;
 const _animations = @import("animations.zig");
 const BallAnimations = _animations.BallAnimations;
 
-player_turn: bool,
+turn_owner: Owner,
 turn_taken: bool,
-player_score: u32,
-opponent_score: u32,
 
-balls: [16]Ball,
+player_hp: i32,
+player_hp_overhead: i32,
+
+opponent_hp: i32,
+opponent_hp_overhead: i32,
+
+balls: [MAX_BALLS]Ball,
 table: Table,
 ball_animations: BallAnimations,
 
 selected_ball: ?u32,
 mouse_drag: MouseDrag,
+
+const MAX_BALLS = 20;
+
+pub const Owner = enum(u1) {
+    Player,
+    Opponent,
+};
 
 const Self = @This();
 
@@ -50,10 +61,13 @@ pub fn init(
 }
 
 pub fn restart(self: *Self) void {
-    self.player_turn = true;
+    self.turn_owner = .Player;
     self.turn_taken = false;
-    self.player_score = 0;
-    self.opponent_score = 0;
+
+    self.player_hp = 100;
+    self.player_hp_overhead = 0;
+    self.opponent_hp = 100;
+    self.opponent_hp_overhead = 0;
 
     for (&self.balls, 0..) |*ball, i| {
         const row: f32 = @floatFromInt(@divFloor(i, 4));
@@ -63,14 +77,16 @@ pub fn restart(self: *Self) void {
             .y = -60.0 * 2 + row * 60.0 + 30.0,
         };
         const id: u8 = @intCast(i);
-        const color = Color.from_parts(
-            @intCast((i * 64) % 255),
-            @intCast((i * 17) % 255),
-            @intCast((i * 33) % 255),
-            255,
-        );
+        const color = if (i < 10) Color.GREEN else Color.RED;
         ball.id = id;
         ball.color = color;
+
+        ball.owner = if (i < 10) .Player else .Opponent;
+        ball.hp = 10;
+        ball.max_hp = 10;
+        ball.damage = 1;
+        ball.heal = 1;
+
         ball.body = .{
             .position = position,
             .velocity = .{},
@@ -107,7 +123,8 @@ pub fn update(
             if (ball.disabled)
                 continue;
 
-            if (ball.is_hovered(input_state.mouse_pos_world) and
+            if (ball.owner == self.turn_owner and
+                ball.is_hovered(input_state.mouse_pos_world) and
                 input_state.lmb)
             {
                 new_ball_selected = true;
@@ -121,12 +138,36 @@ pub fn update(
     for (&self.balls) |*ball| {
         if (ball.disabled)
             continue;
-        ball.update(&self.table, &self.balls, dt);
+        ball.update(&self.table, &self.balls, self.turn_owner, dt);
     }
 
+    var new_player_hp: i32 = 0;
+    var player_overheal: i32 = 0;
+    var new_opponent_hp: i32 = 0;
+    var opponent_overheal: i32 = 0;
     for (&self.balls) |*ball| {
         if (ball.disabled)
             continue;
+
+        switch (ball.owner) {
+            .Player => {
+                if (ball.max_hp < ball.hp) {
+                    const ball_overheal = ball.hp - ball.max_hp;
+                    ball.hp = ball.max_hp;
+                    player_overheal += ball_overheal;
+                }
+                new_player_hp += ball.hp;
+            },
+            .Opponent => {
+                if (ball.max_hp < ball.hp) {
+                    const ball_overheal = ball.hp - ball.max_hp;
+                    ball.hp = ball.max_hp;
+                    opponent_overheal += ball_overheal;
+                }
+                new_opponent_hp += ball.hp;
+            },
+        }
+
         for (&self.table.pockets) |*pocket| {
             const collision_point =
                 Physics.circle_circle_collision(
@@ -138,16 +179,15 @@ pub fn update(
             if (collision_point) |_| {
                 if (self.selected_ball == ball.id)
                     self.selected_ball = null;
-                if (self.player_turn) {
-                    self.player_score += 1;
-                } else {
-                    self.opponent_score += 1;
-                }
                 ball.disabled = true;
                 self.ball_animations.add(ball, pocket.body.position, 1.0);
             }
         }
     }
+    self.player_hp = new_player_hp;
+    self.player_hp_overhead += player_overheal;
+    self.opponent_hp = new_opponent_hp;
+    self.opponent_hp_overhead += opponent_overheal;
 
     var disabled_or_stationary: u8 = 0;
     for (&self.balls) |*ball| {
@@ -156,8 +196,9 @@ pub fn update(
         }
     }
     if (self.turn_taken and disabled_or_stationary == self.balls.len) {
-        self.player_turn = !self.player_turn;
+        self.turn_owner = if (self.turn_owner == .Player) .Opponent else .Player;
         self.turn_taken = false;
+        self.selected_ball = null;
     }
 
     self.ball_animations.update(&self.balls, dt);
