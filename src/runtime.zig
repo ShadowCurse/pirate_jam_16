@@ -216,10 +216,6 @@ const Runtime = struct {
             0.0,
             &self.texture_store,
         );
-        const screen_size: Vec2 = .{
-            .x = @floatFromInt(window_width),
-            .y = @floatFromInt(window_height),
-        };
         // for (collisions) |collision| {
         //     if (collision) |c| {
         //         const c_position = c.position
@@ -232,10 +228,15 @@ const Runtime = struct {
         //         }
         //     }
         // }
-        if (self.game.mouse_drag.active) {
+        if (self.game.is_aiming) {
+            const ball_world_position =
+                self.game.balls[self.game.selected_ball.?].body.position;
+            const ball_screen_positon =
+                ball_world_position.sub(self.camera_controller.position.xy());
+            const end_positon = self.input_state.mouse_pos;
             self.soft_renderer.draw_line(
-                screen_size.mul_f32(0.5),
-                screen_size.mul_f32(0.5).add(self.game.mouse_drag.v),
+                ball_screen_positon,
+                end_positon,
                 Color.MAGENTA,
             );
         }
@@ -338,12 +339,13 @@ const Runtime = struct {
         window_width: u32,
         window_height: u32,
     ) void {
+        _ = events;
         _ = window_width;
         _ = window_height;
 
         const frame_alloc = memory.frame_alloc();
 
-        self.game.update(events, &self.input_state, dt);
+        self.game.update(&self.input_state, dt);
         self.game.draw(
             frame_alloc,
             &self.input_state,
