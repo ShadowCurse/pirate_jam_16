@@ -114,7 +114,7 @@ pub const BallAnimations = struct {
         );
     }
 
-    pub fn update(self: *BallAnimations, balls: []Ball, dt: f32) void {
+    pub fn run(self: *BallAnimations, balls: []Ball, dt: f32) bool {
         var start: u32 = 0;
         while (start < self.animation_n) {
             const animation = &self.animations[start];
@@ -127,5 +127,6 @@ pub const BallAnimations = struct {
                 start += 1;
             }
         }
+        return self.animation_n == 0;
     }
 };

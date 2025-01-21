@@ -658,7 +658,7 @@ pub const Cue = struct {
         hit_vector: Vec2,
         dt: f32,
     ) bool {
-        if (self.shoot_animation) |sm| {
+        if (self.shoot_animation) |*sm| {
             var v3 = self.position.extend(0.0);
             if (sm.update(&v3, dt)) {
                 self.shoot_animation = null;
@@ -666,7 +666,6 @@ pub const Cue = struct {
                 return true;
             }
             self.position = v3.xy();
-            return false;
         } else {
             const hv_normalized = hit_vector.normalize();
             const end_postion = ball_position.add(
@@ -682,6 +681,7 @@ pub const Cue = struct {
                 .progress = 0.0,
             };
         }
+        return false;
     }
 
     pub fn to_screen_quad(
