@@ -45,6 +45,9 @@ pub const Ball = struct {
     previous_positions: [PREVIOUS_POSITIONS]Vec2,
     previous_position_index: u32,
 
+    // This is sprite size dependent because I don't scale balls for perf gains.
+    pub const RADIUS = 10;
+    pub const HP_TEXT_SIZE = 20;
     pub const PREVIOUS_POSITIONS = 64;
 
     pub const trace = Tracing.Measurements(struct {
@@ -52,6 +55,38 @@ pub const Ball = struct {
         to_object_2d: Tracing.Counter,
         previous_positions_to_object_2d: Tracing.Counter,
     });
+
+    pub fn init(
+        id: u8,
+        color: Color,
+        texture_id: Textures.Texture.Id,
+        owner: Owner,
+        position: Vec2,
+    ) Ball {
+        return .{
+            .id = id,
+            .texture_id = texture_id,
+            .color = color,
+            .owner = owner,
+            .hp = 10,
+            .max_hp = 10,
+            .damage = 1,
+            .heal = 1,
+            .body = .{
+                .position = position,
+                .velocity = .{},
+                .restitution = 1.0,
+                .friction = 0.95,
+                .inv_mass = 1.0,
+            },
+            .collider = .{
+                .radius = RADIUS,
+            },
+            .previous_positions = [_]Vec2{position} ** 64,
+            .previous_position_index = 0,
+            .disabled = false,
+        };
+    }
 
     // TODO do only one pass over all combinations
     // TODO maybe add a rotation calculations as well
@@ -193,13 +228,32 @@ pub const Ball = struct {
             .transform = .{
                 .position = self.body.position.extend(0.0),
             },
-            .size = .{
-                .x = 40.0,
-                .y = 40.0,
-            },
-            // .options = .{ .draw_aabb = true, .no_scale_rotate = true },
-            .options = .{ .draw_aabb = true, .with_tint = true },
+            .options = .{ .draw_aabb = true, .no_scale_rotate = true, .with_tint = true },
         };
+    }
+
+    pub fn hp_to_screen_quads(
+        self: Ball,
+        allocator: Allocator,
+        font: *const Font,
+        camera_controller: *const CameraController2d,
+        screen_quads: *ScreenQuads,
+    ) void {
+        const hp = std.fmt.allocPrint(
+            allocator,
+            "{d}",
+            .{self.hp},
+        ) catch unreachable;
+        const text = Text.init(
+            font,
+            hp,
+            HP_TEXT_SIZE,
+            self.body.position.add(.{ .y = HP_TEXT_SIZE / 4.0 }).extend(0.0),
+            0.0,
+            .{},
+            .{ .dont_clip = true },
+        );
+        text.to_screen_quads_world_space(allocator, camera_controller, screen_quads);
     }
 
     pub fn previous_positions_to_object_2d(self: Ball) [PREVIOUS_POSITIONS]Object2d {
@@ -220,11 +274,7 @@ pub const Ball = struct {
                 .transform = .{
                     .position = previous_position.extend(0.0),
                 },
-                .size = .{
-                    .x = 40.0,
-                    .y = 40.0,
-                },
-                .options = .{ .with_tint = true },
+                .options = .{ .no_scale_rotate = true, .with_tint = true },
             };
             pp_index += 1;
             pp_index %= PREVIOUS_POSITIONS;

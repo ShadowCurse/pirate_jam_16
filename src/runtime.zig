@@ -342,7 +342,13 @@ const Runtime = struct {
         const frame_alloc = memory.frame_alloc();
 
         self.game.update(events, &self.input_state, dt);
-        self.game.draw(&self.camera_controller, &self.texture_store, &self.screen_quads);
+        self.game.draw(
+            frame_alloc,
+            &self.camera_controller,
+            &self.font,
+            &self.texture_store,
+            &self.screen_quads,
+        );
 
         const UI_BACKGROUND_COLOR = Color.GREY;
         const UI_BACKGROUND_COLOR_PLAYING = Color.GREEN;

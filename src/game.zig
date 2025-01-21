@@ -1,6 +1,10 @@
+const std = @import("std");
+const Allocator = std.mem.Allocator;
+
 const stygian = @import("stygian_runtime");
 const log = stygian.log;
 
+const Font = stygian.font;
 const Physics = stygian.physics;
 const Textures = stygian.textures;
 const Color = stygian.color.Color;
@@ -30,6 +34,7 @@ player_hp_overhead: i32,
 opponent_hp: i32,
 opponent_hp_overhead: i32,
 
+texture_ball: Textures.Texture.Id,
 balls: [MAX_BALLS]Ball,
 table: Table,
 ball_animations: BallAnimations,
@@ -51,10 +56,8 @@ pub fn init(
     texture_ball: Textures.Texture.Id,
     texture_poll_table: Textures.Texture.Id,
 ) void {
+    self.texture_ball = texture_ball;
     self.restart();
-    for (&self.balls) |*ball| {
-        ball.texture_id = texture_ball;
-    }
     self.table = Table.init(texture_poll_table);
     self.selected_ball = null;
     self.mouse_drag = .{};
@@ -77,29 +80,9 @@ pub fn restart(self: *Self) void {
             .y = -60.0 * 2 + row * 60.0 + 30.0,
         };
         const id: u8 = @intCast(i);
-        const color = if (i < 10) Color.GREEN else Color.RED;
-        ball.id = id;
-        ball.color = color;
-
-        ball.owner = if (i < 10) .Player else .Opponent;
-        ball.hp = 10;
-        ball.max_hp = 10;
-        ball.damage = 1;
-        ball.heal = 1;
-
-        ball.body = .{
-            .position = position,
-            .velocity = .{},
-            .restitution = 1.0,
-            .friction = 0.95,
-            .inv_mass = 1.0,
-        };
-        ball.collider = .{
-            .radius = 20.0,
-        };
-        ball.previous_positions = [_]Vec2{position} ** 64;
-        ball.previous_position_index = 0;
-        ball.disabled = false;
+        const color: Color = if (i < 10) Color.GREEN else Color.RED;
+        const owner: Owner = if (i < 10) .Player else .Opponent;
+        ball.* = Ball.init(id, color, self.texture_ball, owner, position);
     }
     self.ball_animations = .{};
 }
@@ -206,7 +189,9 @@ pub fn update(
 
 pub fn draw(
     self: *Self,
+    allocator: Allocator,
     camera_controller: *const CameraController2d,
+    font: *const Font,
     texture_store: *const Textures.Store,
     screen_quads: *ScreenQuads,
 ) void {
@@ -229,6 +214,12 @@ pub fn draw(
         bo.to_screen_quad(
             camera_controller,
             texture_store,
+            screen_quads,
+        );
+        ball.hp_to_screen_quads(
+            allocator,
+            font,
+            camera_controller,
             screen_quads,
         );
         if (self.selected_ball) |sb| {
