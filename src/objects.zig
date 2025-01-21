@@ -599,19 +599,13 @@ pub const Cue = struct {
     rotation: f32,
     storage_index: u8,
     storage_position: Vec2,
-    state: State,
+    shoot_animation: ?SmoothStepAnimation,
 
     const CUE_HEIGHT = 450;
     const STORAGE_POSITION: Vec2 = .{ .x = 650.0 };
     const STORAGE_WIDTH = 120;
     const STORAGE_CUE_WIDTH = 60;
     const AIM_BALL_OFFSET = Ball.RADIUS + 2;
-
-    pub const State = enum {
-        Storage,
-        Aiming,
-        Playing,
-    };
 
     pub fn init(texture_id: Textures.Texture.Id, storage_index: u8) Cue {
         const storage_position = STORAGE_POSITION.add(
@@ -623,45 +617,70 @@ pub const Cue = struct {
             .rotation = 0.0,
             .storage_index = storage_index,
             .storage_position = storage_position,
-            .state = .Storage,
+            .shoot_animation = null,
         };
     }
 
-    pub fn update(
+    pub fn move_storage(self: *Cue) void {
+        self.position =
+            self.position.add(self.storage_position.sub(self.position).mul_f32(0.2));
+        self.rotation -= self.rotation * 0.2;
+    }
+
+    pub fn move_aiming(
         self: *Cue,
-        ball_position: ?*const Vec2,
-        hit_vector: ?*const Vec2,
+        ball_position: Vec2,
+        hit_vector: Vec2,
     ) void {
-        switch (self.state) {
-            .Storage => {
-                self.position =
-                    self.position.add(self.storage_position.sub(self.position).mul_f32(0.2));
-                self.rotation -= self.rotation * 0.2;
-            },
-            .Aiming => {
-                const bp = ball_position.?;
-                const hv = hit_vector.?.neg();
+        const hv_len = hit_vector.len();
+        if (hv_len == 0.0)
+            return;
 
-                const hv_len = hv.len();
-                if (hv_len == 0.0)
-                    return;
+        const hv_normalized = hit_vector.normalize();
+        const cue_postion = ball_position.add(
+            hv_normalized
+                .mul_f32(AIM_BALL_OFFSET +
+                CUE_HEIGHT / 2 +
+                hv_len),
+        );
+        const c = hv_normalized.cross(.{ .y = 1 });
+        const d = hv_normalized.dot(.{ .y = 1 });
+        const cue_rotation = if (c < 0.0) -std.math.acos(d) else std.math.acos(d);
 
-                const hv_normalized = hv.normalize();
-                const cue_postion = bp.add(
-                    hv_normalized
-                        .mul_f32(AIM_BALL_OFFSET +
-                        CUE_HEIGHT / 2 +
-                        hv_len),
-                );
-                const c = hv_normalized.cross(.{ .y = 1 });
-                const d = hv_normalized.dot(.{ .y = 1 });
-                const cue_rotation = if (c < 0.0) -std.math.acos(d) else std.math.acos(d);
+        self.position =
+            self.position.add(cue_postion.sub(self.position).mul_f32(0.2));
+        self.rotation += (cue_rotation - self.rotation) * 0.2;
+    }
 
-                self.position =
-                    self.position.add(cue_postion.sub(self.position).mul_f32(0.2));
-                self.rotation += (cue_rotation - self.rotation) * 0.2;
-            },
-            .Playing => {},
+    pub fn move_shoot(
+        self: *Cue,
+        ball_position: Vec2,
+        hit_vector: Vec2,
+        dt: f32,
+    ) bool {
+        if (self.shoot_animation) |sm| {
+            var v3 = self.position.extend(0.0);
+            if (sm.update(&v3, dt)) {
+                self.shoot_animation = null;
+                self.position = v3.xy();
+                return true;
+            }
+            self.position = v3.xy();
+            return false;
+        } else {
+            const hv_normalized = hit_vector.normalize();
+            const end_postion = ball_position.add(
+                hv_normalized
+                    .mul_f32(AIM_BALL_OFFSET +
+                    CUE_HEIGHT / 2),
+            );
+
+            self.shoot_animation = .{
+                .start_position = self.position.extend(0.0),
+                .end_position = end_postion.extend(0.0),
+                .duration = 0.2,
+                .progress = 0.0,
+            };
         }
     }
 

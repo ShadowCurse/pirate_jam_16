@@ -123,21 +123,17 @@ pub fn update(
 
         if (self.mouse_drag.active) {
             if (self.selected_ball) |sb| {
-                self.cue.state = .Aiming;
-                const ball_pos = &self.balls[sb].body.position;
-                const hit_vector = &self.mouse_drag.v;
-                self.cue.update(ball_pos, hit_vector);
+                const ball_pos = self.balls[sb].body.position;
+                const hit_vector = self.mouse_drag.v;
+                self.cue.move_aiming(ball_pos, hit_vector);
             } else {
-                self.cue.state = .Storage;
-                self.cue.update(null, null);
+                self.cue.move_storage();
             }
         } else {
-            self.cue.state = .Storage;
-            self.cue.update(null, null);
+            self.cue.move_storage();
         }
     } else {
-        self.cue.state = .Storage;
-        self.cue.update(null, null);
+        self.cue.move_storage();
     }
 
     for (&self.balls) |*ball| {
