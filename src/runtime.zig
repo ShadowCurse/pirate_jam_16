@@ -52,13 +52,18 @@ pub const GameState = packed struct(u8) {
     main_menu: bool = true,
     settings: bool = false,
     in_game: bool = false,
+    in_game_shop: bool = false,
     debug: bool = true,
-    _: u4 = 0,
+    _: u3 = 0,
 };
 
-pub const CAMERA_MAIN_MENU: Vec2 = .{ .y = 1000.0 };
-pub const CAMERA_SETTINGS: Vec2 = .{ .x = 1000.0, .y = 1000.0 };
+pub const CAMERA_MAIN_MENU: Vec2 = .{ .x = -1280.0 };
+pub const CAMERA_SETTINGS: Vec2 = .{ .x = -1000.0, .y = 1000.0 };
 pub const CAMERA_IN_GAME: Vec2 = .{};
+pub const CAMERA_IN_GAME_SHOP: Vec2 = .{ .y = 617 };
+
+const UI_BACKGROUND_COLOR = Color.GREY;
+const UI_BACKGROUND_COLOR_PLAYING = Color.GREEN;
 
 pub const InputState = struct {
     lmb: bool = false,
@@ -201,6 +206,14 @@ const Runtime = struct {
                 window_width,
                 window_height,
             );
+        if (self.game_state.in_game_shop)
+            self.in_game_shop(
+                memory,
+                dt,
+                events,
+                window_width,
+                window_height,
+            );
         if (self.game_state.debug)
             self.debug(
                 memory,
@@ -216,18 +229,6 @@ const Runtime = struct {
             0.0,
             &self.texture_store,
         );
-        // for (collisions) |collision| {
-        //     if (collision) |c| {
-        //         const c_position = c.position
-        //             .add(screen_size.mul_f32(0.5));
-        //         self.soft_renderer
-        //             .draw_color_rect(c_position, .{ .x = 5.0, .y = 5.0 }, Color.BLUE, false);
-        //         if (c.normal.is_valid()) {
-        //             const c_normal_end = c_position.add(c.normal.mul_f32(20.0));
-        //             self.soft_renderer.draw_line(c_position, c_normal_end, Color.GREEN);
-        //         }
-        //     }
-        // }
         if (self.game.is_aiming) {
             const ball_world_position =
                 self.game.balls[self.game.selected_ball.?].body.position;
@@ -345,44 +346,31 @@ const Runtime = struct {
 
         const frame_alloc = memory.frame_alloc();
 
-        self.game.update(&self.input_state, dt);
-        self.game.draw(
-            frame_alloc,
-            &self.input_state,
-            &self.camera_controller,
-            &self.font,
-            &self.texture_store,
-            &self.screen_quads,
-        );
-
-        const UI_BACKGROUND_COLOR = Color.GREY;
-        const UI_BACKGROUND_COLOR_PLAYING = Color.GREEN;
-
         // UI section
         const top_panel = UiPanel.init(
-            .{ .y = -300.0 },
-            .{ .x = 800.0, .y = 60.0 },
+            .{ .y = -310.0 },
+            .{ .x = 900.0, .y = 80.0 },
             UI_BACKGROUND_COLOR,
         );
         top_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
 
         const bot_panel = UiPanel.init(
-            .{ .y = 300.0 },
-            .{ .x = 800.0, .y = 60.0 },
+            .{ .y = 310.0 },
+            .{ .x = 900.0, .y = 80.0 },
             UI_BACKGROUND_COLOR,
         );
         bot_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
 
         const left_info_opponent_panel = UiPanel.init(
-            .{ .x = -550.0, .y = -165 },
-            .{ .x = 140.0, .y = 320.0 },
+            .{ .x = -550.0, .y = -300 },
+            .{ .x = 140.0, .y = 100.0 },
             if (self.game.turn_owner == .Opponent) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
         );
         left_info_opponent_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
 
         const left_info_player_panel = UiPanel.init(
-            .{ .x = -550.0, .y = 165 },
-            .{ .x = 140.0, .y = 320.0 },
+            .{ .x = -550.0, .y = 300 },
+            .{ .x = 140.0, .y = 100.0 },
             if (self.game.turn_owner == .Player) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
         );
         left_info_player_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
@@ -393,7 +381,7 @@ const Runtime = struct {
             .{self.game.opponent_hp},
         ) catch unreachable;
         const opponent_hp_text = UiText.init(
-            .{ .x = -550.0, .y = -200 },
+            .{ .x = -550.0, .y = -300 },
             &self.font,
             opponent_hp,
             25.0,
@@ -410,7 +398,7 @@ const Runtime = struct {
             .{self.game.opponent_hp_overhead},
         ) catch unreachable;
         const opponent_hp_overhead_text = UiText.init(
-            .{ .x = -550.0, .y = -160 },
+            .{ .x = -550.0, .y = -280 },
             &self.font,
             opponent_hp_overhead,
             25.0,
@@ -428,7 +416,7 @@ const Runtime = struct {
             .{self.game.player_hp},
         ) catch unreachable;
         const player_hp_text = UiText.init(
-            .{ .x = -550.0, .y = 160 },
+            .{ .x = -550.0, .y = 300 },
             &self.font,
             player_hp,
             25.0,
@@ -445,7 +433,7 @@ const Runtime = struct {
             .{self.game.player_hp_overhead},
         ) catch unreachable;
         const player_hp_overhead_text = UiText.init(
-            .{ .x = -550.0, .y = 200 },
+            .{ .x = -550.0, .y = 320 },
             &self.font,
             player_hp_overhead,
             25.0,
@@ -457,17 +445,49 @@ const Runtime = struct {
             &self.screen_quads,
         );
 
-        // const right_cue_panel = UiPanel.init(
-        //     .{ .x = 550.0 },
-        //     .{ .x = 140.0, .y = 600.0 },
-        //     UI_BACKGROUND_COLOR,
-        // );
-        // right_cue_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
+        const left_cue_panel = UiPanel.init(
+            .{ .x = -550.0 },
+            .{ .x = 140.0, .y = 480.0 },
+            UI_BACKGROUND_COLOR,
+        );
+        left_cue_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
+
+        const right_cue_panel = UiPanel.init(
+            .{ .x = 550.0 },
+            .{ .x = 140.0, .y = 480.0 },
+            UI_BACKGROUND_COLOR,
+        );
+        right_cue_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
+
+        const shop_button = UiText.init(
+            .{ .x = 350.0, .y = 320.0 },
+            &self.font,
+            "SHOP",
+            32.0,
+        );
+        if (shop_button.to_screen_quads_world_space(
+            frame_alloc,
+            self.input_state.mouse_pos_world,
+            &self.camera_controller,
+            &self.screen_quads,
+        ) and self.input_state.lmb and
+            !self.game_state_change_animation.is_playing())
+        {
+            if (self.game_state.in_game_shop) {
+                var final_game_state = self.game_state;
+                final_game_state.in_game_shop = false;
+                self.game_state_change_animation.set(CAMERA_IN_GAME, final_game_state);
+            } else {
+                self.game_state.in_game_shop = true;
+                const final_game_state = self.game_state;
+                self.game_state_change_animation.set(CAMERA_IN_GAME_SHOP, final_game_state);
+            }
+        }
 
         const back_button = UiText.init(
-            .{ .x = -550.0, .y = 350.0 },
+            .{ .x = 550.0, .y = 320.0 },
             &self.font,
-            "Back",
+            "GIVE UP",
             32.0,
         );
         if (back_button.to_screen_quads_world_space(
@@ -481,6 +501,66 @@ const Runtime = struct {
             final_game_state.in_game = false;
             self.game_state_change_animation.set(CAMERA_MAIN_MENU, final_game_state);
         }
+
+        self.game.update(&self.input_state, dt);
+        self.game.draw(
+            frame_alloc,
+            &self.input_state,
+            &self.camera_controller,
+            &self.font,
+            &self.texture_store,
+            &self.screen_quads,
+        );
+    }
+
+    fn in_game_shop(
+        self: *Self,
+        memory: *Memory,
+        dt: f32,
+        events: []const Events.Event,
+        window_width: u32,
+        window_height: u32,
+    ) void {
+        _ = dt;
+        _ = events;
+        _ = window_width;
+        _ = window_height;
+
+        const frame_alloc = memory.frame_alloc();
+
+        const item_1_panel = UiPanel.init(
+            CAMERA_IN_GAME_SHOP.add(.{ .x = -400 }),
+            .{ .x = 350.0, .y = 500.0 },
+            UI_BACKGROUND_COLOR,
+        );
+        item_1_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
+
+        const item_2_panel = UiPanel.init(
+            CAMERA_IN_GAME_SHOP.add(.{}),
+            .{ .x = 350.0, .y = 500.0 },
+            UI_BACKGROUND_COLOR,
+        );
+        item_2_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
+
+        const item_3_panel = UiPanel.init(
+            CAMERA_IN_GAME_SHOP.add(.{ .x = 400 }),
+            .{ .x = 350.0, .y = 500.0 },
+            UI_BACKGROUND_COLOR,
+        );
+        item_3_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
+
+        const reroll_button = UiText.init(
+            CAMERA_IN_GAME_SHOP.add(.{ .y = 300 }),
+            &self.font,
+            "REROLL",
+            32.0,
+        );
+        _ = reroll_button.to_screen_quads_world_space(
+            frame_alloc,
+            self.input_state.mouse_pos_world,
+            &self.camera_controller,
+            &self.screen_quads,
+        );
     }
 
     fn debug(

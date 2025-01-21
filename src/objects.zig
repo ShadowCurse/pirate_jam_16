@@ -602,14 +602,13 @@ pub const Cue = struct {
     shoot_animation: ?SmoothStepAnimation,
 
     const CUE_HEIGHT = 450;
-    const STORAGE_POSITION: Vec2 = .{ .x = 650.0 };
-    const STORAGE_WIDTH = 120;
+    const STORAGE_POSITION: Vec2 = .{ .x = -600.0 };
     const STORAGE_CUE_WIDTH = 60;
     const AIM_BALL_OFFSET = Ball.RADIUS + 2;
 
     pub fn init(texture_id: Textures.Texture.Id, storage_index: u8) Cue {
         const storage_position = STORAGE_POSITION.add(
-            .{ .x = -STORAGE_WIDTH + @as(f32, @floatFromInt(storage_index)) * STORAGE_CUE_WIDTH },
+            .{ .x = @as(f32, @floatFromInt(storage_index)) * STORAGE_CUE_WIDTH },
         );
         return .{
             .texture_id = texture_id,

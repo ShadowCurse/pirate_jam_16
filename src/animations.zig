@@ -35,6 +35,10 @@ pub const GameStateChangeAnimation = struct {
 
     const DURATION = 1.0;
 
+    pub fn is_playing(self: GameStateChangeAnimation) bool {
+        return self.animation != null;
+    }
+
     pub fn set(
         self: *GameStateChangeAnimation,
         target_position: Vec2,
