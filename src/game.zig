@@ -91,7 +91,7 @@ pub fn restart(self: *Self) void {
     self.item_inventory = ItemInventory.init();
     self.cue_inventory = CueInventory.init();
     _ = self.item_inventory.add(.BallSpiky);
-    _ = self.item_inventory.add(.BallSpiky);
+    _ = self.item_inventory.add(.CueHP);
     _ = self.item_inventory.add(.BallSpiky);
     _ = self.item_inventory.add(.BallSpiky);
     _ = self.cue_inventory.add(.Cue50CAL);
@@ -131,6 +131,7 @@ pub fn update(
             if (!self.is_aiming) {
                 self.is_aiming = self.selected_ball != null and input_state.rmb;
                 self.cue_inventory.selected().move_storage();
+                self.item_inventory.update(input_state);
             } else {
                 if (self.selected_ball) |sb| {
                     const ball = &self.balls[sb];
@@ -268,49 +269,71 @@ pub fn draw(
         screen_quads,
     );
 
+    const selected_item = self.item_inventory.selected();
+    const is_ball_upgrade = if (selected_item) |si| si.is_ball() else false;
     for (&self.balls) |*ball| {
-        const bo = ball.to_object_2d();
-        bo.to_screen_quad(
-            camera_controller,
-            texture_store,
-            screen_quads,
-        );
-        ball.hp_to_screen_quads(
-            allocator,
-            font,
-            camera_controller,
-            screen_quads,
-        );
-        if (self.selected_ball) |sb| {
-            if (ball.id == sb) {
-                if (!self.is_aiming)
-                    _ = ball.info_panel_to_screen_quads(
-                        allocator,
-                        input_state,
-                        font,
-                        camera_controller,
-                        screen_quads,
-                    );
-                const pbo = ball.previous_positions_to_object_2d();
-                for (&pbo) |pb| {
-                    pb.to_screen_quad(
-                        camera_controller,
-                        texture_store,
-                        screen_quads,
-                    );
+        if (ball.owner != self.turn_owner) {
+            ball.to_screen_quads(
+                false,
+                camera_controller,
+                texture_store,
+                screen_quads,
+            );
+            ball.hp_to_screen_quads(
+                allocator,
+                font,
+                camera_controller,
+                screen_quads,
+            );
+        } else {
+            ball.to_screen_quads(
+                is_ball_upgrade,
+                camera_controller,
+                texture_store,
+                screen_quads,
+            );
+            ball.hp_to_screen_quads(
+                allocator,
+                font,
+                camera_controller,
+                screen_quads,
+            );
+
+            if (self.selected_ball) |sb| {
+                if (ball.id == sb) {
+                    if (!self.is_aiming)
+                        _ = ball.info_panel_to_screen_quads(
+                            allocator,
+                            input_state,
+                            font,
+                            camera_controller,
+                            screen_quads,
+                        );
+                    const pbo = ball.previous_positions_to_object_2d();
+                    for (&pbo) |pb| {
+                        pb.to_screen_quad(
+                            camera_controller,
+                            texture_store,
+                            screen_quads,
+                        );
+                    }
                 }
             }
         }
     }
 
     self.item_inventory.to_screen_quads(
+        allocator,
+        font,
         &self.item_infos,
         camera_controller,
         texture_store,
         screen_quads,
     );
 
+    const is_cue_upgrade = if (selected_item) |si| si.is_cue_upgrade() else false;
     self.cue_inventory.to_screen_quads(
+        is_cue_upgrade,
         &self.item_infos,
         camera_controller,
         texture_store,

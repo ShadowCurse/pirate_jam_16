@@ -230,11 +230,31 @@ pub const Ball = struct {
         return Physics.point_circle_intersect(mouse_pos, self.collider, self.body.position);
     }
 
-    pub fn to_object_2d(self: Ball) Object2d {
-        const trace_start = trace.start();
-        defer trace.end(@src(), trace_start);
-
-        return .{
+    pub fn to_screen_quads(
+        self: Ball,
+        upgrade_hilight: bool,
+        camera_controller: *const CameraController2d,
+        texture_store: *const Textures.Store,
+        screen_quads: *ScreenQuads,
+    ) void {
+        if (upgrade_hilight) {
+            var upgrade_hilight_color = Color.RED;
+            upgrade_hilight_color.format.a = 64;
+            const object: Object2d = .{
+                .type = .{ .TextureId = self.texture_id },
+                .tint = upgrade_hilight_color,
+                .transform = .{
+                    .position = self.body.position.extend(0.0),
+                },
+                .size = .{
+                    .x = RADIUS * 2.0 * 1.5,
+                    .y = RADIUS * 2.0 * 1.5,
+                },
+                .options = .{ .with_tint = true },
+            };
+            object.to_screen_quad(camera_controller, texture_store, screen_quads);
+        }
+        const object: Object2d = .{
             .type = .{ .TextureId = self.texture_id },
             .tint = self.color,
             .transform = .{
@@ -242,6 +262,7 @@ pub const Ball = struct {
             },
             .options = .{ .draw_aabb = true, .no_scale_rotate = true, .with_tint = true },
         };
+        object.to_screen_quad(camera_controller, texture_store, screen_quads);
     }
 
     pub fn hp_to_screen_quads(
@@ -691,23 +712,42 @@ pub const Cue = struct {
         return false;
     }
 
-    pub fn to_screen_quad(
+    pub fn to_screen_quads(
         self: Cue,
+        upgrade_hilight: bool,
         texture_id: Textures.Texture.Id,
         camera_controller: *const CameraController2d,
         texture_store: *const Textures.Store,
         screen_quads: *ScreenQuads,
     ) void {
+        const size: Vec2 = .{
+            .x = @floatFromInt(texture_store.get_texture(texture_id).width),
+            .y = @floatFromInt(texture_store.get_texture(texture_id).height),
+        };
+
+        if (upgrade_hilight) {
+            var upgrade_hilight_color = Color.RED;
+            upgrade_hilight_color.format.a = 64;
+            const object: Object2d = .{
+                .type = .{ .TextureId = texture_id },
+                .tint = upgrade_hilight_color,
+                .transform = .{
+                    .position = self.position.extend(0.0),
+                    .rotation = self.rotation,
+                },
+                .size = size.mul_f32(1.5),
+                .options = .{ .with_tint = true },
+            };
+            object.to_screen_quad(camera_controller, texture_store, screen_quads);
+        }
+
         const object: Object2d = .{
             .type = .{ .TextureId = texture_id },
             .transform = .{
                 .position = self.position.extend(0.0),
                 .rotation = self.rotation,
             },
-            .size = .{
-                .x = @floatFromInt(texture_store.get_texture(texture_id).width),
-                .y = @floatFromInt(texture_store.get_texture(texture_id).height),
-            },
+            .size = size,
             .options = .{},
         };
         object.to_screen_quad(camera_controller, texture_store, screen_quads);
@@ -737,6 +777,22 @@ pub const Item = struct {
         CueDefault = 16,
         Cue50CAL = 17,
         CueShotgun = 18,
+
+        pub fn is_ball(self: Tag) bool {
+            return self != .Invalid and
+                @intFromEnum(self) < @intFromEnum(Tag.CueHP);
+        }
+
+        pub fn is_cue_upgrade(self: Tag) bool {
+            return self != .Invalid and
+                @intFromEnum(Tag.BallRingOfLight) < @intFromEnum(self) and
+                @intFromEnum(self) < @intFromEnum(Tag.CueDefault);
+        }
+
+        pub fn is_cue(self: Tag) bool {
+            return self != .Invalid and
+                @intFromEnum(Tag.CueRocketBooster) < @intFromEnum(self);
+        }
     };
 
     pub const Info = struct {
@@ -826,6 +882,9 @@ pub const CueInventory = struct {
         mouse_pos: Vec2,
     ) void {
         for (self.cues[0..self.cues_n], 0..) |cue, i| {
+            if (cue.tag == .Invalid)
+                continue;
+
             if (cue.is_hovered(mouse_pos)) {
                 self.hovered_index = i;
                 if (input_state.lmb)
@@ -836,6 +895,7 @@ pub const CueInventory = struct {
 
     pub fn to_screen_quads(
         self: CueInventory,
+        upgrade_hilight: bool,
         item_infos: *const Item.Infos,
         camera_controller: *const CameraController2d,
         texture_store: *const Textures.Store,
@@ -846,7 +906,8 @@ pub const CueInventory = struct {
                 continue;
 
             const cue_info = item_infos.get(cue.tag);
-            cue.to_screen_quad(
+            cue.to_screen_quads(
+                upgrade_hilight,
                 cue_info.texture_id,
                 camera_controller,
                 texture_store,
@@ -863,16 +924,25 @@ pub const ItemInventory = struct {
     items: [MAX_ITEMS]Item.Tag,
     items_n: u32,
 
+    selected_index: ?u8,
+    hovered_index: ?u8,
+
     const MAX_ITEMS = 4;
     const ITEMS_POSITION: Vec2 = .{ .x = -100.0, .y = 310.0 };
     const ITEMS_WIDTH = 600;
     const ITEM_WIDTH = 100;
+    const ITEM_HEIGHT = 100;
     const ITEM_GAP = 50;
+
+    pub const INFO_PANEL_OFFSET: Vec2 = .{ .y = -180.0 };
+    pub const INFO_PANEL_SIZE: Vec2 = .{ .x = 280.0, .y = 300.0 };
 
     pub fn init() ItemInventory {
         return .{
             .items = undefined,
             .items_n = 0,
+            .selected_index = null,
+            .hovered_index = null,
         };
     }
 
@@ -903,16 +973,63 @@ pub const ItemInventory = struct {
     }
 
     pub fn remove(self: *ItemInventory, item: Item.Tag) void {
-        for (self.items[0..self.items_n], 0..) |*it, i| {
+        for (self.items[0..self.items_n]) |*it| {
             if (it == item) {
-                self.items[i] = self.items[self.items_n - 1];
-                self.items_n -= 1;
+                it.* = .Invalid;
             }
+        }
+    }
+
+    pub fn item_hovered(item_index: u8, mouse_pos: Vec2) bool {
+        const ip = item_position(item_index);
+        const collision_rectangle: Physics.Rectangle = .{
+            .size = .{
+                .x = ITEM_WIDTH,
+                .y = ITEM_HEIGHT,
+            },
+        };
+        return Physics.point_rectangle_intersect(
+            mouse_pos,
+            collision_rectangle,
+            ip,
+        );
+    }
+
+    pub fn selected(self: ItemInventory) ?Item.Tag {
+        if (self.selected_index) |si| {
+            return self.items[si];
+        } else {
+            return null;
+        }
+    }
+
+    pub fn update(
+        self: *ItemInventory,
+        input_state: *const InputState,
+    ) void {
+        var hover_anything: bool = false;
+        for (self.items[0..self.items_n], 0..) |item, i| {
+            if (item == .Invalid)
+                continue;
+
+            if (item_hovered(@intCast(i), input_state.mouse_pos_world)) {
+                hover_anything = true;
+                self.hovered_index = @intCast(i);
+                if (input_state.lmb)
+                    self.selected_index = @intCast(i);
+            }
+        }
+        if (!hover_anything) {
+            self.hovered_index = null;
+            if (input_state.lmb)
+                self.selected_index = null;
         }
     }
 
     pub fn to_screen_quads(
         self: ItemInventory,
+        allocator: Allocator,
+        font: *const Font,
         item_infos: *const Item.Infos,
         camera_controller: *const CameraController2d,
         texture_store: *const Textures.Store,
@@ -921,14 +1038,72 @@ pub const ItemInventory = struct {
         for (self.items[0..self.items_n], 0..) |item, i| {
             const item_info = item_infos.infos[@intFromEnum(item)];
             const ip = item_position(@intCast(i));
-            const object: Object2d = .{
+
+            var object: Object2d = .{
                 .type = .{ .TextureId = item_info.texture_id },
                 .transform = .{
                     .position = ip.extend(0.0),
                 },
                 .options = .{ .no_scale_rotate = true },
             };
+            if (self.hovered_index) |hi| {
+                if (hi == i) {
+                    object.tint = Color.BLUE;
+                    object.options.with_tint = true;
+
+                    add_info_panel(ip, item_info, allocator, font, camera_controller, screen_quads);
+                }
+            }
+            if (self.selected_index) |si| {
+                if (si == i) {
+                    object.tint = Color.GREEN;
+                    object.options.with_tint = true;
+                }
+            }
             object.to_screen_quad(camera_controller, texture_store, screen_quads);
+        }
+    }
+
+    fn add_info_panel(
+        ip: Vec2,
+        item_info: Item.Info,
+        allocator: Allocator,
+        font: *const Font,
+        camera_controller: *const CameraController2d,
+        screen_quads: *ScreenQuads,
+    ) void {
+        const panel_position = ip.add(INFO_PANEL_OFFSET);
+        const info_panel = UiPanel.init(
+            panel_position,
+            INFO_PANEL_SIZE,
+            Color.GREY,
+        );
+        info_panel.to_screen_quad(camera_controller, screen_quads);
+
+        {
+            const text = Text.init(
+                font,
+                item_info.name,
+                32.0,
+                panel_position.add(.{ .y = -40.0 }).extend(0.0),
+                0.0,
+                .{},
+                .{ .dont_clip = true },
+            );
+            text.to_screen_quads_world_space(allocator, camera_controller, screen_quads);
+        }
+
+        {
+            const text = Text.init(
+                font,
+                item_info.description,
+                32.0,
+                panel_position.add(.{ .y = -20.0 }).extend(0.0),
+                0.0,
+                .{},
+                .{ .dont_clip = true },
+            );
+            text.to_screen_quads_world_space(allocator, camera_controller, screen_quads);
         }
     }
 };
