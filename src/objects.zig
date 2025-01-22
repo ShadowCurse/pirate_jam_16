@@ -308,7 +308,6 @@ pub const Ball = struct {
                 camera_controller,
                 screen_quads,
             ) and input_state.lmb;
-            log.info(@src(), "need_refill: {}", .{result.need_refill});
         }
         const object: Object2d = .{
             .type = .{ .TextureId = self.texture_id },
@@ -625,6 +624,15 @@ pub const Table = struct {
             .options = .{ .no_alpha_blend = true },
         };
         table_object.to_screen_quad(camera_controller, texture_store, screen_quads);
+
+        self.borders_to_screen_quads(
+            camera_controller,
+            screen_quads,
+        );
+        self.pockets_to_screen_quads(
+            camera_controller,
+            screen_quads,
+        );
     }
 
     pub fn borders_to_screen_quads(

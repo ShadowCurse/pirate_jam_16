@@ -494,14 +494,14 @@ const Runtime = struct {
             self.game_state_change_animation.set(CAMERA_MAIN_MENU, final_game_state);
         }
 
-        self.game.update(&self.input_state, dt);
-        self.game.draw(
+        self.game.update_and_draw(
             frame_alloc,
             &self.input_state,
             &self.camera_controller,
             &self.font,
             &self.texture_store,
             &self.screen_quads,
+            dt,
         );
     }
 

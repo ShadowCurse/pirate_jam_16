@@ -121,11 +121,105 @@ pub fn restart(self: *Self) void {
     self.ball_animations = .{};
 }
 
-pub fn update(
+pub fn update_and_draw(
     self: *Self,
+    allocator: Allocator,
     input_state: *const InputState,
+    camera_controller: *const CameraController2d,
+    font: *const Font,
+    texture_store: *const Textures.Store,
+    screen_quads: *ScreenQuads,
     dt: f32,
 ) void {
+    self.table.to_screen_quad(
+        camera_controller,
+        texture_store,
+        screen_quads,
+    );
+
+    const selected_item = self.item_inventory.selected();
+    for (&self.balls) |*ball| {
+        const is_selected = if (self.selected_ball) |sb| blk: {
+            if (ball.id == sb) {
+                break :blk true;
+            }
+            break :blk false;
+        } else blk: {
+            break :blk false;
+        };
+        const show_info = is_selected and !self.is_aiming and self.turn_state == .NotTaken;
+
+        const r = if (ball.owner != self.turn_owner) blk: {
+            break :blk ball.to_screen_quads(
+                show_info,
+                null,
+                allocator,
+                input_state,
+                font,
+                camera_controller,
+                texture_store,
+                screen_quads,
+            );
+        } else blk: {
+            const r = ball.to_screen_quads(
+                show_info,
+                selected_item,
+                allocator,
+                input_state,
+                font,
+                camera_controller,
+                texture_store,
+                screen_quads,
+            );
+            if (is_selected) {
+                const pbo = ball.previous_positions_to_object_2d();
+                for (&pbo) |pb| {
+                    pb.to_screen_quad(
+                        camera_controller,
+                        texture_store,
+                        screen_quads,
+                    );
+                }
+            }
+            break :blk r;
+        };
+        if (r.upgrade_applied) {}
+        if (r.need_refill) {
+            const to_refill = ball.max_hp - ball.hp;
+            const hp_overhead = if (self.turn_owner == .Player)
+                &self.player_hp_overhead
+            else
+                &self.opponent_hp_overhead;
+            const hp = if (self.turn_owner == .Player)
+                &self.player_hp
+            else
+                &self.opponent_hp;
+            if (to_refill <= hp_overhead.*) {
+                ball.hp = ball.max_hp;
+                hp.* += to_refill;
+                hp_overhead.* -= to_refill;
+            }
+        }
+    }
+
+    self.item_inventory.to_screen_quads(
+        allocator,
+        font,
+        &self.item_infos,
+        camera_controller,
+        texture_store,
+        screen_quads,
+    );
+
+    const is_cue_upgrade = if (selected_item) |si| si.is_cue_upgrade() else false;
+    self.cue_inventory.to_screen_quads(
+        is_cue_upgrade,
+        &self.item_infos,
+        camera_controller,
+        texture_store,
+        screen_quads,
+    );
+
     switch (self.turn_state) {
         .NotTaken => {
             if (!self.is_aiming) {
@@ -244,107 +338,4 @@ pub fn update(
             }
         },
     }
-}
-
-pub fn draw(
-    self: *Self,
-    allocator: Allocator,
-    input_state: *const InputState,
-    camera_controller: *const CameraController2d,
-    font: *const Font,
-    texture_store: *const Textures.Store,
-    screen_quads: *ScreenQuads,
-) void {
-    self.table.to_screen_quad(
-        camera_controller,
-        texture_store,
-        screen_quads,
-    );
-    self.table.borders_to_screen_quads(
-        camera_controller,
-        screen_quads,
-    );
-    self.table.pockets_to_screen_quads(
-        camera_controller,
-        screen_quads,
-    );
-
-    const selected_item = self.item_inventory.selected();
-    for (&self.balls) |*ball| {
-        const is_selected = if (self.selected_ball) |sb| blk: {
-            if (ball.id == sb) {
-                break :blk true;
-            }
-            break :blk false;
-        } else blk: {
-            break :blk false;
-        };
-        const show_info = is_selected and !self.is_aiming and self.turn_state == .NotTaken;
-
-        const r = if (ball.owner != self.turn_owner) blk: {
-            break :blk ball.to_screen_quads(
-                show_info,
-                null,
-                allocator,
-                input_state,
-                font,
-                camera_controller,
-                texture_store,
-                screen_quads,
-            );
-        } else blk: {
-            const r = ball.to_screen_quads(
-                show_info,
-                selected_item,
-                allocator,
-                input_state,
-                font,
-                camera_controller,
-                texture_store,
-                screen_quads,
-            );
-            if (is_selected) {
-                const pbo = ball.previous_positions_to_object_2d();
-                for (&pbo) |pb| {
-                    pb.to_screen_quad(
-                        camera_controller,
-                        texture_store,
-                        screen_quads,
-                    );
-                }
-            }
-            break :blk r;
-        };
-        if (r.upgrade_applied) {}
-        if (r.need_refill) {
-            const to_refill = ball.max_hp - ball.hp;
-            const hp_overhead = if (self.turn_owner == .Player)
-                &self.player_hp_overhead
-            else
-                &self.opponent_hp_overhead;
-            if (to_refill < hp_overhead.*) {
-                log.info(@src(), "Refilling {d} hp", .{to_refill});
-                ball.hp = ball.max_hp;
-                hp_overhead.* -= to_refill;
-            }
-        }
-    }
-
-    self.item_inventory.to_screen_quads(
-        allocator,
-        font,
-        &self.item_infos,
-        camera_controller,
-        texture_store,
-        screen_quads,
-    );
-
-    const is_cue_upgrade = if (selected_item) |si| si.is_cue_upgrade() else false;
-    self.cue_inventory.to_screen_quads(
-        is_cue_upgrade,
-        &self.item_infos,
-        camera_controller,
-        texture_store,
-        screen_quads,
-    );
 }
