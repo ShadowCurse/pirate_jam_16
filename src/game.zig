@@ -101,9 +101,6 @@ pub fn restart(self: *Self) void {
     self.cue_inventory = CueInventory.init();
     _ = self.item_inventory.add(.BallSpiky);
     _ = self.item_inventory.add(.CueHP);
-    _ = self.item_inventory.add(.BallSpiky);
-    _ = self.item_inventory.add(.BallSpiky);
-    _ = self.cue_inventory.add(.Cue50CAL);
     _ = self.cue_inventory.add(.Cue50CAL);
     self.turn_owner = .Player;
     self.turn_state = .NotTaken;
@@ -111,7 +108,7 @@ pub fn restart(self: *Self) void {
     self.is_aiming = false;
 
     self.player_hp = 100;
-    self.player_hp_overhead = 0;
+    self.player_hp_overhead = 100;
     self.opponent_hp = 100;
     self.opponent_hp_overhead = 0;
 
@@ -374,11 +371,20 @@ pub fn draw_shop(
     )) |item| {
         const item_info = self.item_infos.get(item);
         if (item_info.price <= self.player_hp_overhead) {
-            if (self.item_inventory.add(item)) {
-                self.shop.remove_selected_item();
-                self.player_hp_overhead -= item_info.price;
+            if (item.is_cue()) {
+                if (self.cue_inventory.add(item)) {
+                    self.shop.remove_selected_item();
+                    self.player_hp_overhead -= item_info.price;
+                } else {
+                    log.info(@src(), "Cannot add item to the cue inventory: Full", .{});
+                }
             } else {
-                log.info(@src(), "Cannot add item to the inventory: Full", .{});
+                if (self.item_inventory.add(item)) {
+                    self.shop.remove_selected_item();
+                    self.player_hp_overhead -= item_info.price;
+                } else {
+                    log.info(@src(), "Cannot add item to the item inventory: Full", .{});
+                }
             }
         } else {
             log.info(@src(), "Cannot add item to the inventory: Need more money", .{});
