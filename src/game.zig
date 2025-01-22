@@ -270,54 +270,62 @@ pub fn draw(
     );
 
     const selected_item = self.item_inventory.selected();
-    const is_ball_upgrade = if (selected_item) |si| si.is_ball() else false;
     for (&self.balls) |*ball| {
-        if (ball.owner != self.turn_owner) {
-            ball.to_screen_quads(
-                false,
-                camera_controller,
-                texture_store,
-                screen_quads,
-            );
-            ball.hp_to_screen_quads(
-                allocator,
-                font,
-                camera_controller,
-                screen_quads,
-            );
-        } else {
-            ball.to_screen_quads(
-                is_ball_upgrade,
-                camera_controller,
-                texture_store,
-                screen_quads,
-            );
-            ball.hp_to_screen_quads(
-                allocator,
-                font,
-                camera_controller,
-                screen_quads,
-            );
+        const is_selected = if (self.selected_ball) |sb| blk: {
+            if (ball.id == sb) {
+                break :blk true;
+            }
+            break :blk false;
+        } else blk: {
+            break :blk false;
+        };
+        const show_info = is_selected and !self.is_aiming and self.turn_state == .NotTaken;
 
-            if (self.selected_ball) |sb| {
-                if (ball.id == sb) {
-                    if (!self.is_aiming)
-                        _ = ball.info_panel_to_screen_quads(
-                            allocator,
-                            input_state,
-                            font,
-                            camera_controller,
-                            screen_quads,
-                        );
-                    const pbo = ball.previous_positions_to_object_2d();
-                    for (&pbo) |pb| {
-                        pb.to_screen_quad(
-                            camera_controller,
-                            texture_store,
-                            screen_quads,
-                        );
-                    }
+        const r = if (ball.owner != self.turn_owner) blk: {
+            break :blk ball.to_screen_quads(
+                show_info,
+                null,
+                allocator,
+                input_state,
+                font,
+                camera_controller,
+                texture_store,
+                screen_quads,
+            );
+        } else blk: {
+            const r = ball.to_screen_quads(
+                show_info,
+                selected_item,
+                allocator,
+                input_state,
+                font,
+                camera_controller,
+                texture_store,
+                screen_quads,
+            );
+            if (is_selected) {
+                const pbo = ball.previous_positions_to_object_2d();
+                for (&pbo) |pb| {
+                    pb.to_screen_quad(
+                        camera_controller,
+                        texture_store,
+                        screen_quads,
+                    );
                 }
+            }
+            break :blk r;
+        };
+        if (r.upgrade_applied) {}
+        if (r.need_refill) {
+            const to_refill = ball.max_hp - ball.hp;
+            const hp_overhead = if (self.turn_owner == .Player)
+                &self.player_hp_overhead
+            else
+                &self.opponent_hp_overhead;
+            if (to_refill < hp_overhead.*) {
+                log.info(@src(), "Refilling {d} hp", .{to_refill});
+                ball.hp = ball.max_hp;
+                hp_overhead.* -= to_refill;
             }
         }
     }

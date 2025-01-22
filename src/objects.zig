@@ -47,6 +47,8 @@ pub const Ball = struct {
     max_hp: i32,
     damage: i32,
     heal: i32,
+    upgrades: [32]Item.Tag,
+    upgrades_n: u8,
 
     body: Physics.Body,
     collider: Physics.Circle,
@@ -62,6 +64,8 @@ pub const Ball = struct {
     pub const INFO_PANEL_OFFSET: Vec2 = .{ .y = -100.0 };
     pub const INFO_PANEL_SIZE: Vec2 = .{ .x = 100.0, .y = 150.0 };
     pub const PREVIOUS_POSITIONS = 64;
+    pub const UPGRADE_HILIGHT_COLOR = Color.from_parts(255, 0, 0, 64);
+    pub const HOVER_HILIGHT_COLOR = Color.from_parts(0, 0, 255, 64);
 
     pub const trace = Tracing.Measurements(struct {
         update: Tracing.Counter,
@@ -85,6 +89,10 @@ pub const Ball = struct {
             .max_hp = 10,
             .damage = 1,
             .heal = 1,
+
+            .upgrades = undefined,
+            .upgrades_n = 0,
+
             .body = .{
                 .position = position,
                 .velocity = .{},
@@ -231,19 +239,53 @@ pub const Ball = struct {
         return Physics.point_circle_intersect(mouse_pos, self.collider, self.body.position);
     }
 
+    pub fn add_upgrade(self: *Ball, upgrade: Item.Tag) bool {
+        if (self.upgrades_n < self.upgrades.len) {
+            self.upgrades[self.upgrades_n] = upgrade;
+            self.upgrades_n += 1;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    pub const ToScreenQuadsResult = struct {
+        upgrade_applied: bool = false,
+        need_refill: bool = false,
+    };
+
     pub fn to_screen_quads(
-        self: Ball,
-        upgrade_hilight: bool,
+        self: *Ball,
+        show_info: bool,
+        selected_upgrade: ?Item.Tag,
+        allocator: Allocator,
+        input_state: *const InputState,
+        font: *const Font,
         camera_controller: *const CameraController2d,
         texture_store: *const Textures.Store,
         screen_quads: *ScreenQuads,
-    ) void {
-        if (upgrade_hilight) {
-            var upgrade_hilight_color = Color.RED;
-            upgrade_hilight_color.format.a = 64;
+    ) ToScreenQuadsResult {
+        var result: ToScreenQuadsResult = .{};
+        const is_ball_upgrade = if (selected_upgrade) |si| si.is_ball() else false;
+        if (is_ball_upgrade) {
             const object: Object2d = .{
                 .type = .{ .TextureId = self.texture_id },
-                .tint = upgrade_hilight_color,
+                .tint = UPGRADE_HILIGHT_COLOR,
+                .transform = .{
+                    .position = self.body.position.extend(0.0),
+                },
+                .size = .{
+                    .x = RADIUS * 2.0 * 2.0,
+                    .y = RADIUS * 2.0 * 2.0,
+                },
+                .options = .{ .with_tint = true },
+            };
+            object.to_screen_quad(camera_controller, texture_store, screen_quads);
+        }
+        if (self.is_hovered(input_state.mouse_pos_world)) {
+            const object: Object2d = .{
+                .type = .{ .TextureId = self.texture_id },
+                .tint = HOVER_HILIGHT_COLOR,
                 .transform = .{
                     .position = self.body.position.extend(0.0),
                 },
@@ -254,6 +296,19 @@ pub const Ball = struct {
                 .options = .{ .with_tint = true },
             };
             object.to_screen_quad(camera_controller, texture_store, screen_quads);
+            if (is_ball_upgrade and input_state.lmb) {
+                result.upgrade_applied = self.add_upgrade(selected_upgrade.?);
+            }
+        }
+        if (show_info) {
+            result.need_refill = self.info_panel_to_screen_quads(
+                allocator,
+                input_state,
+                font,
+                camera_controller,
+                screen_quads,
+            ) and input_state.lmb;
+            log.info(@src(), "need_refill: {}", .{result.need_refill});
         }
         const object: Object2d = .{
             .type = .{ .TextureId = self.texture_id },
@@ -264,6 +319,10 @@ pub const Ball = struct {
             .options = .{ .draw_aabb = true, .no_scale_rotate = true, .with_tint = true },
         };
         object.to_screen_quad(camera_controller, texture_store, screen_quads);
+
+        self.hp_to_screen_quads(allocator, font, camera_controller, screen_quads);
+
+        return result;
     }
 
     pub fn hp_to_screen_quads(
