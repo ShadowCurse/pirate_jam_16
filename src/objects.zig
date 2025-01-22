@@ -43,12 +43,14 @@ pub const Ball = struct {
     color: Color,
 
     owner: Owner,
-    hp: i32,
-    max_hp: i32,
-    damage: i32,
-    heal: i32,
-    upgrades: [32]Item.Tag,
-    upgrades_n: u8,
+    hp: i32 = 10,
+    max_hp: i32 = 10,
+    damage: i32 = 1,
+    heal: i32 = 1,
+    armor: f32 = 0.0,
+    gravity_level: u8 = 0,
+    runner_level: u8 = 0,
+    ring_of_light_level: u8 = 0,
 
     body: Physics.Body,
     collider: Physics.Circle,
@@ -85,14 +87,6 @@ pub const Ball = struct {
             .texture_id = texture_id,
             .color = color,
             .owner = owner,
-            .hp = 10,
-            .max_hp = 10,
-            .damage = 1,
-            .heal = 1,
-
-            .upgrades = undefined,
-            .upgrades_n = 0,
-
             .body = .{
                 .position = position,
                 .velocity = .{},
@@ -141,13 +135,19 @@ pub const Ball = struct {
                         self.hp += ball.heal;
                         ball.hp += self.heal;
                     } else {
-                        const d = @min(self.damage, ball.hp);
+                        const min = @min(self.damage, ball.hp);
+                        const min_f32: f32 = @floatFromInt(min);
+                        const d: i32 =
+                            @intFromFloat(min_f32 * (1.0 - ball.armor));
                         self.hp += d;
                         ball.hp -= d;
                     }
                 } else {
                     if (ball.owner == turn_owner) {
-                        const d = @min(ball.damage, self.hp);
+                        const min = @min(ball.damage, self.hp);
+                        const min_f32: f32 = @floatFromInt(min);
+                        const d: i32 =
+                            @intFromFloat(min_f32 * (1.0 - ball.armor));
                         self.hp -= d;
                         ball.hp += d;
                     } else {
@@ -240,13 +240,36 @@ pub const Ball = struct {
     }
 
     pub fn add_upgrade(self: *Ball, upgrade: Item.Tag) bool {
-        if (self.upgrades_n < self.upgrades.len) {
-            self.upgrades[self.upgrades_n] = upgrade;
-            self.upgrades_n += 1;
-            return true;
-        } else {
-            return false;
+        switch (upgrade) {
+            .BallSpiky => {
+                self.damage += 5;
+            },
+            .BallHealthy => {
+                self.hp += 5;
+                self.max_hp += 5;
+            },
+            .BallArmored => {
+                self.armor += 0.5;
+            },
+            .BallLight => {
+                self.body.inv_mass += 0.1;
+            },
+            .BallHeavy => {
+                self.body.inv_mass -= 0.1;
+            },
+            .BallGravity => {
+                self.gravity_level += 1;
+            },
+            .BallRunner => {
+                self.runner_level += 1;
+            },
+            .BallRingOfLight => {
+                self.ring_of_light_level += 1;
+            },
+            else => unreachable,
         }
+
+        return true;
     }
 
     pub const ToScreenQuadsResult = struct {
@@ -688,8 +711,14 @@ pub const Cue = struct {
     rotation: f32,
     storage_position: Vec2,
     shoot_animation: ?SmoothStepAnimation,
-    upgrades: [32]Item.Tag,
-    upgrades_n: u32,
+
+    add_heal: i32 = 0,
+    add_damage: i32 = 0,
+    hit_count: u8 = 1,
+    hit_strength: f32 = 1.0,
+    wiggle_ball: bool = false,
+    scope: bool = false,
+    silencer: bool = false,
 
     const CUE_HEIGHT = 450;
     const CUE_WIDTH = 60;
@@ -705,9 +734,17 @@ pub const Cue = struct {
             .rotation = 0.0,
             .storage_position = storage_position,
             .shoot_animation = null,
-            .upgrades = undefined,
-            .upgrades_n = 0,
         };
+    }
+
+    pub fn reset_upgrades(self: *Cue) void {
+        self.add_heal = 0;
+        self.add_damage = 0;
+        self.hit_count = 1;
+        self.hit_strength = 1.0;
+        self.wiggle_ball = false;
+        self.scope = false;
+        self.silencer = false;
     }
 
     pub fn hovered(self: Cue, mouse_pos: Vec2) bool {
@@ -725,13 +762,41 @@ pub const Cue = struct {
     }
 
     pub fn add_upgrade(self: *Cue, upgrade: Item.Tag) bool {
-        if (self.upgrades_n < self.upgrades.len) {
-            self.upgrades[self.upgrades_n] = upgrade;
-            self.upgrades_n += 1;
-            return true;
-        } else {
-            return false;
+        switch (upgrade) {
+            .CueHP => {
+                self.add_heal += 5;
+            },
+            .CueDamage => {
+                self.add_damage += 5;
+            },
+            .CueWiggleBall => {
+                if (self.wiggle_ball)
+                    return false
+                else
+                    self.wiggle_ball = true;
+            },
+            .CueScope => {
+                if (self.scope)
+                    return false
+                else
+                    self.scope = true;
+            },
+            .CueSecondBarrel => {
+                self.hit_count += 1;
+            },
+            .CueSilencer => {
+                if (self.silencer)
+                    return false
+                else
+                    self.silencer = true;
+            },
+            .CueRocketBooster => {
+                self.hit_strength += 5.0;
+            },
+            else => unreachable,
         }
+
+        return true;
     }
 
     pub fn move_storage(self: *Cue) void {
