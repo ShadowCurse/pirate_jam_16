@@ -26,6 +26,7 @@ const Cue = _objects.Cue;
 const Item = _objects.Item;
 const ItemInventory = _objects.ItemInventory;
 const CueInventory = _objects.CueInventory;
+const Shop = _objects.Shop;
 
 const _animations = @import("animations.zig");
 const BallAnimations = _animations.BallAnimations;
@@ -47,6 +48,8 @@ texture_ball: Textures.Texture.Id,
 balls: [MAX_BALLS]Ball,
 ball_animations: BallAnimations,
 table: Table,
+
+shop: Shop,
 
 selected_ball: ?u32,
 is_aiming: bool,
@@ -79,15 +82,21 @@ pub fn init(
             .texture_id = Textures.Texture.ID_DEBUG,
             .name = std.fmt.comptimePrint("item info: {d}", .{i}),
             .description = std.fmt.comptimePrint("item description: {d}", .{i}),
+            .price = 5,
         };
     }
     self.item_infos.get_mut(.CueDefault).texture_id =
         texture_store.load(memory, "assets/cue_prototype.png");
 
+    for (&self.item_infos.infos) |*info| {
+        log.info(@src(), "{any}", .{info.*});
+    }
+
     self.restart();
 }
 
 pub fn restart(self: *Self) void {
+    self.shop.reset();
     self.item_inventory = ItemInventory.init();
     self.cue_inventory = CueInventory.init();
     _ = self.item_inventory.add(.BallSpiky);
@@ -340,5 +349,37 @@ pub fn update_and_draw(
                 self.selected_ball = null;
             }
         },
+    }
+}
+
+pub fn draw_shop(
+    self: *Self,
+    allocator: Allocator,
+    input_state: *const InputState,
+    camera_controller: *const CameraController2d,
+    font: *const Font,
+    texture_store: *const Textures.Store,
+    screen_quads: *ScreenQuads,
+) void {
+    if (self.shop.update_and_draw(
+        allocator,
+        input_state,
+        font,
+        &self.item_infos,
+        camera_controller,
+        texture_store,
+        screen_quads,
+    )) |item| {
+        const item_info = self.item_infos.get(item);
+        if (item_info.price <= self.player_hp_overhead) {
+            if (self.item_inventory.add(item)) {
+                self.shop.remove_selected_item();
+                self.player_hp_overhead -= item_info.price;
+            } else {
+                log.info(@src(), "Cannot add item to the inventory: Full", .{});
+            }
+        } else {
+            log.info(@src(), "Cannot add item to the inventory: Need more money", .{});
+        }
     }
 }

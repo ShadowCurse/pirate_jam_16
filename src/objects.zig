@@ -972,16 +972,49 @@ pub const Item = struct {
         texture_id: Textures.Texture.Id,
         name: []const u8,
         description: []const u8,
+        price: i32,
+    };
+
+    pub const NormalDropRate = 0.5;
+    pub const RareDropRate = 0.3;
+    pub const EpicDropRate = 0.2;
+
+    pub const NormalItems = [_]Tag{
+        .BallSpiky,
+        .BallHealthy,
+        .BallArmored,
+        .CueHP,
+        .CueDamage,
+    };
+
+    pub const RareItems = [_]Tag{
+        .BallLight,
+        .BallHeavy,
+        .BallGravity,
+        .BallRunner,
+        .CueWiggleBall,
+        .CueScope,
+        .CueSecondBarrel,
+        .CueShotgun,
+    };
+
+    pub const EpicItems = [_]Tag{
+        .BallRingOfLight,
+        .CueSilencer,
+        .CueRocketBooster,
+        .Cue50CAL,
     };
 
     pub const Infos = struct {
         infos: [@typeInfo(Tag).Enum.fields.len]Info,
 
-        pub fn get(self: Infos, tag: Tag) *const Info {
+        pub fn get(self: *const Infos, tag: Tag) *const Info {
+            log.assert(@src(), @intFromEnum(tag) < @typeInfo(Tag).Enum.fields.len - 1, "", .{});
             return &self.infos[@intFromEnum(tag)];
         }
 
         pub fn get_mut(self: *Infos, tag: Tag) *Info {
+            log.assert(@src(), @intFromEnum(tag) < @typeInfo(Tag).Enum.fields.len - 1, "", .{});
             return &self.infos[@intFromEnum(tag)];
         }
     };
@@ -1279,5 +1312,209 @@ pub const ItemInventory = struct {
             );
             text.to_screen_quads_world_space(allocator, camera_controller, screen_quads);
         }
+    }
+};
+
+pub const Shop = struct {
+    rng: std.rand.DefaultPrng,
+    items: [MAX_ITEMS]Item.Tag,
+    reroll_cost: i32 = 10,
+
+    selected_item: ?u8 = null,
+
+    pub const CAMERA_IN_GAME_SHOP: Vec2 = .{ .y = 617 };
+    const ITEM_PANEL_SIZE: Vec2 = .{ .x = 350.0, .y = 500.0 };
+    const ITEM_PANEL_GAP = 30;
+    const ITEM_PANEL_DIFF = ITEM_PANEL_SIZE.x + ITEM_PANEL_GAP;
+
+    const ITEM_0_POSITION: Vec2 = CAMERA_IN_GAME_SHOP.add(.{ .x = -400 });
+    const ITEM_1_POSITION: Vec2 = CAMERA_IN_GAME_SHOP;
+    const ITEM_2_POSITION: Vec2 = CAMERA_IN_GAME_SHOP.add(.{ .x = 400 });
+
+    const TEXT_SIZE_NAME = 40;
+    const TEXT_SIZE_DESCRIPTION = 28;
+    const TEXT_SIZE_PRICE = 28;
+
+    const UI_BACKGROUND_COLOR = Color.GREY;
+    const UI_BACKGROUND_COLOR_PLAYING = Color.GREEN;
+
+    const MAX_ITEMS = 3;
+    const REROLL_COST_INC = 1.2;
+
+    pub fn reset(self: *Shop) void {
+        self.rng = std.rand.DefaultPrng.init(@intCast(std.time.microTimestamp()));
+        self.reroll();
+        self.reroll_cost = 10;
+        self.selected_item = null;
+    }
+
+    pub fn reroll(self: *Shop) void {
+        const random = self.rng.random();
+        for (&self.items) |*item| {
+            const rarity = random.float(f32);
+            if (rarity < Item.NormalDropRate) {
+                const item_f32 = random.float(f32);
+                const item_index: u32 = @intFromFloat(item_f32 * Item.NormalItems.len - 1);
+                log.assert(@src(), item_index < Item.NormalItems.len - 1, "", .{});
+                item.* = Item.NormalItems[item_index];
+            } else if (rarity < Item.RareDropRate) {
+                const item_f32 = random.float(f32);
+                const item_index: u32 = @intFromFloat(item_f32 * Item.RareItems.len - 1);
+                log.assert(@src(), item_index < Item.RareItems.len - 1, "", .{});
+                item.* = Item.RareItems[item_index];
+            } else {
+                const item_f32 = random.float(f32);
+                const item_index: u32 = @intFromFloat(item_f32 * Item.EpicItems.len - 1);
+                log.assert(@src(), item_index < Item.EpicItems.len - 1, "", .{});
+                item.* = Item.EpicItems[item_index];
+            }
+
+            log.assert(
+                @src(),
+                @intFromEnum(item.*) < @typeInfo(Item.Tag).Enum.fields.len,
+                "",
+                .{},
+            );
+            log.info(@src(), "reroll item: {any}", .{item.*});
+        }
+    }
+
+    pub fn remove_selected_item(self: *Shop) void {
+        log.assert(
+            @src(),
+            self.selected_item != null,
+            "Trying to remove selected item from a shop, but there is not selected item",
+            .{},
+        );
+        self.items[self.selected_item.?] = .Invalid;
+    }
+
+    pub fn draw_item(
+        self: Shop,
+        allocator: Allocator,
+        index: u8,
+        item_infos: *const Item.Infos,
+        input_state: *const InputState,
+        font: *const Font,
+        camera_controller: *const CameraController2d,
+        texture_store: *const Textures.Store,
+        screen_quads: *ScreenQuads,
+    ) bool {
+        const item = self.items[index];
+        if (item == .Invalid)
+            return false;
+
+        const position = CAMERA_IN_GAME_SHOP.add(.{
+            .x = -ITEM_PANEL_DIFF / 2.0 * (MAX_ITEMS - 1) +
+                @as(f32, @floatFromInt(index)) * ITEM_PANEL_DIFF,
+        });
+
+        const collision_rectangle: Physics.Rectangle = .{
+            .size = ITEM_PANEL_SIZE,
+        };
+        const is_hovered = Physics.point_rectangle_intersect(
+            input_state.mouse_pos_world,
+            collision_rectangle,
+            position,
+        );
+
+        const color = if (is_hovered) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR;
+        const item_panel = UiPanel.init(
+            position,
+            ITEM_PANEL_SIZE,
+            color,
+        );
+        item_panel.to_screen_quad(camera_controller, screen_quads);
+        const item_info = item_infos.get(item);
+        const object: Object2d = .{
+            .type = .{ .TextureId = item_info.texture_id },
+            .transform = .{
+                .position = position.extend(0.0),
+            },
+            .options = .{ .no_scale_rotate = true },
+        };
+        object.to_screen_quad(camera_controller, texture_store, screen_quads);
+
+        const name_text = Text.init(
+            font,
+            item_info.name,
+            TEXT_SIZE_NAME,
+            position.add(.{ .y = -200.0 }).extend(0.0),
+            0.0,
+            .{},
+            .{ .dont_clip = true },
+        );
+        name_text.to_screen_quads_world_space(allocator, camera_controller, screen_quads);
+
+        const description_text = Text.init(
+            font,
+            item_info.description,
+            TEXT_SIZE_DESCRIPTION,
+            position.add(.{ .y = 0 }).extend(0.0),
+            0.0,
+            .{},
+            .{ .dont_clip = true },
+        );
+        description_text.to_screen_quads_world_space(allocator, camera_controller, screen_quads);
+
+        const price = std.fmt.allocPrint(allocator, "{d}", .{item_info.price}) catch unreachable;
+        const price_text = Text.init(
+            font,
+            price,
+            TEXT_SIZE_PRICE,
+            position.add(.{ .y = 200 }).extend(0.0),
+            0.0,
+            .{},
+            .{ .dont_clip = true },
+        );
+        price_text.to_screen_quads_world_space(allocator, camera_controller, screen_quads);
+
+        return is_hovered;
+    }
+
+    pub fn update_and_draw(
+        self: *Shop,
+        allocator: Allocator,
+        input_state: *const InputState,
+        font: *const Font,
+        item_infos: *const Item.Infos,
+        camera_controller: *const CameraController2d,
+        texture_store: *const Textures.Store,
+        screen_quads: *ScreenQuads,
+    ) ?Item.Tag {
+        var item_clicked: ?Item.Tag = null;
+        for (0..self.items.len) |i| {
+            const hovered = self.draw_item(
+                allocator,
+                @intCast(i),
+                item_infos,
+                input_state,
+                font,
+                camera_controller,
+                texture_store,
+                screen_quads,
+            );
+            if (hovered and input_state.lmb) {
+                item_clicked = self.items[i];
+                self.selected_item = @intCast(i);
+            }
+        }
+
+        const reroll_button = UiText.init(
+            CAMERA_IN_GAME_SHOP.add(.{ .y = 300 }),
+            font,
+            "REROLL",
+            32.0,
+        );
+        const want_reroll = reroll_button.to_screen_quads_world_space(
+            allocator,
+            input_state.mouse_pos_world,
+            camera_controller,
+            screen_quads,
+        );
+        if (want_reroll and input_state.lmb)
+            self.reroll();
+
+        return item_clicked;
     }
 };

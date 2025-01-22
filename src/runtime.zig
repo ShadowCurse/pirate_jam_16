@@ -129,7 +129,8 @@ const Runtime = struct {
     ) void {
         _ = window_height;
 
-        const frame_alloc = memory.frame_alloc();
+        const scratch_alloc = memory.scratch_alloc();
+
         self.screen_quads.reset();
 
         if (self.show_perf) {
@@ -142,7 +143,7 @@ const Runtime = struct {
             Tracing.prepare_next_frame(TaceableTypes);
             Tracing.to_screen_quads(
                 TaceableTypes,
-                frame_alloc,
+                scratch_alloc,
                 &self.screen_quads,
                 &self.font,
                 32.0,
@@ -195,12 +196,6 @@ const Runtime = struct {
                 dt,
                 events,
             );
-        if (self.game_state.in_game_shop)
-            self.in_game_shop(
-                memory,
-                dt,
-                events,
-            );
         if (self.game_state.debug)
             self.debug(
                 memory,
@@ -238,7 +233,7 @@ const Runtime = struct {
         _ = dt;
         _ = events;
 
-        const frame_alloc = memory.frame_alloc();
+        const scratch_alloc = memory.scratch_alloc();
 
         const start_button = UiText.init(
             CAMERA_MAIN_MENU,
@@ -247,7 +242,7 @@ const Runtime = struct {
             32.0,
         );
         if (start_button.to_screen_quads_world_space(
-            frame_alloc,
+            scratch_alloc,
             self.input_state.mouse_pos_world,
             &self.camera_controller,
             &self.screen_quads,
@@ -267,7 +262,7 @@ const Runtime = struct {
             32.0,
         );
         if (settings_button.to_screen_quads_world_space(
-            frame_alloc,
+            scratch_alloc,
             self.input_state.mouse_pos_world,
             &self.camera_controller,
             &self.screen_quads,
@@ -288,7 +283,7 @@ const Runtime = struct {
         _ = dt;
         _ = events;
 
-        const frame_alloc = memory.frame_alloc();
+        const scratch_alloc = memory.scratch_alloc();
 
         const back_button = UiText.init(
             CAMERA_SETTINGS,
@@ -297,7 +292,7 @@ const Runtime = struct {
             32.0,
         );
         if (back_button.to_screen_quads_world_space(
-            frame_alloc,
+            scratch_alloc,
             self.input_state.mouse_pos_world,
             &self.camera_controller,
             &self.screen_quads,
@@ -317,7 +312,7 @@ const Runtime = struct {
     ) void {
         _ = events;
 
-        const frame_alloc = memory.frame_alloc();
+        const scratch_alloc = memory.scratch_alloc();
 
         // UI section
         const top_panel = UiPanel.init(
@@ -349,7 +344,7 @@ const Runtime = struct {
         left_info_player_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
 
         const opponent_hp = std.fmt.allocPrint(
-            frame_alloc,
+            scratch_alloc,
             "HP: {d}",
             .{self.game.opponent_hp},
         ) catch unreachable;
@@ -360,13 +355,13 @@ const Runtime = struct {
             25.0,
         );
         _ = opponent_hp_text.to_screen_quads_world_space(
-            frame_alloc,
+            scratch_alloc,
             self.input_state.mouse_pos_world,
             &self.camera_controller,
             &self.screen_quads,
         );
         const opponent_hp_overhead = std.fmt.allocPrint(
-            frame_alloc,
+            scratch_alloc,
             "HP overhead: {d}",
             .{self.game.opponent_hp_overhead},
         ) catch unreachable;
@@ -377,14 +372,14 @@ const Runtime = struct {
             25.0,
         );
         _ = opponent_hp_overhead_text.to_screen_quads_world_space(
-            frame_alloc,
+            scratch_alloc,
             self.input_state.mouse_pos_world,
             &self.camera_controller,
             &self.screen_quads,
         );
 
         const player_hp = std.fmt.allocPrint(
-            frame_alloc,
+            scratch_alloc,
             "HP: {d}",
             .{self.game.player_hp},
         ) catch unreachable;
@@ -395,13 +390,13 @@ const Runtime = struct {
             25.0,
         );
         _ = player_hp_text.to_screen_quads_world_space(
-            frame_alloc,
+            scratch_alloc,
             self.input_state.mouse_pos_world,
             &self.camera_controller,
             &self.screen_quads,
         );
         const player_hp_overhead = std.fmt.allocPrint(
-            frame_alloc,
+            scratch_alloc,
             "HP overhead: {d}",
             .{self.game.player_hp_overhead},
         ) catch unreachable;
@@ -412,7 +407,7 @@ const Runtime = struct {
             25.0,
         );
         _ = player_hp_overhead_text.to_screen_quads_world_space(
-            frame_alloc,
+            scratch_alloc,
             self.input_state.mouse_pos_world,
             &self.camera_controller,
             &self.screen_quads,
@@ -439,7 +434,7 @@ const Runtime = struct {
             32.0,
         );
         if (shop_button.to_screen_quads_world_space(
-            frame_alloc,
+            scratch_alloc,
             self.input_state.mouse_pos_world,
             &self.camera_controller,
             &self.screen_quads,
@@ -464,7 +459,7 @@ const Runtime = struct {
             32.0,
         );
         if (back_button.to_screen_quads_world_space(
-            frame_alloc,
+            scratch_alloc,
             self.input_state.mouse_pos_world,
             &self.camera_controller,
             &self.screen_quads,
@@ -476,7 +471,7 @@ const Runtime = struct {
         }
 
         self.game.update_and_draw(
-            frame_alloc,
+            scratch_alloc,
             &self.input_state,
             &self.camera_controller,
             &self.font,
@@ -484,52 +479,15 @@ const Runtime = struct {
             &self.screen_quads,
             dt,
         );
-    }
-
-    fn in_game_shop(
-        self: *Self,
-        memory: *Memory,
-        dt: f32,
-        events: []const Events.Event,
-    ) void {
-        _ = dt;
-        _ = events;
-
-        const frame_alloc = memory.frame_alloc();
-
-        const item_1_panel = UiPanel.init(
-            CAMERA_IN_GAME_SHOP.add(.{ .x = -400 }),
-            .{ .x = 350.0, .y = 500.0 },
-            UI_BACKGROUND_COLOR,
-        );
-        item_1_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
-
-        const item_2_panel = UiPanel.init(
-            CAMERA_IN_GAME_SHOP.add(.{}),
-            .{ .x = 350.0, .y = 500.0 },
-            UI_BACKGROUND_COLOR,
-        );
-        item_2_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
-
-        const item_3_panel = UiPanel.init(
-            CAMERA_IN_GAME_SHOP.add(.{ .x = 400 }),
-            .{ .x = 350.0, .y = 500.0 },
-            UI_BACKGROUND_COLOR,
-        );
-        item_3_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
-
-        const reroll_button = UiText.init(
-            CAMERA_IN_GAME_SHOP.add(.{ .y = 300 }),
-            &self.font,
-            "REROLL",
-            32.0,
-        );
-        _ = reroll_button.to_screen_quads_world_space(
-            frame_alloc,
-            self.input_state.mouse_pos_world,
-            &self.camera_controller,
-            &self.screen_quads,
-        );
+        if (self.game_state.in_game_shop)
+            self.game.draw_shop(
+                scratch_alloc,
+                &self.input_state,
+                &self.camera_controller,
+                &self.font,
+                &self.texture_store,
+                &self.screen_quads,
+            );
     }
 
     fn debug(
@@ -540,7 +498,7 @@ const Runtime = struct {
     ) void {
         _ = events;
 
-        const frame_alloc = memory.frame_alloc();
+        const scratch_alloc = memory.scratch_alloc();
         const perf_button = UiText.init(
             .{
                 .x = Start.WINDOW_WIDTH / 2.0,
@@ -548,20 +506,21 @@ const Runtime = struct {
             },
             &self.font,
             std.fmt.allocPrint(
-                frame_alloc,
-                "FPS: {d:.1} FT: {d:.3}s, mouse_pos: {d}:{d}, camera_pos: {d}:{d}",
+                scratch_alloc,
+                "FPS: {d:.1} FT: {d:.3}s, SCRATCH_ALLOC: {d}",
                 .{
                     1.0 / dt,
                     dt,
-                    self.input_state.mouse_pos.x,
-                    self.input_state.mouse_pos.y,
-                    self.camera_controller.position.x,
-                    self.camera_controller.position.y,
+                    memory.scratch_allocator.total_allocated,
                 },
             ) catch unreachable,
             32.0,
         );
-        if (perf_button.to_screen_quads(frame_alloc, self.input_state.mouse_pos, &self.screen_quads) and
+        if (perf_button.to_screen_quads(
+            scratch_alloc,
+            self.input_state.mouse_pos,
+            &self.screen_quads,
+        ) and
             self.input_state.lmb)
             self.show_perf = !self.show_perf;
 
