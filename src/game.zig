@@ -139,6 +139,7 @@ pub fn update_and_draw(
     texture_store: *const Textures.Store,
     screen_quads: *ScreenQuads,
     dt: f32,
+    in_shop: bool,
 ) void {
     self.table.to_screen_quad(
         camera_controller,
@@ -220,6 +221,7 @@ pub fn update_and_draw(
         camera_controller,
         texture_store,
         screen_quads,
+        in_shop,
     );
 
     if (self.cue_inventory.update_and_draw(
@@ -237,7 +239,7 @@ pub fn update_and_draw(
             if (!self.is_aiming) {
                 self.is_aiming = self.selected_ball != null and input_state.rmb;
                 self.cue_inventory.selected().move_storage();
-                self.item_inventory.update(input_state);
+                self.item_inventory.update(input_state, in_shop);
             } else {
                 if (self.selected_ball) |sb| {
                     const ball = &self.balls[sb];

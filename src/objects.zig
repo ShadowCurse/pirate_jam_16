@@ -1206,6 +1206,7 @@ pub const ItemInventory = struct {
     pub fn update(
         self: *ItemInventory,
         input_state: *const InputState,
+        in_shop: bool,
     ) void {
         self.dashed_line.end = input_state.mouse_pos_world;
         var hover_anything: bool = false;
@@ -1216,7 +1217,7 @@ pub const ItemInventory = struct {
             if (item_hovered(@intCast(i), input_state.mouse_pos_world)) {
                 hover_anything = true;
                 self.hovered_index = @intCast(i);
-                if (input_state.lmb) {
+                if (!in_shop and input_state.lmb) {
                     self.selected_index = @intCast(i);
                     self.dashed_line.start = item_position(@intCast(i));
                 }
@@ -1237,6 +1238,7 @@ pub const ItemInventory = struct {
         camera_controller: *const CameraController2d,
         texture_store: *const Textures.Store,
         screen_quads: *ScreenQuads,
+        in_shop: bool,
     ) void {
         for (self.items[0..self.items_n], 0..) |item, i| {
             if (item == .Invalid)
@@ -1257,7 +1259,7 @@ pub const ItemInventory = struct {
                     object.tint = Color.BLUE;
                     object.options.with_tint = true;
 
-                    add_info_panel(ip, item_info, allocator, font, camera_controller, screen_quads);
+                    add_info_panel(in_shop, ip, item_info, allocator, font, camera_controller, screen_quads);
                 }
             }
             if (self.selected_index) |si| {
@@ -1272,6 +1274,7 @@ pub const ItemInventory = struct {
     }
 
     fn add_info_panel(
+        in_shop: bool,
         ip: Vec2,
         item_info: Item.Info,
         allocator: Allocator,
@@ -1279,7 +1282,10 @@ pub const ItemInventory = struct {
         camera_controller: *const CameraController2d,
         screen_quads: *ScreenQuads,
     ) void {
-        const panel_position = ip.add(INFO_PANEL_OFFSET);
+        const panel_position = if (!in_shop)
+            ip.add(INFO_PANEL_OFFSET)
+        else
+            ip.add(INFO_PANEL_OFFSET.neg());
         const info_panel = UiPanel.init(
             panel_position,
             INFO_PANEL_SIZE,

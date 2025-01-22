@@ -478,6 +478,7 @@ const Runtime = struct {
             &self.texture_store,
             &self.screen_quads,
             dt,
+            self.game_state.in_game_shop,
         );
         if (self.game_state.in_game_shop)
             self.game.draw_shop(
