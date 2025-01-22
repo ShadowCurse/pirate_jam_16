@@ -23,7 +23,9 @@ const _objects = @import("objects.zig");
 const Ball = _objects.Ball;
 const Table = _objects.Table;
 const Cue = _objects.Cue;
-const Inventory = _objects.Inventory;
+const Item = _objects.Item;
+const ItemInventory = _objects.ItemInventory;
+const CueInventory = _objects.CueInventory;
 
 const _animations = @import("animations.zig");
 const BallAnimations = _animations.BallAnimations;
@@ -37,14 +39,14 @@ player_hp_overhead: i32,
 opponent_hp: i32,
 opponent_hp_overhead: i32,
 
-item_infos: Inventory.Item.Infos,
-inventory: Inventory,
+item_infos: Item.Infos,
+item_inventory: ItemInventory,
+cue_inventory: CueInventory,
 
 texture_ball: Textures.Texture.Id,
 balls: [MAX_BALLS]Ball,
 ball_animations: BallAnimations,
 table: Table,
-cue: Cue,
 
 selected_ball: ?u32,
 is_aiming: bool,
@@ -71,7 +73,6 @@ pub fn init(
 ) void {
     self.texture_ball = texture_store.load(memory, "assets/ball_prototype.png");
     self.table = Table.init(texture_store.load(memory, "assets/table_prototype.png"));
-    self.cue = Cue.init(texture_store.load(memory, "assets/cue_prototype.png"), 0);
 
     inline for (&self.item_infos.infos, 0..) |*info, i| {
         info.* = .{
@@ -80,18 +81,21 @@ pub fn init(
             .description = std.fmt.comptimePrint("item description: {d}", .{i}),
         };
     }
+    self.item_infos.get_mut(.CueDefault).texture_id =
+        texture_store.load(memory, "assets/cue_prototype.png");
 
     self.restart();
 }
 
 pub fn restart(self: *Self) void {
-    self.inventory = Inventory.init();
-    _ = self.inventory.add_item(.BallSpiky);
-    _ = self.inventory.add_item(.BallSpiky);
-    _ = self.inventory.add_item(.BallSpiky);
-    _ = self.inventory.add_item(.BallSpiky);
-    _ = self.inventory.add_item(.Cue50CAL);
-    _ = self.inventory.add_item(.Cue50CAL);
+    self.item_inventory = ItemInventory.init();
+    self.cue_inventory = CueInventory.init();
+    _ = self.item_inventory.add(.BallSpiky);
+    _ = self.item_inventory.add(.BallSpiky);
+    _ = self.item_inventory.add(.BallSpiky);
+    _ = self.item_inventory.add(.BallSpiky);
+    _ = self.cue_inventory.add(.Cue50CAL);
+    _ = self.cue_inventory.add(.Cue50CAL);
     self.turn_owner = .Player;
     self.turn_state = .NotTaken;
     self.selected_ball = null;
@@ -126,12 +130,12 @@ pub fn update(
         .NotTaken => {
             if (!self.is_aiming) {
                 self.is_aiming = self.selected_ball != null and input_state.rmb;
-                self.cue.move_storage();
+                self.cue_inventory.selected().move_storage();
             } else {
                 if (self.selected_ball) |sb| {
                     const ball = &self.balls[sb];
                     const hit_vector = input_state.mouse_pos_world.sub(ball.body.position);
-                    self.cue.move_aiming(ball.body.position, hit_vector);
+                    self.cue_inventory.selected().move_aiming(ball.body.position, hit_vector);
 
                     if (!input_state.rmb) {
                         // We hit in the opposite direction of the "to_mouse" direction
@@ -164,11 +168,11 @@ pub fn update(
             const sb = self.selected_ball.?;
             const ball_position = self.balls[sb].body.position;
             const hit_vector = input_state.mouse_pos_world.sub(ball_position);
-            if (self.cue.move_shoot(ball_position, hit_vector, dt))
+            if (self.cue_inventory.selected().move_shoot(ball_position, hit_vector, dt))
                 self.turn_state = .Taken;
         },
         .Taken => {
-            self.cue.move_storage();
+            self.cue_inventory.selected().move_storage();
 
             for (&self.balls) |*ball| {
                 if (ball.disabled)
@@ -263,7 +267,6 @@ pub fn draw(
         camera_controller,
         screen_quads,
     );
-    self.cue.to_screen_quad(camera_controller, texture_store, screen_quads);
 
     for (&self.balls) |*ball| {
         const bo = ball.to_object_2d();
@@ -300,7 +303,14 @@ pub fn draw(
         }
     }
 
-    self.inventory.to_screen_quads(
+    self.item_inventory.to_screen_quads(
+        &self.item_infos,
+        camera_controller,
+        texture_store,
+        screen_quads,
+    );
+
+    self.cue_inventory.to_screen_quads(
         &self.item_infos,
         camera_controller,
         texture_store,

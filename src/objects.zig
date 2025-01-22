@@ -594,30 +594,38 @@ pub const Table = struct {
 };
 
 pub const Cue = struct {
-    texture_id: Textures.Texture.Id,
+    tag: Item.Tag,
     position: Vec2,
     rotation: f32,
-    storage_index: u8,
     storage_position: Vec2,
     shoot_animation: ?SmoothStepAnimation,
 
     const CUE_HEIGHT = 450;
-    const STORAGE_POSITION: Vec2 = .{ .x = -600.0 };
-    const STORAGE_CUE_WIDTH = 60;
+    const CUE_WIDTH = 60;
     const AIM_BALL_OFFSET = Ball.RADIUS + 2;
 
-    pub fn init(texture_id: Textures.Texture.Id, storage_index: u8) Cue {
-        const storage_position = STORAGE_POSITION.add(
-            .{ .x = @as(f32, @floatFromInt(storage_index)) * STORAGE_CUE_WIDTH },
-        );
+    pub fn init(tag: Item.Tag, storage_position: Vec2) Cue {
         return .{
-            .texture_id = texture_id,
+            .tag = tag,
             .position = storage_position,
             .rotation = 0.0,
-            .storage_index = storage_index,
             .storage_position = storage_position,
             .shoot_animation = null,
         };
+    }
+
+    pub fn hovered(self: Cue, mouse_pos: Vec2) bool {
+        const collision_rectangle: Physics.Rectangle = .{
+            .size = .{
+                .x = CUE_WIDTH,
+                .y = CUE_HEIGHT,
+            },
+        };
+        return Physics.point_rectangle_intersect(
+            mouse_pos,
+            collision_rectangle,
+            self.position,
+        );
     }
 
     pub fn move_storage(self: *Cue) void {
@@ -685,19 +693,20 @@ pub const Cue = struct {
 
     pub fn to_screen_quad(
         self: Cue,
+        texture_id: Textures.Texture.Id,
         camera_controller: *const CameraController2d,
         texture_store: *const Textures.Store,
         screen_quads: *ScreenQuads,
     ) void {
         const object: Object2d = .{
-            .type = .{ .TextureId = self.texture_id },
+            .type = .{ .TextureId = texture_id },
             .transform = .{
                 .position = self.position.extend(0.0),
                 .rotation = self.rotation,
             },
             .size = .{
-                .x = @floatFromInt(texture_store.get_texture(self.texture_id).width),
-                .y = @floatFromInt(texture_store.get_texture(self.texture_id).height),
+                .x = @floatFromInt(texture_store.get_texture(texture_id).width),
+                .y = @floatFromInt(texture_store.get_texture(texture_id).height),
             },
             .options = .{},
         };
@@ -705,108 +714,205 @@ pub const Cue = struct {
     }
 };
 
-pub const Inventory = struct {
-    items: [MAX_ITEMS]Item.Tag,
-    items_n: u32,
+pub const Item = struct {
+    pub const Tag = enum(u8) {
+        Invalid = 0,
+        BallSpiky = 1,
+        BallHealthy = 2,
+        BallArmored = 3,
+        BallLight = 4,
+        BallHeavy = 5,
+        BallGravity = 6,
+        BallRunner = 7,
+        BallRingOfLight = 8,
 
-    cues: [MAX_CUE]Item.Tag,
-    cues_n: u32,
+        CueHP = 9,
+        CueDamage = 10,
+        CueWiggleBall = 11,
+        CueScope = 12,
+        CueSecondBarrel = 13,
+        CueSilencer = 14,
+        CueRocketBooster = 15,
 
-    const MAX_ITEMS = 4;
-    const MAX_CUE = 2;
-    const ITEMS_POSITION: Vec2 = .{ .x = -100.0, .y = 310.0 };
-    const ITEMS_WIDTH = 600;
-    const ITEM_WIDTH = 100;
-    const ITEM_GAP = 50;
-    const CUE_STORAGE_POSITION: Vec2 = .{ .x = -525.0 };
+        CueDefault = 16,
+        Cue50CAL = 17,
+        CueShotgun = 18,
+    };
+
+    pub const Info = struct {
+        texture_id: Textures.Texture.Id,
+        name: []const u8,
+        description: []const u8,
+    };
+
+    pub const Infos = struct {
+        infos: [@typeInfo(Tag).Enum.fields.len]Info,
+
+        pub fn get(self: Infos, tag: Tag) *const Info {
+            return &self.infos[@intFromEnum(tag)];
+        }
+
+        pub fn get_mut(self: *Infos, tag: Tag) *Info {
+            return &self.infos[@intFromEnum(tag)];
+        }
+    };
+};
+
+pub const CueInventory = struct {
+    cues: [MAX_CUE]Cue,
+    cues_n: u8,
+    selected_index: u8,
+    hovered_index: ?u8,
+
+    const MAX_CUE = 3;
+    const CUE_STORAGE_POSITION: Vec2 = .{ .x = -570.0 };
     const CUE_STORAGE_WIDTH = 90;
     const CUE_STORAGE_CUE_WIDTH = 45;
 
-    pub const Item = struct {
-        pub const Tag = enum(u32) {
-            BallSpiky = 0,
-            BallHealthy = 1,
-            BallArmored = 2,
-            BallLight = 3,
-            BallHeavy = 4,
-            BallGravity = 5,
-            BallRunner = 6,
-            BallRingOfLight = 7,
-
-            CueHP = 8,
-            CueDamage = 9,
-            CueWiggleBall = 10,
-            CueScope = 11,
-            CueSecondBarrel = 12,
-            CueSilencer = 13,
-            CueRocketBooster = 14,
-
-            Cue50CAL = 15,
-            CueShotgun = 16,
-        };
-
-        pub const Info = struct {
-            texture_id: Textures.Texture.Id,
-            name: []const u8,
-            description: []const u8,
-        };
-
-        pub const Infos = struct {
-            infos: [@typeInfo(Tag).Enum.fields.len]Info,
-
-            pub fn get(self: Infos, tag: Tag) *const Info {
-                return &self.infos[@intFromEnum(tag)];
-            }
-        };
-    };
-
-    pub fn init() Inventory {
+    pub fn init() CueInventory {
         return .{
-            .items = undefined,
-            .items_n = 0,
-            .cues = undefined,
-            .cues_n = 0,
+            .cues = .{
+                Cue.init(.CueDefault, cue_position(0)),
+                Cue.init(.Invalid, cue_position(1)),
+                Cue.init(.Invalid, cue_position(2)),
+            },
+            .cues_n = 1,
+            .selected_index = 0,
+            .hovered_index = null,
         };
     }
 
-    pub fn add_item(self: *Inventory, item: Item.Tag) bool {
-        if (@intFromEnum(item) < @intFromEnum(Item.Tag.Cue50CAL)) {
-            if (self.items.len == self.items_n)
-                return false;
+    pub fn cue_position(index: u32) Vec2 {
+        return CUE_STORAGE_POSITION.add(
+            .{
+                .x = -CUE_STORAGE_WIDTH / 2 +
+                    CUE_STORAGE_CUE_WIDTH / 2 +
+                    @as(f32, @floatFromInt(index)) * CUE_STORAGE_CUE_WIDTH,
+            },
+        );
+    }
 
-            self.items[self.items_n] = item;
-            self.items_n += 1;
-            return true;
-        } else {
-            if (self.cues.len == self.cues_n)
-                return false;
+    pub fn add(self: *CueInventory, cue: Item.Tag) bool {
+        log.assert(
+            @src(),
+            @intFromEnum(Item.Tag.Cue50CAL) <= @intFromEnum(cue),
+            "Trying to add item to the cue inventory",
+            .{},
+        );
+        if (self.cues.len == self.cues_n)
+            return false;
 
-            self.cues[self.cues_n] = item;
-            self.cues_n += 1;
-            return true;
+        self.cues[self.cues_n] = Cue.init(cue, cue_position(self.cues_n));
+        self.cues_n += 1;
+        return true;
+    }
+
+    pub fn remove(self: *CueInventory, cue: Item.Tag) void {
+        for (self.cues[0..self.cues_n], 0..) |*it, i| {
+            if (it == cue) {
+                self.cues[i] = self.cues[self.cues_n - 1];
+                self.cues_n -= 1;
+            }
         }
     }
 
-    pub fn remove_item(self: *Inventory, item: Item.Tag) void {
-        if (@intFromEnum(item) < @intFromEnum(Item.Tag.Cue50CAL)) {
-            for (self.items[0..self.items_n], 0..) |*it, i| {
-                if (it == item) {
-                    self.items[i] = self.items[self.items_n - 1];
-                    self.items_n -= 1;
-                }
-            }
-        } else {
-            for (self.cues[0..self.cues_n], 0..) |*it, i| {
-                if (it == item) {
-                    self.cues[i] = self.cues[self.cues_n - 1];
-                    self.cues_n -= 1;
-                }
+    pub fn selected(self: *CueInventory) *Cue {
+        return &self.cues[self.selected_index];
+    }
+
+    pub fn update(
+        self: *CueInventory,
+        input_state: *const InputState,
+        mouse_pos: Vec2,
+    ) void {
+        for (self.cues[0..self.cues_n], 0..) |cue, i| {
+            if (cue.is_hovered(mouse_pos)) {
+                self.hovered_index = i;
+                if (input_state.lmb)
+                    self.selected_index = i;
             }
         }
     }
 
     pub fn to_screen_quads(
-        self: Inventory,
+        self: CueInventory,
+        item_infos: *const Item.Infos,
+        camera_controller: *const CameraController2d,
+        texture_store: *const Textures.Store,
+        screen_quads: *ScreenQuads,
+    ) void {
+        for (self.cues[0..self.cues_n]) |cue| {
+            if (cue.tag == .Invalid)
+                continue;
+
+            const cue_info = item_infos.get(cue.tag);
+            cue.to_screen_quad(
+                cue_info.texture_id,
+                camera_controller,
+                texture_store,
+                screen_quads,
+            );
+            if (self.hovered_index) |hi| {
+                _ = hi;
+            }
+        }
+    }
+};
+
+pub const ItemInventory = struct {
+    items: [MAX_ITEMS]Item.Tag,
+    items_n: u32,
+
+    const MAX_ITEMS = 4;
+    const ITEMS_POSITION: Vec2 = .{ .x = -100.0, .y = 310.0 };
+    const ITEMS_WIDTH = 600;
+    const ITEM_WIDTH = 100;
+    const ITEM_GAP = 50;
+
+    pub fn init() ItemInventory {
+        return .{
+            .items = undefined,
+            .items_n = 0,
+        };
+    }
+
+    pub fn item_position(index: u32) Vec2 {
+        return ITEMS_POSITION.add(
+            .{
+                .x = -ITEMS_WIDTH / 2 +
+                    ITEM_GAP / 2 +
+                    ITEM_WIDTH / 2 +
+                    @as(f32, @floatFromInt(index)) * (ITEM_WIDTH + ITEM_GAP),
+            },
+        );
+    }
+
+    pub fn add(self: *ItemInventory, item: Item.Tag) bool {
+        log.assert(
+            @src(),
+            @intFromEnum(item) < @intFromEnum(Item.Tag.Cue50CAL),
+            "Trying to add cue to the item inventory",
+            .{},
+        );
+        if (self.items.len == self.items_n)
+            return false;
+
+        self.items[self.items_n] = item;
+        self.items_n += 1;
+        return true;
+    }
+
+    pub fn remove(self: *ItemInventory, item: Item.Tag) void {
+        for (self.items[0..self.items_n], 0..) |*it, i| {
+            if (it == item) {
+                self.items[i] = self.items[self.items_n - 1];
+                self.items_n -= 1;
+            }
+        }
+    }
+
+    pub fn to_screen_quads(
+        self: ItemInventory,
         item_infos: *const Item.Infos,
         camera_controller: *const CameraController2d,
         texture_store: *const Textures.Store,
@@ -814,30 +920,11 @@ pub const Inventory = struct {
     ) void {
         for (self.items[0..self.items_n], 0..) |item, i| {
             const item_info = item_infos.infos[@intFromEnum(item)];
-            const item_position = ITEMS_POSITION.add(
-                .{ .x = -ITEMS_WIDTH / 2 + ITEM_GAP / 2 + ITEM_WIDTH / 2 + @as(f32, @floatFromInt(i)) * (ITEM_WIDTH + ITEM_GAP) },
-            );
-
+            const ip = item_position(@intCast(i));
             const object: Object2d = .{
                 .type = .{ .TextureId = item_info.texture_id },
                 .transform = .{
-                    .position = item_position.extend(0.0),
-                },
-                .options = .{ .no_scale_rotate = true },
-            };
-            object.to_screen_quad(camera_controller, texture_store, screen_quads);
-        }
-
-        for (self.cues[0..self.cues_n], 0..) |cue, i| {
-            const cue_info = item_infos.infos[@intFromEnum(cue)];
-
-            const cue_position = CUE_STORAGE_POSITION.add(
-                .{ .x = -CUE_STORAGE_WIDTH / 2 + CUE_STORAGE_CUE_WIDTH / 2 + @as(f32, @floatFromInt(i)) * CUE_STORAGE_CUE_WIDTH },
-            );
-            const object: Object2d = .{
-                .type = .{ .TextureId = cue_info.texture_id },
-                .transform = .{
-                    .position = cue_position.extend(0.0),
+                    .position = ip.extend(0.0),
                 },
                 .options = .{ .no_scale_rotate = true },
             };
