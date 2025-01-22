@@ -1073,6 +1073,12 @@ pub const ItemInventory = struct {
         }
     }
 
+    pub fn item_used(self: *ItemInventory) void {
+        if (self.selected_index) |si| {
+            self.items[si] = .Invalid;
+        }
+    }
+
     pub fn update(
         self: *ItemInventory,
         input_state: *const InputState,
@@ -1109,6 +1115,9 @@ pub const ItemInventory = struct {
         screen_quads: *ScreenQuads,
     ) void {
         for (self.items[0..self.items_n], 0..) |item, i| {
+            if (item == .Invalid)
+                continue;
+
             const item_info = item_infos.infos[@intFromEnum(item)];
             const ip = item_position(@intCast(i));
 

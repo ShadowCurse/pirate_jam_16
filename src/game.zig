@@ -183,7 +183,9 @@ pub fn update_and_draw(
             }
             break :blk r;
         };
-        if (r.upgrade_applied) {}
+        if (r.upgrade_applied) {
+            self.item_inventory.item_used();
+        }
         if (r.need_refill) {
             const to_refill = ball.max_hp - ball.hp;
             const hp_overhead = if (self.turn_owner == .Player)
