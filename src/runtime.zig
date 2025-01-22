@@ -25,6 +25,7 @@ const Font = stygian.font;
 const Memory = stygian.memory;
 const Physics = stygian.physics;
 const Textures = stygian.textures;
+const Start = stygian.platform.start;
 const Events = stygian.platform.event;
 const SoftRenderer = stygian.soft_renderer.renderer;
 const CameraController2d = stygian.camera.CameraController2d;
@@ -126,6 +127,8 @@ const Runtime = struct {
         mouse_x: u32,
         mouse_y: u32,
     ) void {
+        _ = window_height;
+
         const frame_alloc = memory.frame_alloc();
         self.screen_quads.reset();
 
@@ -147,13 +150,13 @@ const Runtime = struct {
             Tracing.zero_current(TaceableTypes);
         }
 
-        self.input_state.mouse_pos = .{
+        const screen_scale = 1280.0 / @as(f32, @floatFromInt(window_width));
+        self.input_state.mouse_pos = (Vec2{
             .x = @floatFromInt(mouse_x),
             .y = @floatFromInt(mouse_y),
-        };
-        self.input_state.mouse_pos_world = self.input_state.mouse_pos.add(
-            self.camera_controller.position.xy(),
-        );
+        }).mul_f32(screen_scale);
+        self.input_state.mouse_pos_world = self.input_state.mouse_pos
+            .add(self.camera_controller.position.xy());
 
         for (events) |event| {
             switch (event) {
@@ -179,40 +182,30 @@ const Runtime = struct {
                 memory,
                 dt,
                 events,
-                window_width,
-                window_height,
             );
         if (self.game_state.settings)
             self.settings(
                 memory,
                 dt,
                 events,
-                window_width,
-                window_height,
             );
         if (self.game_state.in_game)
             self.in_game(
                 memory,
                 dt,
                 events,
-                window_width,
-                window_height,
             );
         if (self.game_state.in_game_shop)
             self.in_game_shop(
                 memory,
                 dt,
                 events,
-                window_width,
-                window_height,
             );
         if (self.game_state.debug)
             self.debug(
                 memory,
                 dt,
                 events,
-                window_width,
-                window_height,
             );
 
         self.soft_renderer.start_rendering();
@@ -241,13 +234,9 @@ const Runtime = struct {
         memory: *Memory,
         dt: f32,
         events: []const Events.Event,
-        window_width: u32,
-        window_height: u32,
     ) void {
         _ = dt;
         _ = events;
-        _ = window_width;
-        _ = window_height;
 
         const frame_alloc = memory.frame_alloc();
 
@@ -295,13 +284,9 @@ const Runtime = struct {
         memory: *Memory,
         dt: f32,
         events: []const Events.Event,
-        window_width: u32,
-        window_height: u32,
     ) void {
         _ = dt;
         _ = events;
-        _ = window_width;
-        _ = window_height;
 
         const frame_alloc = memory.frame_alloc();
 
@@ -329,12 +314,8 @@ const Runtime = struct {
         memory: *Memory,
         dt: f32,
         events: []const Events.Event,
-        window_width: u32,
-        window_height: u32,
     ) void {
         _ = events;
-        _ = window_width;
-        _ = window_height;
 
         const frame_alloc = memory.frame_alloc();
 
@@ -510,13 +491,9 @@ const Runtime = struct {
         memory: *Memory,
         dt: f32,
         events: []const Events.Event,
-        window_width: u32,
-        window_height: u32,
     ) void {
         _ = dt;
         _ = events;
-        _ = window_width;
-        _ = window_height;
 
         const frame_alloc = memory.frame_alloc();
 
@@ -560,16 +537,14 @@ const Runtime = struct {
         memory: *Memory,
         dt: f32,
         events: []const Events.Event,
-        window_width: u32,
-        window_height: u32,
     ) void {
         _ = events;
 
         const frame_alloc = memory.frame_alloc();
         const perf_button = UiText.init(
             .{
-                .x = @as(f32, @floatFromInt(window_width)) / 2.0,
-                .y = @as(f32, @floatFromInt(window_height)) / 2.0 + 300.0,
+                .x = Start.WINDOW_WIDTH / 2.0,
+                .y = Start.WINDOW_HEIGHT / 2.0 + 300.0,
             },
             &self.font,
             std.fmt.allocPrint(
