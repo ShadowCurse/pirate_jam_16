@@ -125,3 +125,104 @@ pub const UiText = struct {
         return intersects;
     }
 };
+
+pub const UiDashedLine = struct {
+    start: Vec2,
+    end: Vec2,
+
+    const COLOR = Color.WHITE;
+    const WIDTH: f32 = 10;
+    const SEGMENT_GAP: f32 = 10;
+    const SEGMENT_LENGTH: f32 = 30;
+    const TOTAL_SEGMENT_LEN: f32 = SEGMENT_LENGTH + SEGMENT_GAP;
+
+    const ARROW_ANGLE: f32 = std.math.pi / 4.0;
+    const ARROW_H = std.math.sqrt((SEGMENT_LENGTH / 2 * SEGMENT_LENGTH / 2) + (WIDTH / 2 * WIDTH / 2));
+    const ARROW_ANGLE_A: f32 = std.math.atan(WIDTH / SEGMENT_LENGTH);
+    const ARROW_ANGLE_A_ADJ: f32 = std.math.pi / 4.0 - ARROW_ANGLE_A;
+    const ARROW_ANGLE_C: f32 = std.math.pi / 2.0 - ARROW_ANGLE_A_ADJ;
+    const ARROW_DELTA: f32 = @sin(ARROW_ANGLE_C) * ARROW_H;
+    const ARROW_DELTA_PERP: f32 = @cos(ARROW_ANGLE_C) * ARROW_H;
+
+    pub fn to_screen_quads(
+        self: UiDashedLine,
+        camera_controller: *const CameraController2d,
+        screen_quads: *ScreenQuads,
+    ) void {
+        const delta = self.end.sub(self.start);
+        const delta_len = delta.len();
+        const delta_normalized = delta.mul_f32(1.0 / delta_len);
+        const c = delta_normalized.cross(.{ .y = 1 });
+        const d = delta_normalized.dot(.{ .y = 1 });
+        const rotation = if (c < 0.0) -std.math.acos(d) else std.math.acos(d);
+        const num_segments: u32 =
+            @intFromFloat(@floor(delta_len / TOTAL_SEGMENT_LEN));
+        var last_segment_len =
+            delta_len - @as(f32, @floatFromInt(num_segments)) * TOTAL_SEGMENT_LEN - ARROW_DELTA;
+        var segment_positon = self.start.add(delta_normalized.mul_f32(SEGMENT_LENGTH / 2));
+        for (0..num_segments) |_| {
+            const position = camera_controller.transform(segment_positon.extend(0.0));
+            const size: Vec2 = .{ .x = WIDTH, .y = SEGMENT_LENGTH };
+            screen_quads.add_quad(.{
+                .color = COLOR,
+                .texture_id = Textures.Texture.ID_SOLID_COLOR,
+                .position = position.xy().extend(0.0),
+                .rotation = rotation,
+                .size = size.mul_f32(position.z),
+                .options = .{ .no_alpha_blend = true },
+            });
+
+            segment_positon =
+                segment_positon.add(delta_normalized.mul_f32(TOTAL_SEGMENT_LEN));
+        }
+
+        if (0.0 < last_segment_len) {
+            last_segment_len = @min(last_segment_len, SEGMENT_LENGTH);
+            segment_positon = segment_positon
+                .add(delta_normalized
+                .mul_f32(-SEGMENT_LENGTH / 2 + last_segment_len / 2.0));
+            const position = camera_controller.transform(segment_positon.extend(0.0));
+            const size: Vec2 = .{ .x = WIDTH, .y = last_segment_len };
+            screen_quads.add_quad(.{
+                .color = COLOR,
+                .texture_id = Textures.Texture.ID_SOLID_COLOR,
+                .position = position.xy().extend(0.0),
+                .rotation = rotation,
+                .size = size.mul_f32(position.z),
+                .options = .{ .no_alpha_blend = true },
+            });
+        }
+
+        const delta_perp = delta_normalized.perp();
+
+        {
+            const arrow_left_segment_positon = self.end.add(delta_normalized
+                .mul_f32(-ARROW_DELTA)).add(delta_perp.mul_f32(ARROW_DELTA_PERP));
+            const position = camera_controller.transform(arrow_left_segment_positon.extend(0.0));
+            const size: Vec2 = .{ .x = WIDTH, .y = SEGMENT_LENGTH };
+            screen_quads.add_quad(.{
+                .color = COLOR,
+                .texture_id = Textures.Texture.ID_SOLID_COLOR,
+                .position = position.xy().extend(0.0),
+                .rotation = rotation + ARROW_ANGLE,
+                .size = size.mul_f32(position.z),
+                .options = .{ .no_alpha_blend = true },
+            });
+        }
+
+        {
+            const arrow_right_segment_positon = self.end.add(delta_normalized
+                .mul_f32(-ARROW_DELTA)).add(delta_perp.mul_f32(-ARROW_DELTA_PERP));
+            const position = camera_controller.transform(arrow_right_segment_positon.extend(0.0));
+            const size: Vec2 = .{ .x = WIDTH, .y = SEGMENT_LENGTH };
+            screen_quads.add_quad(.{
+                .color = COLOR,
+                .texture_id = Textures.Texture.ID_SOLID_COLOR,
+                .position = position.xy().extend(0.0),
+                .rotation = rotation - ARROW_ANGLE,
+                .size = size.mul_f32(position.z),
+                .options = .{ .no_alpha_blend = true },
+            });
+        }
+    }
+};

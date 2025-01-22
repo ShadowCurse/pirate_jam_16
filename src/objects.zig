@@ -35,6 +35,7 @@ const SmoothStepAnimation = _animations.SmoothStepAnimation;
 const _ui = @import("ui.zig");
 const UiText = _ui.UiText;
 const UiPanel = _ui.UiPanel;
+const UiDashedLine = _ui.UiDashedLine;
 
 pub const Ball = struct {
     id: u8,
@@ -926,6 +927,7 @@ pub const ItemInventory = struct {
 
     selected_index: ?u8,
     hovered_index: ?u8,
+    dashed_line: UiDashedLine,
 
     const MAX_ITEMS = 4;
     const ITEMS_POSITION: Vec2 = .{ .x = -100.0, .y = 310.0 };
@@ -943,6 +945,7 @@ pub const ItemInventory = struct {
             .items_n = 0,
             .selected_index = null,
             .hovered_index = null,
+            .dashed_line = undefined,
         };
     }
 
@@ -1007,6 +1010,7 @@ pub const ItemInventory = struct {
         self: *ItemInventory,
         input_state: *const InputState,
     ) void {
+        self.dashed_line.end = input_state.mouse_pos_world;
         var hover_anything: bool = false;
         for (self.items[0..self.items_n], 0..) |item, i| {
             if (item == .Invalid)
@@ -1015,8 +1019,10 @@ pub const ItemInventory = struct {
             if (item_hovered(@intCast(i), input_state.mouse_pos_world)) {
                 hover_anything = true;
                 self.hovered_index = @intCast(i);
-                if (input_state.lmb)
+                if (input_state.lmb) {
                     self.selected_index = @intCast(i);
+                    self.dashed_line.start = item_position(@intCast(i));
+                }
             }
         }
         if (!hover_anything) {
@@ -1059,6 +1065,7 @@ pub const ItemInventory = struct {
                     object.tint = Color.GREEN;
                     object.options.with_tint = true;
                 }
+                self.dashed_line.to_screen_quads(camera_controller, screen_quads);
             }
             object.to_screen_quad(camera_controller, texture_store, screen_quads);
         }
