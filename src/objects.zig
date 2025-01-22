@@ -688,10 +688,15 @@ pub const Cue = struct {
     rotation: f32,
     storage_position: Vec2,
     shoot_animation: ?SmoothStepAnimation,
+    upgrades: [32]Item.Tag,
+    upgrades_n: u32,
 
     const CUE_HEIGHT = 450;
     const CUE_WIDTH = 60;
     const AIM_BALL_OFFSET = Ball.RADIUS + 2;
+
+    pub const UPGRADE_HILIGHT_COLOR = Color.from_parts(255, 0, 0, 64);
+    pub const HOVER_HILIGHT_COLOR = Color.from_parts(0, 0, 255, 64);
 
     pub fn init(tag: Item.Tag, storage_position: Vec2) Cue {
         return .{
@@ -700,6 +705,8 @@ pub const Cue = struct {
             .rotation = 0.0,
             .storage_position = storage_position,
             .shoot_animation = null,
+            .upgrades = undefined,
+            .upgrades_n = 0,
         };
     }
 
@@ -715,6 +722,16 @@ pub const Cue = struct {
             collision_rectangle,
             self.position,
         );
+    }
+
+    pub fn add_upgrade(self: *Cue, upgrade: Item.Tag) bool {
+        if (self.upgrades_n < self.upgrades.len) {
+            self.upgrades[self.upgrades_n] = upgrade;
+            self.upgrades_n += 1;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     pub fn move_storage(self: *Cue) void {
@@ -780,25 +797,45 @@ pub const Cue = struct {
         return false;
     }
 
+    pub const ToScreenQuadsResult = struct {
+        hovered: bool = false,
+        upgrade_applied: bool = false,
+    };
     pub fn to_screen_quads(
-        self: Cue,
-        upgrade_hilight: bool,
+        self: *Cue,
+        selected_upgrade: ?Item.Tag,
+        input_state: *const InputState,
         texture_id: Textures.Texture.Id,
         camera_controller: *const CameraController2d,
         texture_store: *const Textures.Store,
         screen_quads: *ScreenQuads,
-    ) void {
+    ) ToScreenQuadsResult {
+        var result: ToScreenQuadsResult = .{};
         const size: Vec2 = .{
             .x = @floatFromInt(texture_store.get_texture(texture_id).width),
             .y = @floatFromInt(texture_store.get_texture(texture_id).height),
         };
 
-        if (upgrade_hilight) {
-            var upgrade_hilight_color = Color.RED;
-            upgrade_hilight_color.format.a = 64;
+        const is_cue_upgrade = if (selected_upgrade) |si| si.is_cue_upgrade() else false;
+        if (is_cue_upgrade) {
             const object: Object2d = .{
                 .type = .{ .TextureId = texture_id },
-                .tint = upgrade_hilight_color,
+                .tint = UPGRADE_HILIGHT_COLOR,
+                .transform = .{
+                    .position = self.position.extend(0.0),
+                    .rotation = self.rotation,
+                },
+                .size = size.mul_f32(2.0),
+                .options = .{ .with_tint = true },
+            };
+            object.to_screen_quad(camera_controller, texture_store, screen_quads);
+        }
+
+        result.hovered = self.hovered(input_state.mouse_pos_world);
+        if (result.hovered) {
+            const object: Object2d = .{
+                .type = .{ .TextureId = texture_id },
+                .tint = HOVER_HILIGHT_COLOR,
                 .transform = .{
                     .position = self.position.extend(0.0),
                     .rotation = self.rotation,
@@ -807,6 +844,8 @@ pub const Cue = struct {
                 .options = .{ .with_tint = true },
             };
             object.to_screen_quad(camera_controller, texture_store, screen_quads);
+            if (is_cue_upgrade and input_state.lmb)
+                result.upgrade_applied = self.add_upgrade(selected_upgrade.?);
         }
 
         const object: Object2d = .{
@@ -819,6 +858,7 @@ pub const Cue = struct {
             .options = .{},
         };
         object.to_screen_quad(camera_controller, texture_store, screen_quads);
+        return result;
     }
 };
 
@@ -886,7 +926,6 @@ pub const CueInventory = struct {
     cues: [MAX_CUE]Cue,
     cues_n: u8,
     selected_index: u8,
-    hovered_index: ?u8,
 
     const MAX_CUE = 3;
     const CUE_STORAGE_POSITION: Vec2 = .{ .x = -570.0 };
@@ -902,7 +941,6 @@ pub const CueInventory = struct {
             },
             .cues_n = 1,
             .selected_index = 0,
-            .hovered_index = null,
         };
     }
 
@@ -944,47 +982,35 @@ pub const CueInventory = struct {
         return &self.cues[self.selected_index];
     }
 
-    pub fn update(
+    pub fn update_and_draw(
         self: *CueInventory,
+        selected_upgrade: ?Item.Tag,
         input_state: *const InputState,
-        mouse_pos: Vec2,
-    ) void {
-        for (self.cues[0..self.cues_n], 0..) |cue, i| {
-            if (cue.tag == .Invalid)
-                continue;
-
-            if (cue.is_hovered(mouse_pos)) {
-                self.hovered_index = i;
-                if (input_state.lmb)
-                    self.selected_index = i;
-            }
-        }
-    }
-
-    pub fn to_screen_quads(
-        self: CueInventory,
-        upgrade_hilight: bool,
         item_infos: *const Item.Infos,
         camera_controller: *const CameraController2d,
         texture_store: *const Textures.Store,
         screen_quads: *ScreenQuads,
-    ) void {
-        for (self.cues[0..self.cues_n]) |cue| {
+    ) bool {
+        var upgrade_applied: bool = false;
+        for (self.cues[0..self.cues_n], 0..) |*cue, i| {
             if (cue.tag == .Invalid)
                 continue;
 
             const cue_info = item_infos.get(cue.tag);
-            cue.to_screen_quads(
-                upgrade_hilight,
+            const r = cue.to_screen_quads(
+                selected_upgrade,
+                input_state,
                 cue_info.texture_id,
                 camera_controller,
                 texture_store,
                 screen_quads,
             );
-            if (self.hovered_index) |hi| {
-                _ = hi;
-            }
+
+            if (r.hovered and input_state.lmb)
+                self.selected_index = @intCast(i);
+            upgrade_applied = upgrade_applied or r.upgrade_applied;
         }
+        return upgrade_applied;
     }
 };
 

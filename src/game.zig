@@ -213,14 +213,15 @@ pub fn update_and_draw(
         screen_quads,
     );
 
-    const is_cue_upgrade = if (selected_item) |si| si.is_cue_upgrade() else false;
-    self.cue_inventory.to_screen_quads(
-        is_cue_upgrade,
+    if (self.cue_inventory.update_and_draw(
+        selected_item,
+        input_state,
         &self.item_infos,
         camera_controller,
         texture_store,
         screen_quads,
-    );
+    ))
+        self.item_inventory.item_used();
 
     switch (self.turn_state) {
         .NotTaken => {
