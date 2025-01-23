@@ -399,6 +399,6 @@ pub fn debug(context: *GlobalContext) void {
         32.0,
         "FPS: {d:.1} FT: {d:.3}s",
         .{ 1.0 / context.dt, context.dt },
-        .{},
+        .{ .world_space = false },
     );
 }
