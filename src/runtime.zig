@@ -59,7 +59,7 @@ pub const GameState = packed struct(u8) {
 };
 
 pub const CAMERA_MAIN_MENU: Vec2 = .{ .x = -1280.0 };
-pub const CAMERA_SETTINGS: Vec2 = .{ .x = -1000.0, .y = 1000.0 };
+pub const CAMERA_SETTINGS: Vec2 = .{ .x = -1280.0, .y = 1000.0 };
 pub const CAMERA_IN_GAME: Vec2 = .{};
 pub const CAMERA_IN_GAME_SHOP: Vec2 = .{ .y = 617 };
 
@@ -250,8 +250,7 @@ const Runtime = struct {
             self.game.restart();
 
             self.game_state.in_game = true;
-            var final_game_state = self.game_state;
-            final_game_state.main_menu = false;
+            const final_game_state: GameState = .{ .in_game = true };
             self.game_state_change_animation.set(CAMERA_IN_GAME, final_game_state);
         }
 
@@ -268,8 +267,7 @@ const Runtime = struct {
             &self.screen_quads,
         ) and self.input_state.lmb) {
             self.game_state.settings = true;
-            var final_game_state = self.game_state;
-            final_game_state.main_menu = false;
+            const final_game_state: GameState = .{ .settings = true };
             self.game_state_change_animation.set(CAMERA_SETTINGS, final_game_state);
         }
     }
@@ -298,8 +296,7 @@ const Runtime = struct {
             &self.screen_quads,
         ) and self.input_state.lmb) {
             self.game_state.main_menu = true;
-            var final_game_state = self.game_state;
-            final_game_state.settings = false;
+            const final_game_state: GameState = .{ .main_menu = true };
             self.game_state_change_animation.set(CAMERA_MAIN_MENU, final_game_state);
         }
     }
@@ -442,8 +439,7 @@ const Runtime = struct {
             !self.game_state_change_animation.is_playing())
         {
             if (self.game_state.in_game_shop) {
-                var final_game_state = self.game_state;
-                final_game_state.in_game_shop = false;
+                const final_game_state: GameState = .{ .in_game = true };
                 self.game_state_change_animation.set(CAMERA_IN_GAME, final_game_state);
             } else {
                 self.game_state.in_game_shop = true;
@@ -465,8 +461,7 @@ const Runtime = struct {
             &self.screen_quads,
         ) and self.input_state.lmb) {
             self.game_state.main_menu = true;
-            var final_game_state = self.game_state;
-            final_game_state.in_game = false;
+            const final_game_state: GameState = .{ .main_menu = true };
             self.game_state_change_animation.set(CAMERA_MAIN_MENU, final_game_state);
         }
 
