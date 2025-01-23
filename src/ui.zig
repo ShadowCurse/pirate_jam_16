@@ -56,74 +56,63 @@ pub const UiPanel = struct {
 };
 
 pub const UiText = struct {
-    text: Text,
-
-    pub fn init(position: Vec2, font: *const Font, text: []const u8, text_size: f32) UiText {
-        return .{
-            .text = Text.init(
-                font,
-                text,
-                text_size,
-                position.extend(0.0),
-                0.0,
-                .{},
-                .{ .dont_clip = true },
-            ),
-        };
-    }
-
+    pub const Options = struct {
+        world_space: bool = true,
+        hilight: bool = false,
+    };
     pub fn to_screen_quads(
-        self: UiText,
         context: *GlobalContext,
+        position: Vec2,
+        text_size: f32,
+        comptime format: []const u8,
+        args: anytype,
+        comptime options: Options,
     ) bool {
-        const text_quads = self.text.to_screen_quads_raw(context.alloc());
-        const collision_rectangle: Physics.Rectangle = .{
-            .size = .{
-                .x = text_quads.total_width,
-                .y = self.text.size,
-            },
-        };
-        const rectangle_position: Vec2 =
-            self.text.position.xy().add(.{ .y = -self.text.size / 2.0 });
-        const intersects = Physics.point_rectangle_intersect(
-            context.input.mouse_pos,
-            collision_rectangle,
-            rectangle_position,
-        );
-        if (intersects) {
-            for (text_quads.quads) |*quad| {
-                quad.color = Color.RED;
-                quad.options.with_tint = true;
-            }
-        }
-        for (text_quads.quads) |quad| {
-            context.screen_quads.add_quad(quad);
-        }
-        return intersects;
-    }
-
-    pub fn to_screen_quads_world_space(
-        self: UiText,
-        context: *GlobalContext,
-    ) bool {
-        const text_quads = self.text.to_screen_quads_world_space_raw(
+        const t = std.fmt.allocPrint(
             context.alloc(),
-            &context.camera,
+            format,
+            args,
+        ) catch unreachable;
+
+        const text =
+            Text.init(
+            &context.font,
+            t,
+            text_size,
+            position.extend(0.0),
+            0.0,
+            .{},
+            .{ .dont_clip = true },
         );
+
+        const text_quads = if (!options.world_space)
+            text.to_screen_quads_raw(context.alloc())
+        else
+            text.to_screen_quads_world_space_raw(
+                context.alloc(),
+                &context.camera,
+            );
+
         const collision_rectangle: Physics.Rectangle = .{
             .size = .{
                 .x = text_quads.total_width,
-                .y = self.text.size,
+                .y = text.size,
             },
         };
         const rectangle_position: Vec2 =
-            self.text.position.xy().add(.{ .y = -self.text.size / 2.0 });
+            text.position.xy().add(.{ .y = -text.size / 2.0 });
+
+        const mouse_pos = if (options.world_space)
+            context.input.mouse_pos_world
+        else
+            context.input.mouse_pos;
+
         const intersects = Physics.point_rectangle_intersect(
-            context.input.mouse_pos_world,
+            mouse_pos,
             collision_rectangle,
             rectangle_position,
         );
-        if (intersects) {
+        if (options.hilight and intersects) {
             for (text_quads.quads) |*quad| {
                 quad.color = Color.RED;
                 quad.options.with_tint = true;
@@ -237,13 +226,14 @@ pub const UiDashedLine = struct {
 };
 
 pub fn main_menu(game: *Game, context: *GlobalContext) void {
-    const start_button = UiText.init(
+    if (UiText.to_screen_quads(
+        context,
         CAMERA_MAIN_MENU,
-        &context.font,
-        "Start",
         32.0,
-    );
-    if (start_button.to_screen_quads_world_space(context) and context.input.lmb) {
+        "Start",
+        .{},
+        .{ .hilight = true },
+    ) and context.input.lmb) {
         game.restart();
         context.state.in_game = true;
         context.state_change_animation.set(CAMERA_IN_GAME, .{
@@ -252,13 +242,14 @@ pub fn main_menu(game: *Game, context: *GlobalContext) void {
         });
     }
 
-    const settings_button = UiText.init(
+    if (UiText.to_screen_quads(
+        context,
         CAMERA_MAIN_MENU.add(.{ .y = 50.0 }),
-        &context.font,
-        "Settings",
         32.0,
-    );
-    if (settings_button.to_screen_quads_world_space(context) and context.input.lmb) {
+        "Settings",
+        .{},
+        .{ .hilight = true },
+    ) and context.input.lmb) {
         context.state.settings = true;
         context.state_change_animation.set(CAMERA_SETTINGS, .{
             .settings = true,
@@ -268,13 +259,14 @@ pub fn main_menu(game: *Game, context: *GlobalContext) void {
 }
 
 pub fn settings(context: *GlobalContext) void {
-    const back_button = UiText.init(
+    if (UiText.to_screen_quads(
+        context,
         CAMERA_SETTINGS,
-        &context.font,
-        "Back",
         32.0,
-    );
-    if (back_button.to_screen_quads_world_space(context) and context.input.lmb) {
+        "Back",
+        .{},
+        .{ .hilight = true },
+    ) and context.input.lmb) {
         context.state.main_menu = true;
         context.state_change_animation.set(CAMERA_MAIN_MENU, .{
             .main_menu = true,
@@ -312,55 +304,39 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
     );
     left_info_player_panel.to_screen_quad(context);
 
-    const opponent_hp = std.fmt.allocPrint(
-        context.alloc(),
+    _ = UiText.to_screen_quads(
+        context,
+        .{ .x = -550.0, .y = -300 },
+        25.0,
         "HP: {d}",
         .{game.opponent_hp},
-    ) catch unreachable;
-    const opponent_hp_text = UiText.init(
-        .{ .x = -550.0, .y = -300 },
-        &context.font,
-        opponent_hp,
-        25.0,
+        .{},
     );
-    _ = opponent_hp_text.to_screen_quads_world_space(context);
-    const opponent_hp_overhead = std.fmt.allocPrint(
-        context.alloc(),
+    _ = UiText.to_screen_quads(
+        context,
+        .{ .x = -550.0, .y = -280 },
+        25.0,
         "HP overhead: {d}",
         .{game.opponent_hp_overhead},
-    ) catch unreachable;
-    const opponent_hp_overhead_text = UiText.init(
-        .{ .x = -550.0, .y = -280 },
-        &context.font,
-        opponent_hp_overhead,
-        25.0,
+        .{},
     );
-    _ = opponent_hp_overhead_text.to_screen_quads_world_space(context);
 
-    const player_hp = std.fmt.allocPrint(
-        context.alloc(),
+    _ = UiText.to_screen_quads(
+        context,
+        .{ .x = -550.0, .y = 300 },
+        25.0,
         "HP: {d}",
         .{game.player_hp},
-    ) catch unreachable;
-    const player_hp_text = UiText.init(
-        .{ .x = -550.0, .y = 300 },
-        &context.font,
-        player_hp,
-        25.0,
+        .{},
     );
-    _ = player_hp_text.to_screen_quads_world_space(context);
-    const player_hp_overhead = std.fmt.allocPrint(
-        context.alloc(),
+    _ = UiText.to_screen_quads(
+        context,
+        .{ .x = -550.0, .y = 300 },
+        25.0,
         "HP overhead: {d}",
         .{game.player_hp_overhead},
-    ) catch unreachable;
-    const player_hp_overhead_text = UiText.init(
-        .{ .x = -550.0, .y = 320 },
-        &context.font,
-        player_hp_overhead,
-        25.0,
+        .{},
     );
-    _ = player_hp_overhead_text.to_screen_quads_world_space(context);
 
     const left_cue_panel = UiPanel.init(
         .{ .x = -550.0 },
@@ -376,13 +352,14 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
     );
     right_cue_panel.to_screen_quad(context);
 
-    const shop_button = UiText.init(
+    if (UiText.to_screen_quads(
+        context,
         .{ .x = 350.0, .y = 320.0 },
-        &context.font,
-        "SHOP",
         32.0,
-    );
-    if (shop_button.to_screen_quads_world_space(context) and context.input.lmb and
+        "SHOP",
+        .{},
+        .{ .hilight = true },
+    ) and context.input.lmb and
         !context.state_change_animation.is_playing())
     {
         if (context.state.in_game_shop) {
@@ -396,13 +373,14 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         }
     }
 
-    const back_button = UiText.init(
+    if (UiText.to_screen_quads(
+        context,
         .{ .x = 550.0, .y = 320.0 },
-        &context.font,
-        "GIVE UP",
         32.0,
-    );
-    if (back_button.to_screen_quads_world_space(context) and context.input.lmb) {
+        "GIVE UP",
+        .{},
+        .{ .hilight = true },
+    ) and context.input.lmb) {
         context.state.main_menu = true;
         context.state_change_animation.set(CAMERA_MAIN_MENU, .{
             .main_menu = true,
@@ -412,18 +390,15 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
 }
 
 pub fn debug(context: *GlobalContext) void {
-    const perf_button = UiText.init(
+    _ = UiText.to_screen_quads(
+        context,
         .{
             .x = 1280.0 / 2.0,
             .y = 720.0 / 2.0 + 300.0,
         },
-        &context.font,
-        std.fmt.allocPrint(
-            context.alloc(),
-            "FPS: {d:.1} FT: {d:.3}s",
-            .{ 1.0 / context.dt, context.dt },
-        ) catch unreachable,
         32.0,
+        "FPS: {d:.1} FT: {d:.3}s",
+        .{ 1.0 / context.dt, context.dt },
+        .{},
     );
-    _ = perf_button.to_screen_quads(context);
 }

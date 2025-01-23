@@ -349,24 +349,13 @@ pub const Ball = struct {
         self: Ball,
         context: *GlobalContext,
     ) void {
-        const hp = std.fmt.allocPrint(
-            context.alloc(),
+        _ = UiText.to_screen_quads(
+            context,
+            self.body.position.add(.{ .y = HP_TEXT_SIZE / 4.0 }),
+            HP_TEXT_SIZE,
             "{d}",
             .{self.hp},
-        ) catch unreachable;
-        const text = Text.init(
-            &context.font,
-            hp,
-            HP_TEXT_SIZE,
-            self.body.position.add(.{ .y = HP_TEXT_SIZE / 4.0 }).extend(0.0),
-            0.0,
             .{},
-            .{ .dont_clip = true },
-        );
-        text.to_screen_quads_world_space(
-            context.alloc(),
-            &context.camera,
-            &context.screen_quads,
         );
     }
 
@@ -380,61 +369,35 @@ pub const Ball = struct {
         info_panel.to_screen_quad(context);
 
         {
-            const hp = std.fmt.allocPrint(
-                context.alloc(),
+            _ = UiText.to_screen_quads(
+                context,
+                panel_position.add(.{ .y = -40.0 }),
+                HP_TEXT_SIZE,
                 "HP: {d}",
                 .{self.hp},
-            ) catch unreachable;
-            const text = Text.init(
-                &context.font,
-                hp,
-                HP_TEXT_SIZE,
-                panel_position.add(.{ .y = -40.0 }).extend(0.0),
-                0.0,
                 .{},
-                .{ .dont_clip = true },
-            );
-            text.to_screen_quads_world_space(
-                context.alloc(),
-                &context.camera,
-                &context.screen_quads,
             );
         }
 
         {
-            const hp = std.fmt.allocPrint(
-                context.alloc(),
+            _ = UiText.to_screen_quads(
+                context,
+                panel_position.add(.{ .y = -20.0 }),
+                HP_TEXT_SIZE,
                 "Damage: {d}",
                 .{self.damage},
-            ) catch unreachable;
-            const text = Text.init(
-                &context.font,
-                hp,
-                HP_TEXT_SIZE,
-                panel_position.add(.{ .y = -20.0 }).extend(0.0),
-                0.0,
                 .{},
-                .{ .dont_clip = true },
-            );
-            text.to_screen_quads_world_space(
-                context.alloc(),
-                &context.camera,
-                &context.screen_quads,
             );
         }
 
-        const refill = std.fmt.allocPrint(
-            context.alloc(),
+        return UiText.to_screen_quads(
+            context,
+            panel_position.add(.{ .y = 40.0 }),
+            25.0,
             "Refill ball HP with {d} overhead HP",
             .{self.max_hp - self.hp},
-        ) catch unreachable;
-        const refill_text = UiText.init(
-            panel_position.add(.{ .y = 40.0 }),
-            &context.font,
-            refill,
-            25.0,
+            .{},
         );
-        return refill_text.to_screen_quads_world_space(context);
     }
 
     pub fn previous_positions_to_object_2d(self: Ball, context: *GlobalContext) void {
@@ -1280,39 +1243,22 @@ pub const ItemInventory = struct {
         );
         info_panel.to_screen_quad(context);
 
-        {
-            const text = Text.init(
-                &context.font,
-                item_info.name,
-                32.0,
-                panel_position.add(.{ .y = -40.0 }).extend(0.0),
-                0.0,
-                .{},
-                .{ .dont_clip = true },
-            );
-            text.to_screen_quads_world_space(
-                context.alloc(),
-                &context.camera,
-                &context.screen_quads,
-            );
-        }
-
-        {
-            const text = Text.init(
-                &context.font,
-                item_info.description,
-                32.0,
-                panel_position.add(.{ .y = -20.0 }).extend(0.0),
-                0.0,
-                .{},
-                .{ .dont_clip = true },
-            );
-            text.to_screen_quads_world_space(
-                context.alloc(),
-                &context.camera,
-                &context.screen_quads,
-            );
-        }
+        _ = UiText.to_screen_quads(
+            context,
+            panel_position.add(.{ .y = -40.0 }),
+            32.0,
+            "{s}",
+            .{item_info.name},
+            .{},
+        );
+        _ = UiText.to_screen_quads(
+            context,
+            panel_position.add(.{ .y = -20.0 }),
+            32.0,
+            "{s}",
+            .{item_info.description},
+            .{},
+        );
     }
 };
 
@@ -1434,54 +1380,29 @@ pub const Shop = struct {
             &context.screen_quads,
         );
 
-        const name_text = Text.init(
-            &context.font,
-            item_info.name,
+        _ = UiText.to_screen_quads(
+            context,
+            position.add(.{ .y = -200.0 }),
             TEXT_SIZE_NAME,
-            position.add(.{ .y = -200.0 }).extend(0.0),
-            0.0,
+            "{s}",
+            .{item_info.name},
             .{},
-            .{ .dont_clip = true },
         );
-        name_text.to_screen_quads_world_space(
-            context.alloc(),
-            &context.camera,
-            &context.screen_quads,
-        );
-
-        const description_text = Text.init(
-            &context.font,
-            item_info.description,
+        _ = UiText.to_screen_quads(
+            context,
+            position.add(.{ .y = 0 }),
             TEXT_SIZE_DESCRIPTION,
-            position.add(.{ .y = 0 }).extend(0.0),
-            0.0,
+            "{s}",
+            .{item_info.description},
             .{},
-            .{ .dont_clip = true },
         );
-        description_text.to_screen_quads_world_space(
-            context.alloc(),
-            &context.camera,
-            &context.screen_quads,
-        );
-
-        const price = std.fmt.allocPrint(
-            context.alloc(),
+        _ = UiText.to_screen_quads(
+            context,
+            position.add(.{ .y = 200 }),
+            TEXT_SIZE_PRICE,
             "{d}",
             .{item_info.price},
-        ) catch unreachable;
-        const price_text = Text.init(
-            &context.font,
-            price,
-            TEXT_SIZE_PRICE,
-            position.add(.{ .y = 200 }).extend(0.0),
-            0.0,
             .{},
-            .{ .dont_clip = true },
-        );
-        price_text.to_screen_quads_world_space(
-            context.alloc(),
-            &context.camera,
-            &context.screen_quads,
         );
 
         return is_hovered;
@@ -1500,13 +1421,14 @@ pub const Shop = struct {
             }
         }
 
-        const reroll_button = UiText.init(
+        const want_reroll = UiText.to_screen_quads(
+            context,
             CAMERA_IN_GAME_SHOP.add(.{ .y = 300 }),
-            &context.font,
-            "REROLL",
             32.0,
+            "REROLL",
+            .{},
+            .{ .hilight = true },
         );
-        const want_reroll = reroll_button.to_screen_quads_world_space(context);
         if (want_reroll and context.input.lmb)
             self.reroll();
 
