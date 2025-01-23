@@ -309,7 +309,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         .{ .x = -550.0, .y = -300 },
         25.0,
         "HP: {d}",
-        .{game.opponent_hp},
+        .{game.opponent.hp},
         .{},
     );
     _ = UiText.to_screen_quads(
@@ -317,16 +317,16 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         .{ .x = -550.0, .y = -280 },
         25.0,
         "HP overhead: {d}",
-        .{game.opponent_hp_overhead},
+        .{game.opponent.hp_overhead},
         .{},
     );
 
     _ = UiText.to_screen_quads(
         context,
-        .{ .x = -550.0, .y = 300 },
+        .{ .x = -550.0, .y = 280 },
         25.0,
         "HP: {d}",
-        .{game.player_hp},
+        .{game.player.hp},
         .{},
     );
     _ = UiText.to_screen_quads(
@@ -334,7 +334,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         .{ .x = -550.0, .y = 300 },
         25.0,
         "HP overhead: {d}",
-        .{game.player_hp_overhead},
+        .{game.player.hp_overhead},
         .{},
     );
 

@@ -86,11 +86,11 @@ pub const BallAnimations = struct {
     animation_n: u32 = 0,
 
     const BallAnimation = struct {
-        ball_id: u8,
+        ball: *Ball,
         move_animation: MoveAnimation,
     };
 
-    pub fn add(self: *BallAnimations, ball: *const Ball, target: Vec2, duration: f32) void {
+    pub fn add(self: *BallAnimations, ball: *Ball, target: Vec2, duration: f32) void {
         if (self.animation_n == self.animations.len) {
             log.err(
                 @src(),
@@ -101,7 +101,7 @@ pub const BallAnimations = struct {
         }
         const velocity = target.sub(ball.body.position).mul_f32(1.0 / duration);
         self.animations[self.animation_n] = .{
-            .ball_id = ball.id,
+            .ball = ball,
             .move_animation = .{
                 .velocity = velocity,
                 .duration = duration,
@@ -118,11 +118,11 @@ pub const BallAnimations = struct {
         );
     }
 
-    pub fn run(self: *BallAnimations, balls: []Ball, dt: f32) bool {
+    pub fn run(self: *BallAnimations, dt: f32) bool {
         var start: u32 = 0;
         while (start < self.animation_n) {
             const animation = &self.animations[start];
-            const ball = &balls[animation.ball_id];
+            const ball = animation.ball;
             if (animation.move_animation.update(&ball.body.position, dt)) {
                 log.info(@src(), "Removing ball animation from slot: {d}", .{start});
                 self.animations[start] = self.animations[self.animation_n - 1];

@@ -32,24 +32,40 @@ const Shop = _objects.Shop;
 
 const _animations = @import("animations.zig");
 const BallAnimations = _animations.BallAnimations;
-const StateChangeAnimation = _animations.StateChangeAnimation;
+
+const PlayerContext = struct {
+    hp: i32 = 100,
+    hp_overhead: i32 = 100,
+    item_inventory: ItemInventory,
+    cue_inventory: CueInventory,
+
+    pub fn init(self: *PlayerContext, owner: Owner) void {
+        self.hp = 100;
+        self.hp_overhead = 100;
+        self.item_inventory = ItemInventory.init(owner);
+        self.cue_inventory = CueInventory.init(owner);
+    }
+
+    pub fn reset(self: *PlayerContext, owner: Owner) void {
+        self.item_inventory = ItemInventory.init(owner);
+        self.cue_inventory = CueInventory.init(owner);
+        self.hp = 100;
+        self.hp_overhead = 100;
+    }
+};
 
 turn_owner: Owner,
 turn_state: TurnState,
 
-player_hp: i32,
-player_hp_overhead: i32,
-opponent_hp: i32,
-opponent_hp_overhead: i32,
-
-item_inventory: ItemInventory,
-cue_inventory: CueInventory,
+player: PlayerContext,
+opponent: PlayerContext,
 
 texture_ball: Textures.Texture.Id,
-balls: [MAX_BALLS]Ball,
 ball_animations: BallAnimations,
 table: Table,
 shop: Shop,
+
+balls: [MAX_BALLS]Ball,
 
 selected_ball: ?u32,
 is_aiming: bool,
@@ -74,6 +90,8 @@ pub fn init(self: *Self, context: *GlobalContext) void {
         context.memory,
         "assets/ball_prototype.png",
     );
+    self.player.init(.Player);
+    self.opponent.init(.Opponent);
     self.table = Table.init(
         context.texture_store.load(context.memory, "assets/table_prototype.png"),
     );
@@ -81,21 +99,14 @@ pub fn init(self: *Self, context: *GlobalContext) void {
 }
 
 pub fn restart(self: *Self) void {
-    self.shop.reset();
-    self.item_inventory = ItemInventory.init();
-    self.cue_inventory = CueInventory.init();
-    _ = self.item_inventory.add(.BallSpiky);
-    _ = self.item_inventory.add(.CueHP);
-    _ = self.cue_inventory.add(.Cue50CAL);
     self.turn_owner = .Player;
     self.turn_state = .NotTaken;
-    self.selected_ball = null;
-    self.is_aiming = false;
 
-    self.player_hp = 100;
-    self.player_hp_overhead = 100;
-    self.opponent_hp = 100;
-    self.opponent_hp_overhead = 0;
+    self.player.reset(.Player);
+    self.opponent.reset(.Opponent);
+
+    self.ball_animations = .{};
+    self.shop.reset();
 
     for (&self.balls, 0..) |*ball, i| {
         const row: f32 = @floatFromInt(@divFloor(i, 4));
@@ -109,7 +120,9 @@ pub fn restart(self: *Self) void {
         const owner: Owner = if (i < 10) .Player else .Opponent;
         ball.* = Ball.init(id, color, self.texture_ball, owner, position);
     }
-    self.ball_animations = .{};
+
+    self.selected_ball = null;
+    self.is_aiming = false;
 }
 
 pub fn update_and_draw(
@@ -140,9 +153,19 @@ pub fn settings(self: *Self, context: *GlobalContext) void {
 pub fn in_game(self: *Self, context: *GlobalContext) void {
     UI.in_game(self, context);
 
+    const entity = if (self.turn_owner == .Player) blk: {
+        self.opponent.item_inventory.to_screen_quads(context);
+        _ = self.opponent.cue_inventory.update_and_draw(context, null);
+        break :blk &self.player;
+    } else blk: {
+        self.player.item_inventory.to_screen_quads(context);
+        _ = self.player.cue_inventory.update_and_draw(context, null);
+        break :blk &self.opponent;
+    };
+
     self.table.to_screen_quad(context);
 
-    const selected_item = self.item_inventory.selected();
+    const selected_item = entity.item_inventory.selected();
     for (&self.balls) |*ball| {
         const is_selected = if (self.selected_ball) |sb| blk: {
             if (ball.id == sb) {
@@ -164,42 +187,33 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             break :blk r;
         };
         if (r.upgrade_applied) {
-            self.item_inventory.item_used();
+            entity.item_inventory.item_used();
         }
         if (r.need_refill) {
             const to_refill = ball.max_hp - ball.hp;
-            const hp_overhead = if (self.turn_owner == .Player)
-                &self.player_hp_overhead
-            else
-                &self.opponent_hp_overhead;
-            const hp = if (self.turn_owner == .Player)
-                &self.player_hp
-            else
-                &self.opponent_hp;
-            if (to_refill <= hp_overhead.*) {
+            if (to_refill <= entity.hp_overhead) {
                 ball.hp = ball.max_hp;
-                hp.* += to_refill;
-                hp_overhead.* -= to_refill;
+                entity.hp += to_refill;
+                entity.hp_overhead -= to_refill;
             }
         }
     }
 
-    self.item_inventory.to_screen_quads(context);
-
-    if (self.cue_inventory.update_and_draw(context, selected_item))
-        self.item_inventory.item_used();
+    entity.item_inventory.to_screen_quads(context);
+    if (entity.cue_inventory.update_and_draw(context, selected_item))
+        entity.item_inventory.item_used();
 
     switch (self.turn_state) {
         .NotTaken => {
             if (!self.is_aiming) {
                 self.is_aiming = self.selected_ball != null and context.input.rmb;
-                self.cue_inventory.selected().move_storage();
-                self.item_inventory.update(context);
+                entity.cue_inventory.selected().move_storage();
+                entity.item_inventory.update(context);
             } else {
                 if (self.selected_ball) |sb| {
                     const ball = &self.balls[sb];
                     const hit_vector = context.input.mouse_pos_world.sub(ball.body.position);
-                    self.cue_inventory.selected().move_aiming(ball.body.position, hit_vector);
+                    entity.cue_inventory.selected().move_aiming(ball.body.position, hit_vector);
 
                     if (!context.input.rmb) {
                         // We hit in the opposite direction of the "to_mouse" direction
@@ -232,11 +246,11 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             const sb = self.selected_ball.?;
             const ball_position = self.balls[sb].body.position;
             const hit_vector = context.input.mouse_pos_world.sub(ball_position);
-            if (self.cue_inventory.selected().move_shoot(ball_position, hit_vector, context.dt))
+            if (entity.cue_inventory.selected().move_shoot(ball_position, hit_vector, context.dt))
                 self.turn_state = .Taken;
         },
         .Taken => {
-            self.cue_inventory.selected().move_storage();
+            entity.cue_inventory.selected().move_storage();
 
             for (&self.balls) |*ball| {
                 if (ball.disabled)
@@ -287,10 +301,10 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                     }
                 }
             }
-            self.player_hp = new_player_hp;
-            self.player_hp_overhead += player_overheal;
-            self.opponent_hp = new_opponent_hp;
-            self.opponent_hp_overhead += opponent_overheal;
+            self.player.hp = new_player_hp;
+            self.player.hp_overhead += player_overheal;
+            self.opponent.hp = new_opponent_hp;
+            self.opponent.hp_overhead += opponent_overheal;
 
             var disabled_or_stationary: u8 = 0;
             for (&self.balls) |*ball| {
@@ -298,7 +312,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                     disabled_or_stationary += 1;
                 }
             }
-            if (self.ball_animations.run(&self.balls, context.dt) and
+            if (self.ball_animations.run(context.dt) and
                 disabled_or_stationary == self.balls.len)
             {
                 self.turn_owner = if (self.turn_owner == .Player) .Opponent else .Player;
@@ -310,20 +324,23 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
 }
 
 pub fn in_game_shop(self: *Self, context: *GlobalContext) void {
+    const item_inventory = &self.player.item_inventory;
+    const cue_inventory = &self.player.cue_inventory;
+
     if (self.shop.update_and_draw(context)) |item| {
         const item_info = context.item_infos.get(item);
-        if (item_info.price <= self.player_hp_overhead) {
+        if (item_info.price <= self.player.hp_overhead) {
             if (item.is_cue()) {
-                if (self.cue_inventory.add(item)) {
+                if (cue_inventory.add(item)) {
                     self.shop.remove_selected_item();
-                    self.player_hp_overhead -= item_info.price;
+                    self.player.hp_overhead -= item_info.price;
                 } else {
                     log.info(@src(), "Cannot add item to the cue inventory: Full", .{});
                 }
             } else {
-                if (self.item_inventory.add(item)) {
+                if (item_inventory.add(item)) {
                     self.shop.remove_selected_item();
-                    self.player_hp_overhead -= item_info.price;
+                    self.player.hp_overhead -= item_info.price;
                 } else {
                     log.info(@src(), "Cannot add item to the item inventory: Full", .{});
                 }

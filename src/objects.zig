@@ -988,33 +988,42 @@ pub const Item = struct {
 pub const CueInventory = struct {
     cues: [MAX_CUE]Cue,
     cues_n: u8,
+    owner: Owner,
     selected_index: u8,
 
     const MAX_CUE = 3;
-    const CUE_STORAGE_POSITION: Vec2 = .{ .x = -570.0 };
+    const CUE_STORAGE_POSITION_PLAYER: Vec2 = .{ .x = -570.0 };
+    const CUE_STORAGE_POSITION_OPPONENT: Vec2 = .{ .x = 570.0 };
     const CUE_STORAGE_WIDTH = 90;
     const CUE_STORAGE_CUE_WIDTH = 45;
 
-    pub fn init() CueInventory {
-        return .{
-            .cues = .{
-                Cue.init(.CueDefault, cue_position(0)),
-                Cue.init(.Invalid, cue_position(1)),
-                Cue.init(.Invalid, cue_position(2)),
-            },
-            .cues_n = 1,
-            .selected_index = 0,
-        };
+    pub fn init(owner: Owner) CueInventory {
+        var self: CueInventory = undefined;
+        self.owner = owner;
+        self.cues[0] =
+            Cue.init(.CueDefault, self.cue_position(0));
+        self.cues_n = 1;
+        self.selected_index = 0;
+        return self;
     }
 
-    pub fn cue_position(index: u32) Vec2 {
-        return CUE_STORAGE_POSITION.add(
-            .{
-                .x = -CUE_STORAGE_WIDTH / 2 +
-                    CUE_STORAGE_CUE_WIDTH / 2 +
-                    @as(f32, @floatFromInt(index)) * CUE_STORAGE_CUE_WIDTH,
-            },
-        );
+    pub fn cue_position(self: CueInventory, index: u32) Vec2 {
+        return if (self.owner == .Player)
+            CUE_STORAGE_POSITION_PLAYER.add(
+                .{
+                    .x = -CUE_STORAGE_WIDTH / 2 +
+                        CUE_STORAGE_CUE_WIDTH / 2 +
+                        @as(f32, @floatFromInt(index)) * CUE_STORAGE_CUE_WIDTH,
+                },
+            )
+        else
+            CUE_STORAGE_POSITION_OPPONENT.add(
+                .{
+                    .x = -CUE_STORAGE_WIDTH / 2 +
+                        CUE_STORAGE_CUE_WIDTH / 2 +
+                        @as(f32, @floatFromInt(index)) * CUE_STORAGE_CUE_WIDTH,
+                },
+            );
     }
 
     pub fn add(self: *CueInventory, cue: Item.Tag) bool {
@@ -1027,7 +1036,7 @@ pub const CueInventory = struct {
         if (self.cues.len == self.cues_n)
             return false;
 
-        self.cues[self.cues_n] = Cue.init(cue, cue_position(self.cues_n));
+        self.cues[self.cues_n] = Cue.init(cue, self.cue_position(self.cues_n));
         self.cues_n += 1;
         return true;
     }
@@ -1074,12 +1083,14 @@ pub const ItemInventory = struct {
     items: [MAX_ITEMS]Item.Tag,
     items_n: u32,
 
+    owner: Owner,
     selected_index: ?u8,
     hovered_index: ?u8,
     dashed_line: UiDashedLine,
 
     const MAX_ITEMS = 4;
-    const ITEMS_POSITION: Vec2 = .{ .x = -100.0, .y = 310.0 };
+    const ITEMS_POSITION_PLAYER: Vec2 = .{ .x = -100.0, .y = 310.0 };
+    const ITEMS_POSITION_OPPONENT: Vec2 = .{ .x = -100.0, .y = -310.0 };
     const ITEMS_WIDTH = 600;
     const ITEM_WIDTH = 100;
     const ITEM_HEIGHT = 100;
@@ -1088,25 +1099,36 @@ pub const ItemInventory = struct {
     pub const INFO_PANEL_OFFSET: Vec2 = .{ .y = -180.0 };
     pub const INFO_PANEL_SIZE: Vec2 = .{ .x = 280.0, .y = 300.0 };
 
-    pub fn init() ItemInventory {
+    pub fn init(owner: Owner) ItemInventory {
         return .{
             .items = undefined,
             .items_n = 0,
+            .owner = owner,
             .selected_index = null,
             .hovered_index = null,
             .dashed_line = undefined,
         };
     }
 
-    pub fn item_position(index: u32) Vec2 {
-        return ITEMS_POSITION.add(
-            .{
-                .x = -ITEMS_WIDTH / 2 +
-                    ITEM_GAP / 2 +
-                    ITEM_WIDTH / 2 +
-                    @as(f32, @floatFromInt(index)) * (ITEM_WIDTH + ITEM_GAP),
-            },
-        );
+    pub fn item_position(self: ItemInventory, index: u32) Vec2 {
+        return if (self.owner == .Player)
+            ITEMS_POSITION_PLAYER.add(
+                .{
+                    .x = -ITEMS_WIDTH / 2 +
+                        ITEM_GAP / 2 +
+                        ITEM_WIDTH / 2 +
+                        @as(f32, @floatFromInt(index)) * (ITEM_WIDTH + ITEM_GAP),
+                },
+            )
+        else
+            ITEMS_POSITION_OPPONENT.add(
+                .{
+                    .x = -ITEMS_WIDTH / 2 +
+                        ITEM_GAP / 2 +
+                        ITEM_WIDTH / 2 +
+                        @as(f32, @floatFromInt(index)) * (ITEM_WIDTH + ITEM_GAP),
+                },
+            );
     }
 
     pub fn add(self: *ItemInventory, item: Item.Tag) bool {
@@ -1132,8 +1154,8 @@ pub const ItemInventory = struct {
         }
     }
 
-    pub fn item_hovered(item_index: u8, mouse_pos: Vec2) bool {
-        const ip = item_position(item_index);
+    pub fn item_hovered(self: ItemInventory, item_index: u8, mouse_pos: Vec2) bool {
+        const ip = self.item_position(item_index);
         const collision_rectangle: Physics.Rectangle = .{
             .size = .{
                 .x = ITEM_WIDTH,
@@ -1171,12 +1193,12 @@ pub const ItemInventory = struct {
             if (item == .Invalid)
                 continue;
 
-            if (item_hovered(@intCast(i), context.input.mouse_pos_world)) {
+            if (self.item_hovered(@intCast(i), context.input.mouse_pos_world)) {
                 hover_anything = true;
                 self.hovered_index = @intCast(i);
                 if (!context.state.in_game_shop and context.input.lmb) {
                     self.selected_index = @intCast(i);
-                    self.dashed_line.start = item_position(@intCast(i));
+                    self.dashed_line.start = self.item_position(@intCast(i));
                 }
             }
         }
@@ -1196,7 +1218,7 @@ pub const ItemInventory = struct {
                 continue;
 
             const item_info = context.item_infos.infos[@intFromEnum(item)];
-            const ip = item_position(@intCast(i));
+            const ip = self.item_position(@intCast(i));
 
             var object: Object2d = .{
                 .type = .{ .TextureId = item_info.texture_id },
