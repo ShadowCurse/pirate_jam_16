@@ -666,6 +666,7 @@ pub const Cue = struct {
     position: Vec2,
     rotation: f32,
     storage_position: Vec2,
+    storage_rotation: f32,
     shoot_animation: ?SmoothStepAnimation,
 
     add_heal: i32 = 0,
@@ -683,12 +684,13 @@ pub const Cue = struct {
     pub const UPGRADE_HILIGHT_COLOR = Color.from_parts(255, 0, 0, 64);
     pub const HOVER_HILIGHT_COLOR = Color.from_parts(0, 0, 255, 64);
 
-    pub fn init(tag: Item.Tag, storage_position: Vec2) Cue {
+    pub fn init(tag: Item.Tag, storage_position: Vec2, storage_rotation: f32) Cue {
         return .{
             .tag = tag,
             .position = storage_position,
-            .rotation = 0.0,
+            .rotation = storage_rotation,
             .storage_position = storage_position,
+            .storage_rotation = storage_rotation,
             .shoot_animation = null,
         };
     }
@@ -758,7 +760,7 @@ pub const Cue = struct {
     pub fn move_storage(self: *Cue) void {
         self.position =
             self.position.add(self.storage_position.sub(self.position).mul_f32(0.2));
-        self.rotation -= self.rotation * 0.2;
+        self.rotation += (self.storage_rotation - self.rotation) * 0.2;
     }
 
     pub fn move_aiming(
@@ -992,38 +994,48 @@ pub const CueInventory = struct {
     selected_index: u8,
 
     const MAX_CUE = 3;
-    const CUE_STORAGE_POSITION_PLAYER: Vec2 = .{ .x = -570.0 };
-    const CUE_STORAGE_POSITION_OPPONENT: Vec2 = .{ .x = 570.0 };
-    const CUE_STORAGE_WIDTH = 90;
-    const CUE_STORAGE_CUE_WIDTH = 45;
+    const CUE_STORAGE_POSITION_PLAYER: Vec2 = .{ .x = -544.0 };
+    const CUE_STORAGE_ROTATION_PLAYER = 0.0;
+    const CUE_STORAGE_POSITION_OPPONENT: Vec2 = .{ .x = 544.0 };
+    const CUE_STORAGE_ROTATION_OPPONENT = std.math.pi;
+    const CUE_STORAGE_WIDTH = 150;
+    const CUE_STORAGE_CUE_WIDTH = 50;
 
     pub fn init(owner: Owner) CueInventory {
         var self: CueInventory = undefined;
         self.owner = owner;
+
+        const p_r = self.cue_position_rotation(0);
         self.cues[0] =
-            Cue.init(.CueDefault, self.cue_position(0));
+            Cue.init(.CueDefault, p_r[0], p_r[1]);
         self.cues_n = 1;
         self.selected_index = 0;
         return self;
     }
 
-    pub fn cue_position(self: CueInventory, index: u32) Vec2 {
+    pub fn cue_position_rotation(self: CueInventory, index: u32) struct { Vec2, f32 } {
         return if (self.owner == .Player)
-            CUE_STORAGE_POSITION_PLAYER.add(
-                .{
-                    .x = -CUE_STORAGE_WIDTH / 2 +
-                        CUE_STORAGE_CUE_WIDTH / 2 +
-                        @as(f32, @floatFromInt(index)) * CUE_STORAGE_CUE_WIDTH,
-                },
-            )
+            .{
+                CUE_STORAGE_POSITION_PLAYER.add(
+                    .{
+                        .x = -CUE_STORAGE_WIDTH / 2 +
+                            CUE_STORAGE_CUE_WIDTH / 2 +
+                            @as(f32, @floatFromInt(index)) * CUE_STORAGE_CUE_WIDTH,
+                    },
+                ),
+                CUE_STORAGE_ROTATION_PLAYER,
+            }
         else
-            CUE_STORAGE_POSITION_OPPONENT.add(
-                .{
-                    .x = -CUE_STORAGE_WIDTH / 2 +
-                        CUE_STORAGE_CUE_WIDTH / 2 +
-                        @as(f32, @floatFromInt(index)) * CUE_STORAGE_CUE_WIDTH,
-                },
-            );
+            .{
+                CUE_STORAGE_POSITION_OPPONENT.add(
+                    .{
+                        .x = -CUE_STORAGE_WIDTH / 2 +
+                            CUE_STORAGE_CUE_WIDTH / 2 +
+                            @as(f32, @floatFromInt(index)) * CUE_STORAGE_CUE_WIDTH,
+                    },
+                ),
+                CUE_STORAGE_ROTATION_OPPONENT,
+            };
     }
 
     pub fn add(self: *CueInventory, cue: Item.Tag) bool {
@@ -1036,7 +1048,8 @@ pub const CueInventory = struct {
         if (self.cues.len == self.cues_n)
             return false;
 
-        self.cues[self.cues_n] = Cue.init(cue, self.cue_position(self.cues_n));
+        const p_r = self.cue_position_rotation(self.cues_n);
+        self.cues[self.cues_n] = Cue.init(cue, p_r[0], p_r[1]);
         self.cues_n += 1;
         return true;
     }

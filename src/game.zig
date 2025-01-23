@@ -49,6 +49,8 @@ const PlayerContext = struct {
     pub fn reset(self: *PlayerContext, owner: Owner) void {
         self.item_inventory = ItemInventory.init(owner);
         self.cue_inventory = CueInventory.init(owner);
+        _ = self.cue_inventory.add(.Cue50CAL);
+        _ = self.cue_inventory.add(.Cue50CAL);
         self.hp = 100;
         self.hp_overhead = 100;
     }
