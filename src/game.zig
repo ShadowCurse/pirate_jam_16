@@ -16,8 +16,10 @@ const CameraController2d = stygian.camera.CameraController2d;
 const _math = stygian.math;
 const Vec2 = _math.Vec2;
 
-const runtime = @import("runtime.zig");
-const InputState = runtime.InputState;
+const _runtime = @import("runtime.zig");
+const GlobalContext = _runtime.GlobalContext;
+
+const UI = @import("ui.zig");
 
 const _objects = @import("objects.zig");
 const Ball = _objects.Ball;
@@ -30,17 +32,16 @@ const Shop = _objects.Shop;
 
 const _animations = @import("animations.zig");
 const BallAnimations = _animations.BallAnimations;
+const StateChangeAnimation = _animations.StateChangeAnimation;
 
 turn_owner: Owner,
 turn_state: TurnState,
 
 player_hp: i32,
 player_hp_overhead: i32,
-
 opponent_hp: i32,
 opponent_hp_overhead: i32,
 
-item_infos: Item.Infos,
 item_inventory: ItemInventory,
 cue_inventory: CueInventory,
 
@@ -48,7 +49,6 @@ texture_ball: Textures.Texture.Id,
 balls: [MAX_BALLS]Ball,
 ball_animations: BallAnimations,
 table: Table,
-
 shop: Shop,
 
 selected_ball: ?u32,
@@ -69,29 +69,14 @@ pub const Owner = enum(u1) {
 
 const Self = @This();
 
-pub fn init(
-    self: *Self,
-    memory: *Memory,
-    texture_store: *Textures.Store,
-) void {
-    self.texture_ball = texture_store.load(memory, "assets/ball_prototype.png");
-    self.table = Table.init(texture_store.load(memory, "assets/table_prototype.png"));
-
-    inline for (&self.item_infos.infos, 0..) |*info, i| {
-        info.* = .{
-            .texture_id = Textures.Texture.ID_DEBUG,
-            .name = std.fmt.comptimePrint("item info: {d}", .{i}),
-            .description = std.fmt.comptimePrint("item description: {d}", .{i}),
-            .price = 5,
-        };
-    }
-    self.item_infos.get_mut(.CueDefault).texture_id =
-        texture_store.load(memory, "assets/cue_prototype.png");
-
-    for (&self.item_infos.infos) |*info| {
-        log.info(@src(), "{any}", .{info.*});
-    }
-
+pub fn init(self: *Self, context: *GlobalContext) void {
+    self.texture_ball = context.texture_store.load(
+        context.memory,
+        "assets/ball_prototype.png",
+    );
+    self.table = Table.init(
+        context.texture_store.load(context.memory, "assets/table_prototype.png"),
+    );
     self.restart();
 }
 
@@ -129,20 +114,33 @@ pub fn restart(self: *Self) void {
 
 pub fn update_and_draw(
     self: *Self,
-    allocator: Allocator,
-    input_state: *const InputState,
-    camera_controller: *const CameraController2d,
-    font: *const Font,
-    texture_store: *const Textures.Store,
-    screen_quads: *ScreenQuads,
-    dt: f32,
-    in_shop: bool,
+    context: *GlobalContext,
 ) void {
-    self.table.to_screen_quad(
-        camera_controller,
-        texture_store,
-        screen_quads,
-    );
+    if (context.state.main_menu)
+        self.main_menu(context);
+    if (context.state.settings)
+        self.settings(context);
+    if (context.state.in_game)
+        self.in_game(context);
+    if (context.state.in_game_shop)
+        self.in_game_shop(context);
+    if (context.state.debug)
+        self.debug(context);
+}
+
+pub fn main_menu(self: *Self, context: *GlobalContext) void {
+    UI.main_menu(self, context);
+}
+
+pub fn settings(self: *Self, context: *GlobalContext) void {
+    _ = self;
+    UI.settings(context);
+}
+
+pub fn in_game(self: *Self, context: *GlobalContext) void {
+    UI.in_game(self, context);
+
+    self.table.to_screen_quad(context);
 
     const selected_item = self.item_inventory.selected();
     for (&self.balls) |*ball| {
@@ -157,36 +155,11 @@ pub fn update_and_draw(
         const show_info = is_selected and !self.is_aiming and self.turn_state == .NotTaken;
 
         const r = if (ball.owner != self.turn_owner) blk: {
-            break :blk ball.to_screen_quads(
-                show_info,
-                null,
-                allocator,
-                input_state,
-                font,
-                camera_controller,
-                texture_store,
-                screen_quads,
-            );
+            break :blk ball.to_screen_quads(context, show_info, null);
         } else blk: {
-            const r = ball.to_screen_quads(
-                show_info,
-                selected_item,
-                allocator,
-                input_state,
-                font,
-                camera_controller,
-                texture_store,
-                screen_quads,
-            );
+            const r = ball.to_screen_quads(context, show_info, selected_item);
             if (is_selected) {
-                const pbo = ball.previous_positions_to_object_2d();
-                for (&pbo) |pb| {
-                    pb.to_screen_quad(
-                        camera_controller,
-                        texture_store,
-                        screen_quads,
-                    );
-                }
+                ball.previous_positions_to_object_2d(context);
             }
             break :blk r;
         };
@@ -211,39 +184,24 @@ pub fn update_and_draw(
         }
     }
 
-    self.item_inventory.to_screen_quads(
-        allocator,
-        font,
-        &self.item_infos,
-        camera_controller,
-        texture_store,
-        screen_quads,
-        in_shop,
-    );
+    self.item_inventory.to_screen_quads(context);
 
-    if (self.cue_inventory.update_and_draw(
-        selected_item,
-        input_state,
-        &self.item_infos,
-        camera_controller,
-        texture_store,
-        screen_quads,
-    ))
+    if (self.cue_inventory.update_and_draw(context, selected_item))
         self.item_inventory.item_used();
 
     switch (self.turn_state) {
         .NotTaken => {
             if (!self.is_aiming) {
-                self.is_aiming = self.selected_ball != null and input_state.rmb;
+                self.is_aiming = self.selected_ball != null and context.input.rmb;
                 self.cue_inventory.selected().move_storage();
-                self.item_inventory.update(input_state, in_shop);
+                self.item_inventory.update(context);
             } else {
                 if (self.selected_ball) |sb| {
                     const ball = &self.balls[sb];
-                    const hit_vector = input_state.mouse_pos_world.sub(ball.body.position);
+                    const hit_vector = context.input.mouse_pos_world.sub(ball.body.position);
                     self.cue_inventory.selected().move_aiming(ball.body.position, hit_vector);
 
-                    if (!input_state.rmb) {
+                    if (!context.input.rmb) {
                         // We hit in the opposite direction of the "to_mouse" direction
                         ball.body.velocity = ball.body.velocity.add(hit_vector.neg());
                         self.turn_state = .Shooting;
@@ -260,21 +218,21 @@ pub fn update_and_draw(
                     continue;
 
                 if (ball.owner == self.turn_owner and
-                    ball.is_hovered(input_state.mouse_pos_world) and
-                    input_state.lmb)
+                    ball.is_hovered(context.input.mouse_pos_world) and
+                    context.input.lmb)
                 {
                     new_ball_selected = true;
                     self.selected_ball = ball.id;
                 }
             }
-            if (!new_ball_selected and input_state.lmb)
+            if (!new_ball_selected and context.input.lmb)
                 self.selected_ball = null;
         },
         .Shooting => {
             const sb = self.selected_ball.?;
             const ball_position = self.balls[sb].body.position;
-            const hit_vector = input_state.mouse_pos_world.sub(ball_position);
-            if (self.cue_inventory.selected().move_shoot(ball_position, hit_vector, dt))
+            const hit_vector = context.input.mouse_pos_world.sub(ball_position);
+            if (self.cue_inventory.selected().move_shoot(ball_position, hit_vector, context.dt))
                 self.turn_state = .Taken;
         },
         .Taken => {
@@ -283,7 +241,7 @@ pub fn update_and_draw(
             for (&self.balls) |*ball| {
                 if (ball.disabled)
                     continue;
-                ball.update(&self.table, &self.balls, self.turn_owner, dt);
+                ball.update(&self.table, &self.balls, self.turn_owner, context.dt);
             }
 
             var new_player_hp: i32 = 0;
@@ -340,7 +298,7 @@ pub fn update_and_draw(
                     disabled_or_stationary += 1;
                 }
             }
-            if (self.ball_animations.run(&self.balls, dt) and
+            if (self.ball_animations.run(&self.balls, context.dt) and
                 disabled_or_stationary == self.balls.len)
             {
                 self.turn_owner = if (self.turn_owner == .Player) .Opponent else .Player;
@@ -351,25 +309,9 @@ pub fn update_and_draw(
     }
 }
 
-pub fn draw_shop(
-    self: *Self,
-    allocator: Allocator,
-    input_state: *const InputState,
-    camera_controller: *const CameraController2d,
-    font: *const Font,
-    texture_store: *const Textures.Store,
-    screen_quads: *ScreenQuads,
-) void {
-    if (self.shop.update_and_draw(
-        allocator,
-        input_state,
-        font,
-        &self.item_infos,
-        camera_controller,
-        texture_store,
-        screen_quads,
-    )) |item| {
-        const item_info = self.item_infos.get(item);
+pub fn in_game_shop(self: *Self, context: *GlobalContext) void {
+    if (self.shop.update_and_draw(context)) |item| {
+        const item_info = context.item_infos.get(item);
         if (item_info.price <= self.player_hp_overhead) {
             if (item.is_cue()) {
                 if (self.cue_inventory.add(item)) {
@@ -390,4 +332,9 @@ pub fn draw_shop(
             log.info(@src(), "Cannot add item to the inventory: Need more money", .{});
         }
     }
+}
+
+pub fn debug(self: *Self, context: *GlobalContext) void {
+    _ = self;
+    UI.debug(context);
 }

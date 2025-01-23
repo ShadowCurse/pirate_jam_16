@@ -6,8 +6,8 @@ const _math = stygian.math;
 const Vec2 = _math.Vec2;
 const Vec3 = _math.Vec3;
 
-const runtime = @import("runtime.zig");
-const GameState = runtime.GameState;
+const _runtime = @import("runtime.zig");
+const State = _runtime.State;
 
 const _objects = @import("objects.zig");
 const Ball = _objects.Ball;
@@ -27,39 +27,39 @@ pub const SmoothStepAnimation = struct {
     }
 };
 
-pub const GameStateChangeAnimation = struct {
-    camera_controller: *CameraController2d,
+pub const StateChangeAnimation = struct {
+    camera: *CameraController2d,
     animation: ?SmoothStepAnimation = null,
-    game_state: *GameState,
-    final_game_state: GameState = .{},
+    state: *State,
+    final_state: State = .{},
 
     const DURATION = 1.0;
 
-    pub fn is_playing(self: GameStateChangeAnimation) bool {
+    pub fn is_playing(self: StateChangeAnimation) bool {
         return self.animation != null;
     }
 
     pub fn set(
-        self: *GameStateChangeAnimation,
+        self: *StateChangeAnimation,
         target_position: Vec2,
-        final_game_state: GameState,
+        final_state: State,
     ) void {
-        const camera_worl_position = self.camera_controller.world_position().xy();
+        const camera_worl_position = self.camera.world_position().xy();
         const delta = target_position.sub(camera_worl_position);
         self.animation = .{
-            .start_position = self.camera_controller.position,
-            .end_position = self.camera_controller.position.add(delta.extend(0.0)),
+            .start_position = self.camera.position,
+            .end_position = self.camera.position.add(delta.extend(0.0)),
             .duration = DURATION,
             .progress = 0.0,
         };
-        self.final_game_state = final_game_state;
+        self.final_state = final_state;
     }
 
-    pub fn update(self: *GameStateChangeAnimation, dt: f32) void {
+    pub fn update(self: *StateChangeAnimation, dt: f32) void {
         if (self.animation) |*a| {
-            if (a.update(&self.camera_controller.position, dt)) {
+            if (a.update(&self.camera.position, dt)) {
                 self.animation = null;
-                self.game_state.* = self.final_game_state;
+                self.state.* = self.final_state;
             }
         }
     }

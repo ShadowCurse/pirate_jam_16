@@ -20,74 +20,171 @@ const sdl = stygian.bindings.sdl;
 const Color = stygian.color.Color;
 const ScreenQuads = stygian.screen_quads;
 
-const Text = stygian.text;
 const Font = stygian.font;
 const Memory = stygian.memory;
-const Physics = stygian.physics;
 const Textures = stygian.textures;
 const Start = stygian.platform.start;
 const Events = stygian.platform.event;
 const SoftRenderer = stygian.soft_renderer.renderer;
 const CameraController2d = stygian.camera.CameraController2d;
 
-const Object2d = stygian.objects.Object2d;
-
 const _math = stygian.math;
 const Vec2 = _math.Vec2;
-const Vec3 = _math.Vec3;
-
-const _objects = @import("objects.zig");
-const Ball = _objects.Ball;
-const Table = _objects.Table;
 
 const _animations = @import("animations.zig");
-const GameStateChangeAnimation = _animations.GameStateChangeAnimation;
+const StateChangeAnimation = _animations.StateChangeAnimation;
 
-const _ui = @import("ui.zig");
-const UiText = _ui.UiText;
-const UiPanel = _ui.UiPanel;
+const _objects = @import("objects.zig");
+const Item = _objects.Item;
 
+const UI = @import("ui.zig");
 const Game = @import("game.zig");
 
-pub const GameState = packed struct(u8) {
+pub const State = packed struct(u8) {
     main_menu: bool = true,
     settings: bool = false,
     in_game: bool = false,
     in_game_shop: bool = false,
-    debug: bool = true,
+    debug: bool = false,
     _: u3 = 0,
 };
 
-pub const CAMERA_MAIN_MENU: Vec2 = .{ .x = -1280.0 };
-pub const CAMERA_SETTINGS: Vec2 = .{ .x = -1280.0, .y = 1000.0 };
-pub const CAMERA_IN_GAME: Vec2 = .{};
-pub const CAMERA_IN_GAME_SHOP: Vec2 = .{ .y = 617 };
-
-const UI_BACKGROUND_COLOR = Color.GREY;
-const UI_BACKGROUND_COLOR_PLAYING = Color.GREEN;
-
-pub const InputState = struct {
+pub const Input = struct {
     lmb: bool = false,
     rmb: bool = false,
+    space: bool = false,
     mouse_pos: Vec2 = .{},
     mouse_pos_world: Vec2 = .{},
+
+    pub fn update(
+        self: *Input,
+        events: []const Events.Event,
+        window_width: u32,
+        window_height: u32,
+        mouse_x: u32,
+        mouse_y: u32,
+        camera: *const CameraController2d,
+    ) void {
+        _ = window_height;
+
+        const screen_scale = 1280.0 / @as(f32, @floatFromInt(window_width));
+        self.mouse_pos = (Vec2{
+            .x = @floatFromInt(mouse_x),
+            .y = @floatFromInt(mouse_y),
+        }).mul_f32(screen_scale);
+        self.mouse_pos_world = self.mouse_pos
+            .add(camera.position.xy());
+
+        for (events) |event| {
+            switch (event) {
+                .Mouse => |mouse| {
+                    switch (mouse) {
+                        .Button => |button| {
+                            if (button.key == .LMB)
+                                self.lmb = button.type == .Pressed;
+                            if (button.key == .RMB)
+                                self.rmb = button.type == .Pressed;
+                        },
+                        else => {},
+                    }
+                },
+                .Keyboard => |key| {
+                    switch (key.key) {
+                        .SPACE => self.space = key.type == .Pressed,
+                        else => {},
+                    }
+                },
+                else => {},
+            }
+        }
+    }
+};
+
+pub const GlobalContext = struct {
+    memory: *Memory,
+    screen_quads: ScreenQuads,
+    texture_store: Textures.Store,
+    font: Font,
+    state: State,
+    state_change_animation: StateChangeAnimation,
+    input: Input,
+    camera: CameraController2d,
+    item_infos: Item.Infos,
+    dt: f32,
+
+    pub fn init(
+        self: *GlobalContext,
+        memory: *Memory,
+        window_width: u32,
+        window_height: u32,
+    ) void {
+        self.memory = memory;
+        self.screen_quads = ScreenQuads.init(memory, 4096) catch unreachable;
+        self.texture_store.init(memory) catch unreachable;
+        self.font = Font.init(memory, &self.texture_store, "assets/Hack-Regular.ttf", 64);
+
+        self.state = .{};
+        self.state_change_animation = .{
+            .camera = &self.camera,
+            .state = &self.state,
+        };
+
+        self.input = .{};
+
+        self.camera = CameraController2d.init(window_width, window_height);
+        self.camera.position = self.camera.position
+            .add(UI.CAMERA_MAIN_MENU.extend(0.0));
+
+        inline for (&self.item_infos.infos, 0..) |*info, i| {
+            info.* = .{
+                .texture_id = Textures.Texture.ID_DEBUG,
+                .name = std.fmt.comptimePrint("item info: {d}", .{i}),
+                .description = std.fmt.comptimePrint("item description: {d}", .{i}),
+                .price = 5,
+            };
+        }
+        self.item_infos.get_mut(.CueDefault).texture_id =
+            self.texture_store.load(memory, "assets/cue_prototype.png");
+        self.dt = 0.0;
+    }
+
+    pub fn alloc(self: *GlobalContext) Allocator {
+        return self.memory.scratch_alloc();
+    }
+
+    pub fn reset(self: *GlobalContext) void {
+        self.screen_quads.reset();
+    }
+
+    pub fn update(
+        self: *GlobalContext,
+        events: []const Events.Event,
+        window_width: u32,
+        window_height: u32,
+        mouse_x: u32,
+        mouse_y: u32,
+        dt: f32,
+    ) void {
+        self.input.update(
+            events,
+            window_width,
+            window_height,
+            mouse_x,
+            mouse_y,
+            &self.camera,
+        );
+        if (self.input.space)
+            self.state.debug = !self.state.debug;
+        self.dt = dt;
+        self.state_change_animation.update(dt);
+    }
 };
 
 const Runtime = struct {
-    camera_controller: CameraController2d,
-
-    texture_store: Textures.Store,
-    font: Font,
-
-    screen_quads: ScreenQuads,
     soft_renderer: SoftRenderer,
 
-    game_state: GameState,
-    input_state: InputState,
-    game_state_change_animation: GameStateChangeAnimation,
+    context: GlobalContext,
     game: Game,
-
-    show_perf: bool,
 
     const Self = @This();
 
@@ -95,26 +192,12 @@ const Runtime = struct {
         self: *Self,
         window: *sdl.SDL_Window,
         memory: *Memory,
-        width: u32,
-        height: u32,
+        window_width: u32,
+        window_height: u32,
     ) !void {
-        self.camera_controller = CameraController2d.init(width, height);
-        self.camera_controller.position = self.camera_controller.position
-            .add(CAMERA_MAIN_MENU.extend(0.0));
-        try self.texture_store.init(memory);
-        self.font = Font.init(memory, &self.texture_store, "assets/Hack-Regular.ttf", 64);
-        self.screen_quads = try ScreenQuads.init(memory, 4096);
-        self.soft_renderer = SoftRenderer.init(memory, window, width, height);
-
-        self.game_state = .{};
-        self.input_state = .{};
-        self.game_state_change_animation = .{
-            .camera_controller = &self.camera_controller,
-            .game_state = &self.game_state,
-        };
-        self.game.init(memory, &self.texture_store);
-
-        self.show_perf = false;
+        self.soft_renderer = SoftRenderer.init(memory, window, window_width, window_height);
+        self.context.init(memory, window_width, window_height);
+        self.game.init(&self.context);
     }
 
     fn run(
@@ -127,94 +210,47 @@ const Runtime = struct {
         mouse_x: u32,
         mouse_y: u32,
     ) void {
-        _ = window_height;
-
         const scratch_alloc = memory.scratch_alloc();
+        self.context.reset();
 
-        self.screen_quads.reset();
-
-        if (self.show_perf) {
+        if (self.context.state.debug) {
             const TaceableTypes = struct {
                 SoftRenderer,
                 ScreenQuads,
-                Ball,
-                Table,
             };
             Tracing.prepare_next_frame(TaceableTypes);
             Tracing.to_screen_quads(
                 TaceableTypes,
                 scratch_alloc,
-                &self.screen_quads,
-                &self.font,
+                &self.context.screen_quads,
+                &self.context.font,
                 32.0,
             );
             Tracing.zero_current(TaceableTypes);
         }
 
-        const screen_scale = 1280.0 / @as(f32, @floatFromInt(window_width));
-        self.input_state.mouse_pos = (Vec2{
-            .x = @floatFromInt(mouse_x),
-            .y = @floatFromInt(mouse_y),
-        }).mul_f32(screen_scale);
-        self.input_state.mouse_pos_world = self.input_state.mouse_pos
-            .add(self.camera_controller.position.xy());
-
-        for (events) |event| {
-            switch (event) {
-                .Mouse => |mouse| {
-                    switch (mouse) {
-                        .Button => |button| {
-                            if (button.key == .LMB)
-                                self.input_state.lmb = button.type == .Pressed;
-                            if (button.key == .RMB)
-                                self.input_state.rmb = button.type == .Pressed;
-                        },
-                        else => {},
-                    }
-                },
-                else => {},
-            }
-        }
-
-        self.game_state_change_animation.update(dt);
-
-        if (self.game_state.main_menu)
-            self.main_menu(
-                memory,
-                dt,
-                events,
-            );
-        if (self.game_state.settings)
-            self.settings(
-                memory,
-                dt,
-                events,
-            );
-        if (self.game_state.in_game)
-            self.in_game(
-                memory,
-                dt,
-                events,
-            );
-        if (self.game_state.debug)
-            self.debug(
-                memory,
-                dt,
-                events,
-            );
+        self.context.update(
+            events,
+            window_width,
+            window_height,
+            mouse_x,
+            mouse_y,
+            dt,
+        );
+        self.game.update_and_draw(&self.context);
 
         self.soft_renderer.start_rendering();
-        self.screen_quads.render(
+        self.context.screen_quads.render(
             &self.soft_renderer,
             0.0,
-            &self.texture_store,
+            &self.context.texture_store,
         );
         if (self.game.is_aiming) {
             const ball_world_position =
                 self.game.balls[self.game.selected_ball.?].body.position;
             const ball_screen_positon =
-                ball_world_position.sub(self.camera_controller.position.xy());
-            const end_positon = self.input_state.mouse_pos;
+                ball_world_position.sub(self.context.camera.position.xy());
+            const end_positon = self.context.input.mouse_pos;
             self.soft_renderer.draw_line(
                 ball_screen_positon,
                 end_positon,
@@ -222,330 +258,6 @@ const Runtime = struct {
             );
         }
         self.soft_renderer.end_rendering();
-    }
-
-    fn main_menu(
-        self: *Self,
-        memory: *Memory,
-        dt: f32,
-        events: []const Events.Event,
-    ) void {
-        _ = dt;
-        _ = events;
-
-        const scratch_alloc = memory.scratch_alloc();
-
-        const start_button = UiText.init(
-            CAMERA_MAIN_MENU,
-            &self.font,
-            "Start",
-            32.0,
-        );
-        if (start_button.to_screen_quads_world_space(
-            scratch_alloc,
-            self.input_state.mouse_pos_world,
-            &self.camera_controller,
-            &self.screen_quads,
-        ) and self.input_state.lmb) {
-            self.game.restart();
-
-            self.game_state.in_game = true;
-            const final_game_state: GameState = .{ .in_game = true };
-            self.game_state_change_animation.set(CAMERA_IN_GAME, final_game_state);
-        }
-
-        const settings_button = UiText.init(
-            CAMERA_MAIN_MENU.add(.{ .y = 50.0 }),
-            &self.font,
-            "Settings",
-            32.0,
-        );
-        if (settings_button.to_screen_quads_world_space(
-            scratch_alloc,
-            self.input_state.mouse_pos_world,
-            &self.camera_controller,
-            &self.screen_quads,
-        ) and self.input_state.lmb) {
-            self.game_state.settings = true;
-            const final_game_state: GameState = .{ .settings = true };
-            self.game_state_change_animation.set(CAMERA_SETTINGS, final_game_state);
-        }
-    }
-
-    fn settings(
-        self: *Self,
-        memory: *Memory,
-        dt: f32,
-        events: []const Events.Event,
-    ) void {
-        _ = dt;
-        _ = events;
-
-        const scratch_alloc = memory.scratch_alloc();
-
-        const back_button = UiText.init(
-            CAMERA_SETTINGS,
-            &self.font,
-            "Back",
-            32.0,
-        );
-        if (back_button.to_screen_quads_world_space(
-            scratch_alloc,
-            self.input_state.mouse_pos_world,
-            &self.camera_controller,
-            &self.screen_quads,
-        ) and self.input_state.lmb) {
-            self.game_state.main_menu = true;
-            const final_game_state: GameState = .{ .main_menu = true };
-            self.game_state_change_animation.set(CAMERA_MAIN_MENU, final_game_state);
-        }
-    }
-
-    fn in_game(
-        self: *Self,
-        memory: *Memory,
-        dt: f32,
-        events: []const Events.Event,
-    ) void {
-        _ = events;
-
-        const scratch_alloc = memory.scratch_alloc();
-
-        // UI section
-        const top_panel = UiPanel.init(
-            .{ .y = -310.0 },
-            .{ .x = 900.0, .y = 80.0 },
-            UI_BACKGROUND_COLOR,
-        );
-        top_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
-
-        const bot_panel = UiPanel.init(
-            .{ .y = 310.0 },
-            .{ .x = 900.0, .y = 80.0 },
-            UI_BACKGROUND_COLOR,
-        );
-        bot_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
-
-        const left_info_opponent_panel = UiPanel.init(
-            .{ .x = -550.0, .y = -300 },
-            .{ .x = 140.0, .y = 100.0 },
-            if (self.game.turn_owner == .Opponent) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
-        );
-        left_info_opponent_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
-
-        const left_info_player_panel = UiPanel.init(
-            .{ .x = -550.0, .y = 300 },
-            .{ .x = 140.0, .y = 100.0 },
-            if (self.game.turn_owner == .Player) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
-        );
-        left_info_player_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
-
-        const opponent_hp = std.fmt.allocPrint(
-            scratch_alloc,
-            "HP: {d}",
-            .{self.game.opponent_hp},
-        ) catch unreachable;
-        const opponent_hp_text = UiText.init(
-            .{ .x = -550.0, .y = -300 },
-            &self.font,
-            opponent_hp,
-            25.0,
-        );
-        _ = opponent_hp_text.to_screen_quads_world_space(
-            scratch_alloc,
-            self.input_state.mouse_pos_world,
-            &self.camera_controller,
-            &self.screen_quads,
-        );
-        const opponent_hp_overhead = std.fmt.allocPrint(
-            scratch_alloc,
-            "HP overhead: {d}",
-            .{self.game.opponent_hp_overhead},
-        ) catch unreachable;
-        const opponent_hp_overhead_text = UiText.init(
-            .{ .x = -550.0, .y = -280 },
-            &self.font,
-            opponent_hp_overhead,
-            25.0,
-        );
-        _ = opponent_hp_overhead_text.to_screen_quads_world_space(
-            scratch_alloc,
-            self.input_state.mouse_pos_world,
-            &self.camera_controller,
-            &self.screen_quads,
-        );
-
-        const player_hp = std.fmt.allocPrint(
-            scratch_alloc,
-            "HP: {d}",
-            .{self.game.player_hp},
-        ) catch unreachable;
-        const player_hp_text = UiText.init(
-            .{ .x = -550.0, .y = 300 },
-            &self.font,
-            player_hp,
-            25.0,
-        );
-        _ = player_hp_text.to_screen_quads_world_space(
-            scratch_alloc,
-            self.input_state.mouse_pos_world,
-            &self.camera_controller,
-            &self.screen_quads,
-        );
-        const player_hp_overhead = std.fmt.allocPrint(
-            scratch_alloc,
-            "HP overhead: {d}",
-            .{self.game.player_hp_overhead},
-        ) catch unreachable;
-        const player_hp_overhead_text = UiText.init(
-            .{ .x = -550.0, .y = 320 },
-            &self.font,
-            player_hp_overhead,
-            25.0,
-        );
-        _ = player_hp_overhead_text.to_screen_quads_world_space(
-            scratch_alloc,
-            self.input_state.mouse_pos_world,
-            &self.camera_controller,
-            &self.screen_quads,
-        );
-
-        const left_cue_panel = UiPanel.init(
-            .{ .x = -550.0 },
-            .{ .x = 140.0, .y = 480.0 },
-            UI_BACKGROUND_COLOR,
-        );
-        left_cue_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
-
-        const right_cue_panel = UiPanel.init(
-            .{ .x = 550.0 },
-            .{ .x = 140.0, .y = 480.0 },
-            UI_BACKGROUND_COLOR,
-        );
-        right_cue_panel.to_screen_quad(&self.camera_controller, &self.screen_quads);
-
-        const shop_button = UiText.init(
-            .{ .x = 350.0, .y = 320.0 },
-            &self.font,
-            "SHOP",
-            32.0,
-        );
-        if (shop_button.to_screen_quads_world_space(
-            scratch_alloc,
-            self.input_state.mouse_pos_world,
-            &self.camera_controller,
-            &self.screen_quads,
-        ) and self.input_state.lmb and
-            !self.game_state_change_animation.is_playing())
-        {
-            if (self.game_state.in_game_shop) {
-                const final_game_state: GameState = .{ .in_game = true };
-                self.game_state_change_animation.set(CAMERA_IN_GAME, final_game_state);
-            } else {
-                self.game_state.in_game_shop = true;
-                const final_game_state = self.game_state;
-                self.game_state_change_animation.set(CAMERA_IN_GAME_SHOP, final_game_state);
-            }
-        }
-
-        const back_button = UiText.init(
-            .{ .x = 550.0, .y = 320.0 },
-            &self.font,
-            "GIVE UP",
-            32.0,
-        );
-        if (back_button.to_screen_quads_world_space(
-            scratch_alloc,
-            self.input_state.mouse_pos_world,
-            &self.camera_controller,
-            &self.screen_quads,
-        ) and self.input_state.lmb) {
-            self.game_state.main_menu = true;
-            const final_game_state: GameState = .{ .main_menu = true };
-            self.game_state_change_animation.set(CAMERA_MAIN_MENU, final_game_state);
-        }
-
-        self.game.update_and_draw(
-            scratch_alloc,
-            &self.input_state,
-            &self.camera_controller,
-            &self.font,
-            &self.texture_store,
-            &self.screen_quads,
-            dt,
-            self.game_state.in_game_shop,
-        );
-        if (self.game_state.in_game_shop)
-            self.game.draw_shop(
-                scratch_alloc,
-                &self.input_state,
-                &self.camera_controller,
-                &self.font,
-                &self.texture_store,
-                &self.screen_quads,
-            );
-    }
-
-    fn debug(
-        self: *Self,
-        memory: *Memory,
-        dt: f32,
-        events: []const Events.Event,
-    ) void {
-        _ = events;
-
-        const scratch_alloc = memory.scratch_alloc();
-        const perf_button = UiText.init(
-            .{
-                .x = Start.WINDOW_WIDTH / 2.0,
-                .y = Start.WINDOW_HEIGHT / 2.0 + 300.0,
-            },
-            &self.font,
-            std.fmt.allocPrint(
-                scratch_alloc,
-                "FPS: {d:.1} FT: {d:.3}s, SCRATCH_ALLOC: {d}",
-                .{
-                    1.0 / dt,
-                    dt,
-                    memory.scratch_allocator.total_allocated,
-                },
-            ) catch unreachable,
-            32.0,
-        );
-        if (perf_button.to_screen_quads(
-            scratch_alloc,
-            self.input_state.mouse_pos,
-            &self.screen_quads,
-        ) and
-            self.input_state.lmb)
-            self.show_perf = !self.show_perf;
-
-        // for (&self.balls, 0..) |*ball, i| {
-        //     const text_ball_info = Text.init(
-        //         &self.font,
-        //         std.fmt.allocPrint(
-        //             frame_alloc,
-        //             "ball id: {d}, position: {d: >8.1}/{d: >8.1}, disabled: {}, p_index: {d: >2}",
-        //             .{
-        //                 ball.id,
-        //                 ball.body.position.x,
-        //                 ball.body.position.y,
-        //                 ball.disabled,
-        //                 ball.previous_position_index,
-        //             },
-        //         ) catch unreachable,
-        //         25.0,
-        //         .{
-        //             .x = @as(f32, @floatFromInt(window_width)) / 2.0,
-        //             .y = @as(f32, @floatFromInt(window_height)) / 2.0 + 200.0 +
-        //                 25.0 * @as(f32, @floatFromInt(i)),
-        //         },
-        //         0.0,
-        //         .{},
-        //         .{ .dont_clip = true },
-        //     );
-        //     text_ball_info.to_screen_quads(frame_alloc, &self.screen_quads);
-        // }
     }
 };
 

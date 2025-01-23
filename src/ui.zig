@@ -14,6 +14,19 @@ const CameraController2d = stygian.camera.CameraController2d;
 const _math = stygian.math;
 const Vec2 = _math.Vec2;
 
+const _runtime = @import("runtime.zig");
+const GlobalContext = _runtime.GlobalContext;
+
+const Game = @import("game.zig");
+
+pub const CAMERA_MAIN_MENU: Vec2 = .{ .x = -1280.0 };
+pub const CAMERA_SETTINGS: Vec2 = .{ .x = -1280.0, .y = 1000.0 };
+pub const CAMERA_IN_GAME: Vec2 = .{};
+pub const CAMERA_IN_GAME_SHOP: Vec2 = .{ .y = 617 };
+
+const UI_BACKGROUND_COLOR = Color.GREY;
+const UI_BACKGROUND_COLOR_PLAYING = Color.GREEN;
+
 pub const UiPanel = struct {
     position: Vec2,
     size: Vec2,
@@ -29,11 +42,10 @@ pub const UiPanel = struct {
 
     pub fn to_screen_quad(
         self: UiPanel,
-        camera_controller: *const CameraController2d,
-        screen_quads: *ScreenQuads,
+        context: *GlobalContext,
     ) void {
-        const position = camera_controller.transform(self.position.extend(0.0));
-        screen_quads.add_quad(.{
+        const position = context.camera.transform(self.position.extend(0.0));
+        context.screen_quads.add_quad(.{
             .color = self.color,
             .texture_id = Textures.Texture.ID_SOLID_COLOR,
             .position = position.xy().extend(0.0),
@@ -62,11 +74,9 @@ pub const UiText = struct {
 
     pub fn to_screen_quads(
         self: UiText,
-        allocator: Allocator,
-        mouse_pos: Vec2,
-        screen_quads: *ScreenQuads,
+        context: *GlobalContext,
     ) bool {
-        const text_quads = self.text.to_screen_quads_raw(allocator);
+        const text_quads = self.text.to_screen_quads_raw(context.alloc());
         const collision_rectangle: Physics.Rectangle = .{
             .size = .{
                 .x = text_quads.total_width,
@@ -76,7 +86,7 @@ pub const UiText = struct {
         const rectangle_position: Vec2 =
             self.text.position.xy().add(.{ .y = -self.text.size / 2.0 });
         const intersects = Physics.point_rectangle_intersect(
-            mouse_pos,
+            context.input.mouse_pos,
             collision_rectangle,
             rectangle_position,
         );
@@ -87,19 +97,19 @@ pub const UiText = struct {
             }
         }
         for (text_quads.quads) |quad| {
-            screen_quads.add_quad(quad);
+            context.screen_quads.add_quad(quad);
         }
         return intersects;
     }
 
     pub fn to_screen_quads_world_space(
         self: UiText,
-        allocator: Allocator,
-        mouse_pos: Vec2,
-        camera_controller: *const CameraController2d,
-        screen_quads: *ScreenQuads,
+        context: *GlobalContext,
     ) bool {
-        const text_quads = self.text.to_screen_quads_world_space_raw(allocator, camera_controller);
+        const text_quads = self.text.to_screen_quads_world_space_raw(
+            context.alloc(),
+            &context.camera,
+        );
         const collision_rectangle: Physics.Rectangle = .{
             .size = .{
                 .x = text_quads.total_width,
@@ -109,7 +119,7 @@ pub const UiText = struct {
         const rectangle_position: Vec2 =
             self.text.position.xy().add(.{ .y = -self.text.size / 2.0 });
         const intersects = Physics.point_rectangle_intersect(
-            mouse_pos,
+            context.input.mouse_pos_world,
             collision_rectangle,
             rectangle_position,
         );
@@ -120,7 +130,7 @@ pub const UiText = struct {
             }
         }
         for (text_quads.quads) |quad| {
-            screen_quads.add_quad(quad);
+            context.screen_quads.add_quad(quad);
         }
         return intersects;
     }
@@ -146,8 +156,7 @@ pub const UiDashedLine = struct {
 
     pub fn to_screen_quads(
         self: UiDashedLine,
-        camera_controller: *const CameraController2d,
-        screen_quads: *ScreenQuads,
+        context: *GlobalContext,
     ) void {
         const delta = self.end.sub(self.start);
         const delta_len = delta.len();
@@ -161,9 +170,9 @@ pub const UiDashedLine = struct {
             delta_len - @as(f32, @floatFromInt(num_segments)) * TOTAL_SEGMENT_LEN - ARROW_DELTA;
         var segment_positon = self.start.add(delta_normalized.mul_f32(SEGMENT_LENGTH / 2));
         for (0..num_segments) |_| {
-            const position = camera_controller.transform(segment_positon.extend(0.0));
+            const position = context.camera.transform(segment_positon.extend(0.0));
             const size: Vec2 = .{ .x = WIDTH, .y = SEGMENT_LENGTH };
-            screen_quads.add_quad(.{
+            context.screen_quads.add_quad(.{
                 .color = COLOR,
                 .texture_id = Textures.Texture.ID_SOLID_COLOR,
                 .position = position.xy().extend(0.0),
@@ -181,9 +190,9 @@ pub const UiDashedLine = struct {
             segment_positon = segment_positon
                 .add(delta_normalized
                 .mul_f32(-SEGMENT_LENGTH / 2 + last_segment_len / 2.0));
-            const position = camera_controller.transform(segment_positon.extend(0.0));
+            const position = context.camera.transform(segment_positon.extend(0.0));
             const size: Vec2 = .{ .x = WIDTH, .y = last_segment_len };
-            screen_quads.add_quad(.{
+            context.screen_quads.add_quad(.{
                 .color = COLOR,
                 .texture_id = Textures.Texture.ID_SOLID_COLOR,
                 .position = position.xy().extend(0.0),
@@ -198,9 +207,9 @@ pub const UiDashedLine = struct {
         {
             const arrow_left_segment_positon = self.end.add(delta_normalized
                 .mul_f32(-ARROW_DELTA)).add(delta_perp.mul_f32(ARROW_DELTA_PERP));
-            const position = camera_controller.transform(arrow_left_segment_positon.extend(0.0));
+            const position = context.camera.transform(arrow_left_segment_positon.extend(0.0));
             const size: Vec2 = .{ .x = WIDTH, .y = SEGMENT_LENGTH };
-            screen_quads.add_quad(.{
+            context.screen_quads.add_quad(.{
                 .color = COLOR,
                 .texture_id = Textures.Texture.ID_SOLID_COLOR,
                 .position = position.xy().extend(0.0),
@@ -213,9 +222,9 @@ pub const UiDashedLine = struct {
         {
             const arrow_right_segment_positon = self.end.add(delta_normalized
                 .mul_f32(-ARROW_DELTA)).add(delta_perp.mul_f32(-ARROW_DELTA_PERP));
-            const position = camera_controller.transform(arrow_right_segment_positon.extend(0.0));
+            const position = context.camera.transform(arrow_right_segment_positon.extend(0.0));
             const size: Vec2 = .{ .x = WIDTH, .y = SEGMENT_LENGTH };
-            screen_quads.add_quad(.{
+            context.screen_quads.add_quad(.{
                 .color = COLOR,
                 .texture_id = Textures.Texture.ID_SOLID_COLOR,
                 .position = position.xy().extend(0.0),
@@ -226,3 +235,195 @@ pub const UiDashedLine = struct {
         }
     }
 };
+
+pub fn main_menu(game: *Game, context: *GlobalContext) void {
+    const start_button = UiText.init(
+        CAMERA_MAIN_MENU,
+        &context.font,
+        "Start",
+        32.0,
+    );
+    if (start_button.to_screen_quads_world_space(context) and context.input.lmb) {
+        game.restart();
+        context.state.in_game = true;
+        context.state_change_animation.set(CAMERA_IN_GAME, .{
+            .in_game = true,
+            .debug = context.state.debug,
+        });
+    }
+
+    const settings_button = UiText.init(
+        CAMERA_MAIN_MENU.add(.{ .y = 50.0 }),
+        &context.font,
+        "Settings",
+        32.0,
+    );
+    if (settings_button.to_screen_quads_world_space(context) and context.input.lmb) {
+        context.state.settings = true;
+        context.state_change_animation.set(CAMERA_SETTINGS, .{
+            .settings = true,
+            .debug = context.state.debug,
+        });
+    }
+}
+
+pub fn settings(context: *GlobalContext) void {
+    const back_button = UiText.init(
+        CAMERA_SETTINGS,
+        &context.font,
+        "Back",
+        32.0,
+    );
+    if (back_button.to_screen_quads_world_space(context) and context.input.lmb) {
+        context.state.main_menu = true;
+        context.state_change_animation.set(CAMERA_MAIN_MENU, .{
+            .main_menu = true,
+            .debug = context.state.debug,
+        });
+    }
+}
+
+pub fn in_game(game: *Game, context: *GlobalContext) void {
+    const top_panel = UiPanel.init(
+        .{ .y = -310.0 },
+        .{ .x = 900.0, .y = 80.0 },
+        UI_BACKGROUND_COLOR,
+    );
+    top_panel.to_screen_quad(context);
+
+    const bot_panel = UiPanel.init(
+        .{ .y = 310.0 },
+        .{ .x = 900.0, .y = 80.0 },
+        UI_BACKGROUND_COLOR,
+    );
+    bot_panel.to_screen_quad(context);
+
+    const left_info_opponent_panel = UiPanel.init(
+        .{ .x = -550.0, .y = -300 },
+        .{ .x = 140.0, .y = 100.0 },
+        if (game.turn_owner == .Opponent) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
+    );
+    left_info_opponent_panel.to_screen_quad(context);
+
+    const left_info_player_panel = UiPanel.init(
+        .{ .x = -550.0, .y = 300 },
+        .{ .x = 140.0, .y = 100.0 },
+        if (game.turn_owner == .Player) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
+    );
+    left_info_player_panel.to_screen_quad(context);
+
+    const opponent_hp = std.fmt.allocPrint(
+        context.alloc(),
+        "HP: {d}",
+        .{game.opponent_hp},
+    ) catch unreachable;
+    const opponent_hp_text = UiText.init(
+        .{ .x = -550.0, .y = -300 },
+        &context.font,
+        opponent_hp,
+        25.0,
+    );
+    _ = opponent_hp_text.to_screen_quads_world_space(context);
+    const opponent_hp_overhead = std.fmt.allocPrint(
+        context.alloc(),
+        "HP overhead: {d}",
+        .{game.opponent_hp_overhead},
+    ) catch unreachable;
+    const opponent_hp_overhead_text = UiText.init(
+        .{ .x = -550.0, .y = -280 },
+        &context.font,
+        opponent_hp_overhead,
+        25.0,
+    );
+    _ = opponent_hp_overhead_text.to_screen_quads_world_space(context);
+
+    const player_hp = std.fmt.allocPrint(
+        context.alloc(),
+        "HP: {d}",
+        .{game.player_hp},
+    ) catch unreachable;
+    const player_hp_text = UiText.init(
+        .{ .x = -550.0, .y = 300 },
+        &context.font,
+        player_hp,
+        25.0,
+    );
+    _ = player_hp_text.to_screen_quads_world_space(context);
+    const player_hp_overhead = std.fmt.allocPrint(
+        context.alloc(),
+        "HP overhead: {d}",
+        .{game.player_hp_overhead},
+    ) catch unreachable;
+    const player_hp_overhead_text = UiText.init(
+        .{ .x = -550.0, .y = 320 },
+        &context.font,
+        player_hp_overhead,
+        25.0,
+    );
+    _ = player_hp_overhead_text.to_screen_quads_world_space(context);
+
+    const left_cue_panel = UiPanel.init(
+        .{ .x = -550.0 },
+        .{ .x = 140.0, .y = 480.0 },
+        UI_BACKGROUND_COLOR,
+    );
+    left_cue_panel.to_screen_quad(context);
+
+    const right_cue_panel = UiPanel.init(
+        .{ .x = 550.0 },
+        .{ .x = 140.0, .y = 480.0 },
+        UI_BACKGROUND_COLOR,
+    );
+    right_cue_panel.to_screen_quad(context);
+
+    const shop_button = UiText.init(
+        .{ .x = 350.0, .y = 320.0 },
+        &context.font,
+        "SHOP",
+        32.0,
+    );
+    if (shop_button.to_screen_quads_world_space(context) and context.input.lmb and
+        !context.state_change_animation.is_playing())
+    {
+        if (context.state.in_game_shop) {
+            context.state_change_animation.set(CAMERA_IN_GAME, .{
+                .in_game = true,
+                .debug = context.state.debug,
+            });
+        } else {
+            context.state.in_game_shop = true;
+            context.state_change_animation.set(CAMERA_IN_GAME_SHOP, context.state);
+        }
+    }
+
+    const back_button = UiText.init(
+        .{ .x = 550.0, .y = 320.0 },
+        &context.font,
+        "GIVE UP",
+        32.0,
+    );
+    if (back_button.to_screen_quads_world_space(context) and context.input.lmb) {
+        context.state.main_menu = true;
+        context.state_change_animation.set(CAMERA_MAIN_MENU, .{
+            .main_menu = true,
+            .debug = context.state.debug,
+        });
+    }
+}
+
+pub fn debug(context: *GlobalContext) void {
+    const perf_button = UiText.init(
+        .{
+            .x = 1280.0 / 2.0,
+            .y = 720.0 / 2.0 + 300.0,
+        },
+        &context.font,
+        std.fmt.allocPrint(
+            context.alloc(),
+            "FPS: {d:.1} FT: {d:.3}s",
+            .{ 1.0 / context.dt, context.dt },
+        ) catch unreachable,
+        32.0,
+    );
+    _ = perf_button.to_screen_quads(context);
+}
