@@ -46,7 +46,7 @@ pub const Ball = struct {
     owner: Owner,
     hp: i32 = 10,
     max_hp: i32 = 10,
-    damage: i32 = 100,
+    damage: i32 = 5,
     heal: i32 = 1,
     armor: f32 = 0.0,
     gravity_level: u8 = 0,
