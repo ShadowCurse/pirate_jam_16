@@ -20,6 +20,8 @@ const sdl = stygian.bindings.sdl;
 const Color = stygian.color.Color;
 const ScreenQuads = stygian.screen_quads;
 
+const Object2d = stygian.objects.Object2d;
+
 const Font = stygian.font;
 const Memory = stygian.memory;
 const Textures = stygian.textures;
@@ -238,6 +240,22 @@ const Runtime = struct {
             dt,
         );
         self.game.update_and_draw(&self.context);
+
+        const mouse_rect: Object2d = .{
+            .type = .{ .Color = Color.ORANGE },
+            .transform = .{
+                .position = self.context.input.mouse_pos_world.extend(0.0),
+            },
+            .size = .{
+                .x = 20.0,
+                .y = 20.0,
+            },
+        };
+        mouse_rect.to_screen_quad(
+            &self.context.camera,
+            &self.context.texture_store,
+            &self.context.screen_quads,
+        );
 
         self.soft_renderer.start_rendering();
         self.context.screen_quads.render(

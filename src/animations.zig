@@ -13,10 +13,10 @@ const _objects = @import("objects.zig");
 const Ball = _objects.Ball;
 
 pub const SmoothStepAnimation = struct {
-    start_position: Vec3,
-    end_position: Vec3,
-    duration: f32,
-    progress: f32,
+    start_position: Vec3 = .{},
+    end_position: Vec3 = .{},
+    duration: f32 = 0.0,
+    progress: f32 = 0.0,
 
     pub fn update(self: *SmoothStepAnimation, position: *Vec3, dt: f32) bool {
         const p = self.progress / self.duration;

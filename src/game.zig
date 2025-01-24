@@ -20,6 +20,7 @@ const _runtime = @import("runtime.zig");
 const GlobalContext = _runtime.GlobalContext;
 
 const UI = @import("ui.zig");
+const AI = @import("ai.zig");
 
 const _objects = @import("objects.zig");
 const Ball = _objects.Ball;
@@ -62,6 +63,8 @@ turn_state: TurnState,
 player: PlayerContext,
 opponent: PlayerContext,
 
+ai: AI,
+
 texture_ball: Textures.Texture.Id,
 ball_animations: BallAnimations,
 table: Table,
@@ -72,8 +75,8 @@ balls: [PLAYER_BALLS + OPPONENT_BALLS]Ball,
 selected_ball: ?u32,
 is_aiming: bool,
 
-const PLAYER_BALLS = 15;
-const OPPONENT_BALLS = 15;
+pub const PLAYER_BALLS = 15;
+pub const OPPONENT_BALLS = 15;
 
 pub const TurnState = enum {
     NotTaken,
@@ -107,6 +110,7 @@ pub fn restart(self: *Self) void {
 
     self.player.reset(.Player);
     self.opponent.reset(.Opponent);
+    self.ai.init();
 
     self.ball_animations = .{};
     self.shop.reset();
@@ -244,6 +248,9 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
 
     switch (self.turn_state) {
         .NotTaken => {
+            if (self.turn_owner == .Opponent)
+                self.ai.update(context, self);
+
             if (!self.is_aiming) {
                 self.is_aiming = self.selected_ball != null and context.input.rmb;
                 entity.cue_inventory.selected().move_storage();

@@ -1008,6 +1008,10 @@ pub const CueInventory = struct {
         const p_r = self.cue_position_rotation(0);
         self.cues[0] =
             Cue.init(.CueDefault, p_r[0], p_r[1]);
+        self.cues[1] =
+            Cue.init(.Invalid, p_r[0], p_r[1]);
+        self.cues[2] =
+            Cue.init(.Invalid, p_r[0], p_r[1]);
         self.cues_n = 1;
         self.selected_index = 0;
         return self;
@@ -1094,7 +1098,6 @@ pub const CueInventory = struct {
 
 pub const ItemInventory = struct {
     items: [MAX_ITEMS]Item.Tag,
-    items_n: u32,
 
     owner: Owner,
     selected_index: ?u8,
@@ -1114,8 +1117,7 @@ pub const ItemInventory = struct {
 
     pub fn init(owner: Owner) ItemInventory {
         return .{
-            .items = undefined,
-            .items_n = 0,
+            .items = .{.Invalid} ** MAX_ITEMS,
             .owner = owner,
             .selected_index = null,
             .hovered_index = null,
@@ -1151,17 +1153,18 @@ pub const ItemInventory = struct {
             "Trying to add cue to the item inventory",
             .{},
         );
-        if (self.items.len == self.items_n)
-            return false;
-
-        self.items[self.items_n] = item;
-        self.items_n += 1;
-        return true;
+        for (&self.items) |*it| {
+            if (it.* == .Invalid) {
+                it.* = item;
+                return true;
+            }
+        }
+        return false;
     }
 
     pub fn remove(self: *ItemInventory, item: Item.Tag) void {
-        for (self.items[0..self.items_n]) |*it| {
-            if (it == item) {
+        for (&self.items) |*it| {
+            if (it.* == item) {
                 it.* = .Invalid;
             }
         }
@@ -1190,6 +1193,14 @@ pub const ItemInventory = struct {
         }
     }
 
+    pub fn selected_position(self: ItemInventory) ?Vec2 {
+        if (self.selected_index) |si| {
+            return self.item_position(si);
+        } else {
+            return null;
+        }
+    }
+
     pub fn item_used(self: *ItemInventory) void {
         if (self.selected_index) |si| {
             self.items[si] = .Invalid;
@@ -1202,7 +1213,7 @@ pub const ItemInventory = struct {
     ) void {
         self.dashed_line.end = context.input.mouse_pos_world;
         var hover_anything: bool = false;
-        for (self.items[0..self.items_n], 0..) |item, i| {
+        for (self.items, 0..) |item, i| {
             if (item == .Invalid)
                 continue;
 
@@ -1226,7 +1237,7 @@ pub const ItemInventory = struct {
         self: ItemInventory,
         context: *GlobalContext,
     ) void {
-        for (self.items[0..self.items_n], 0..) |item, i| {
+        for (self.items, 0..) |item, i| {
             if (item == .Invalid)
                 continue;
 
@@ -1331,26 +1342,8 @@ pub const Shop = struct {
     }
 
     pub fn reroll(self: *Shop) void {
-        const random = self.rng.random();
         for (&self.items) |*item| {
-            const rarity = random.float(f32);
-            if (rarity < Item.NormalDropRate) {
-                const item_f32 = random.float(f32);
-                const item_index: u32 = @intFromFloat(item_f32 * Item.NormalItems.len - 1);
-                log.assert(@src(), item_index < Item.NormalItems.len - 1, "", .{});
-                item.* = Item.NormalItems[item_index];
-            } else if (rarity < Item.RareDropRate) {
-                const item_f32 = random.float(f32);
-                const item_index: u32 = @intFromFloat(item_f32 * Item.RareItems.len - 1);
-                log.assert(@src(), item_index < Item.RareItems.len - 1, "", .{});
-                item.* = Item.RareItems[item_index];
-            } else {
-                const item_f32 = random.float(f32);
-                const item_index: u32 = @intFromFloat(item_f32 * Item.EpicItems.len - 1);
-                log.assert(@src(), item_index < Item.EpicItems.len - 1, "", .{});
-                item.* = Item.EpicItems[item_index];
-            }
-
+            item.* = self.random_item();
             log.assert(
                 @src(),
                 @intFromEnum(item.*) < @typeInfo(Item.Tag).Enum.fields.len,
@@ -1358,6 +1351,27 @@ pub const Shop = struct {
                 .{},
             );
             log.info(@src(), "reroll item: {any}", .{item.*});
+        }
+    }
+
+    pub fn random_item(self: *Shop) Item.Tag {
+        const random = self.rng.random();
+        const rarity = random.float(f32);
+        if (rarity < Item.NormalDropRate) {
+            const item_f32 = random.float(f32);
+            const item_index: u32 = @intFromFloat(item_f32 * Item.NormalItems.len - 1);
+            log.assert(@src(), item_index < Item.NormalItems.len - 1, "", .{});
+            return Item.NormalItems[item_index];
+        } else if (rarity < Item.RareDropRate) {
+            const item_f32 = random.float(f32);
+            const item_index: u32 = @intFromFloat(item_f32 * Item.RareItems.len - 1);
+            log.assert(@src(), item_index < Item.RareItems.len - 1, "", .{});
+            return Item.RareItems[item_index];
+        } else {
+            const item_f32 = random.float(f32);
+            const item_index: u32 = @intFromFloat(item_f32 * Item.EpicItems.len - 1);
+            log.assert(@src(), item_index < Item.EpicItems.len - 1, "", .{});
+            return Item.EpicItems[item_index];
         }
     }
 
