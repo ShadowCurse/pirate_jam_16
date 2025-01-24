@@ -47,8 +47,10 @@ pub const State = packed struct(u8) {
     settings: bool = false,
     in_game: bool = false,
     in_game_shop: bool = false,
+    won: bool = false,
+    lost: bool = false,
     debug: bool = false,
-    _: u3 = 0,
+    _: u1 = 0,
 };
 
 pub const Input = struct {

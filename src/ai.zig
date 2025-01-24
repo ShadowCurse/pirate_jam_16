@@ -263,7 +263,7 @@ const SelectBall = struct {
     pub fn random_ball_index(owner: Owner, game: *Game, ai: *Self) u32 {
         var balls_alive: u32 = 0;
         for (&game.balls) |*ball| {
-            if (!ball.disabled and ball.owner == owner)
+            if (!ball.disabled and !ball.dead and ball.owner == owner)
                 balls_alive += 1;
         }
         const random = ai.rng.random();
@@ -271,7 +271,7 @@ const SelectBall = struct {
             @intFromFloat(random.float(f32) * @as(f32, @floatFromInt(balls_alive)));
 
         for (&game.balls, 0..) |*ball, i| {
-            if (!ball.disabled and ball.owner == owner) {
+            if (!ball.disabled and !ball.dead and ball.owner == owner) {
                 if (r_index == 0) {
                     return @intCast(i);
                 }
@@ -479,7 +479,7 @@ const UseItem = struct {
         if (selected.is_ball()) {
             while (true) {
                 for (game.balls[Game.PLAYER_BALLS..]) |*ball| {
-                    if (!ball.disabled) {
+                    if (!ball.disabled and !ball.dead) {
                         const r = random.float(f32);
                         if (r < 0.2) {
                             return ball.body.position;

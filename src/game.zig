@@ -180,6 +180,10 @@ pub fn update_and_draw(
         self.in_game(context);
     if (context.state.in_game_shop)
         self.in_game_shop(context);
+    if (context.state.won)
+        UI.in_end_game_won(self, context);
+    if (context.state.lost)
+        UI.in_end_game_lost(self, context);
     if (context.state.debug)
         self.debug(context);
 }
@@ -210,6 +214,9 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
 
     const selected_item = entity.item_inventory.selected();
     for (&self.balls) |*ball| {
+        if (ball.dead)
+            continue;
+
         const is_selected = if (self.selected_ball) |sb| blk: {
             if (ball.id == sb) {
                 break :blk true;
@@ -274,7 +281,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
 
             var new_ball_selected: bool = false;
             for (&self.balls) |*ball| {
-                if (ball.disabled)
+                if (ball.disabled or ball.dead)
                     continue;
 
                 if (ball.owner == self.turn_owner and
@@ -299,7 +306,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             entity.cue_inventory.selected().move_storage();
 
             for (&self.balls) |*ball| {
-                if (ball.disabled)
+                if (ball.disabled or ball.dead)
                     continue;
                 ball.update(&self.table, &self.balls, self.turn_owner, context.dt);
             }
@@ -309,7 +316,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             var new_opponent_hp: i32 = 0;
             var opponent_overheal: i32 = 0;
             for (&self.balls) |*ball| {
-                if (ball.disabled)
+                if (ball.disabled or ball.dead)
                     continue;
 
                 switch (ball.owner) {
@@ -352,9 +359,27 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             self.opponent.hp = new_opponent_hp;
             self.opponent.hp_overhead += opponent_overheal;
 
+            if (self.player.hp <= 0) {
+                log.info(@src(), "lost", .{});
+                context.state.lost = true;
+                context.state_change_animation.set(UI.CAMERA_END_GAME, .{
+                    .lost = true,
+                    .debug = context.state.debug,
+                });
+                return;
+            }
+            if (self.opponent.hp <= 0) {
+                context.state.won = true;
+                context.state_change_animation.set(UI.CAMERA_END_GAME, .{
+                    .won = true,
+                    .debug = context.state.debug,
+                });
+                return;
+            }
+
             var disabled_or_stationary: u8 = 0;
             for (&self.balls) |*ball| {
-                if (ball.disabled or ball.stationary) {
+                if (ball.disabled or ball.dead or ball.stationary) {
                     disabled_or_stationary += 1;
                 }
             }

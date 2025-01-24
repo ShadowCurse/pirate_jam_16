@@ -23,6 +23,7 @@ pub const CAMERA_MAIN_MENU: Vec2 = .{ .x = -1280.0 };
 pub const CAMERA_SETTINGS: Vec2 = .{ .x = -1280.0, .y = 1000.0 };
 pub const CAMERA_IN_GAME: Vec2 = .{};
 pub const CAMERA_IN_GAME_SHOP: Vec2 = .{ .y = 617 };
+pub const CAMERA_END_GAME: Vec2 = .{ .y = -1000.0 };
 
 const UI_BACKGROUND_COLOR = Color.GREY;
 const UI_BACKGROUND_COLOR_PLAYING = Color.GREEN;
@@ -376,6 +377,87 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
     if (UiText.to_screen_quads(
         context,
         .{ .x = 550.0, .y = 320.0 },
+        32.0,
+        "GIVE UP",
+        .{},
+        .{ .hilight = true },
+    ) and context.input.lmb) {
+        context.state.main_menu = true;
+        context.state_change_animation.set(CAMERA_MAIN_MENU, .{
+            .main_menu = true,
+            .debug = context.state.debug,
+        });
+    }
+}
+
+pub fn in_end_game_won(game: *Game, context: *GlobalContext) void {
+    _ = UiText.to_screen_quads(
+        context,
+        CAMERA_END_GAME.add(.{ .y = -200.0 }),
+        32.0,
+        "YOU WON",
+        .{},
+        .{},
+    );
+
+    if (UiText.to_screen_quads(
+        context,
+        CAMERA_END_GAME,
+        32.0,
+        "GO AGAIN",
+        .{},
+        .{ .hilight = true },
+    ) and context.input.lmb) {
+        game.restart();
+        context.state.in_game = true;
+        context.state_change_animation.set(CAMERA_IN_GAME, .{
+            .in_game = true,
+            .debug = context.state.debug,
+        });
+    }
+    if (UiText.to_screen_quads(
+        context,
+        CAMERA_END_GAME.add(.{ .y = 100.0 }),
+        32.0,
+        "I'VE GIVEN THEE COURTESY ENOUGH",
+        .{},
+        .{ .hilight = true },
+    ) and context.input.lmb) {
+        context.state.main_menu = true;
+        context.state_change_animation.set(CAMERA_MAIN_MENU, .{
+            .main_menu = true,
+            .debug = context.state.debug,
+        });
+    }
+}
+
+pub fn in_end_game_lost(game: *Game, context: *GlobalContext) void {
+    _ = UiText.to_screen_quads(
+        context,
+        CAMERA_END_GAME.add(.{ .y = -200.0 }),
+        32.0,
+        "YOU LOST",
+        .{},
+        .{},
+    );
+    if (UiText.to_screen_quads(
+        context,
+        CAMERA_END_GAME,
+        32.0,
+        "TRY AGAIN",
+        .{},
+        .{ .hilight = true },
+    ) and context.input.lmb) {
+        game.restart();
+        context.state.in_game = true;
+        context.state_change_animation.set(CAMERA_IN_GAME, .{
+            .in_game = true,
+            .debug = context.state.debug,
+        });
+    }
+    if (UiText.to_screen_quads(
+        context,
+        CAMERA_END_GAME.add(.{ .y = 100.0 }),
         32.0,
         "GIVE UP",
         .{},

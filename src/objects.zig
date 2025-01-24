@@ -46,7 +46,7 @@ pub const Ball = struct {
     owner: Owner,
     hp: i32 = 10,
     max_hp: i32 = 10,
-    damage: i32 = 1,
+    damage: i32 = 100,
     heal: i32 = 1,
     armor: f32 = 0.0,
     gravity_level: u8 = 0,
@@ -55,6 +55,7 @@ pub const Ball = struct {
 
     body: Physics.Body,
     collider: Physics.Circle,
+    dead: bool = false,
     disabled: bool = false,
     stationary: bool = true,
 
@@ -117,10 +118,13 @@ pub const Ball = struct {
         const trace_start = trace.start();
         defer trace.end(@src(), trace_start);
 
-        if (self.disabled)
+        if (self.disabled or self.dead)
             return;
 
         for (balls) |*ball| {
+            if (ball.disabled or ball.dead)
+                continue;
+
             if (self.id == ball.id)
                 continue;
             const collision_point =
@@ -223,6 +227,10 @@ pub const Ball = struct {
             self.stationary = true;
         } else {
             self.stationary = false;
+        }
+
+        if (self.hp <= 0) {
+            self.dead = true;
         }
 
         log.assert(@src(), self.body.position.is_valid(), "Body position is invalid", .{});
