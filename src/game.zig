@@ -67,12 +67,13 @@ ball_animations: BallAnimations,
 table: Table,
 shop: Shop,
 
-balls: [MAX_BALLS]Ball,
+balls: [PLAYER_BALLS + OPPONENT_BALLS]Ball,
 
 selected_ball: ?u32,
 is_aiming: bool,
 
-const MAX_BALLS = 20;
+const PLAYER_BALLS = 15;
+const OPPONENT_BALLS = 15;
 
 pub const TurnState = enum {
     NotTaken,
@@ -110,21 +111,57 @@ pub fn restart(self: *Self) void {
     self.ball_animations = .{};
     self.shop.reset();
 
-    for (&self.balls, 0..) |*ball, i| {
-        const row: f32 = @floatFromInt(@divFloor(i, 4));
-        const column: f32 = @floatFromInt(i % 4);
-        const position: Vec2 = .{
-            .x = -60.0 * 2 + column * 60.0 + 30.0,
-            .y = -60.0 * 2 + row * 60.0 + 30.0,
-        };
-        const id: u8 = @intCast(i);
-        const color: Color = if (i < 10) Color.GREEN else Color.RED;
-        const owner: Owner = if (i < 10) .Player else .Opponent;
-        ball.* = Ball.init(id, color, self.texture_ball, owner, position);
-    }
-
+    layout_balls(
+        self.balls[0..PLAYER_BALLS],
+        0,
+        .{ .x = -200.0 },
+        Vec2.NEG_X,
+        Color.GREEN,
+        self.texture_ball,
+        .Player,
+    );
+    layout_balls(
+        self.balls[PLAYER_BALLS..],
+        PLAYER_BALLS,
+        .{ .x = 200.0 },
+        Vec2.X,
+        Color.RED,
+        self.texture_ball,
+        .Opponent,
+    );
     self.selected_ball = null;
     self.is_aiming = false;
+}
+
+// Layout balls in a triangle with a tip beeing the top of the top ball, the
+// direction is pointing into the triangle.
+pub fn layout_balls(
+    balls: []Ball,
+    id_offset: u8,
+    tip_position: Vec2,
+    direction: Vec2,
+    color: Color,
+    texture_id: Textures.Texture.Id,
+    owner: Owner,
+) void {
+    const GAP = 3.0;
+    // rotate direction 30 degrees for balls in one layer
+    // -30 to get to the next layer
+    const angle = std.math.pi / 6.0;
+    const direction_next = direction.rotate(angle);
+    const direction_next_layer = direction.rotate(-angle);
+    var origin_position: Vec2 = tip_position.add(direction.mul_f32(Ball.RADIUS));
+    var index: u8 = 0;
+    for (0..5) |layer| {
+        for (0..(5 - layer)) |i| {
+            const position =
+                origin_position
+                .add(direction_next.mul_f32(@as(f32, @floatFromInt(i)) * (Ball.RADIUS * 2.0 + GAP)));
+            balls[index] = Ball.init(index + id_offset, color, texture_id, owner, position);
+            index += 1;
+        }
+        origin_position = origin_position.add(direction_next_layer.mul_f32(Ball.RADIUS * 2.0 + GAP));
+    }
 }
 
 pub fn update_and_draw(
