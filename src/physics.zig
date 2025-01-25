@@ -318,11 +318,13 @@ pub fn update(self: *Self, context: *GlobalContext) []Collision {
                     }) catch unreachable;
                 }
             }
+        }
+        for (&self.balls, 0..) |*ball, i| {
             for (&self.borders, 0..) |*border, j| {
                 const collision_point =
                     Physics.circle_rectangle_collision(
-                    ball_1.collider,
-                    ball_1.body.position,
+                    ball.collider,
+                    ball.body.position,
                     border.collider,
                     border.body.position,
                 );
@@ -337,8 +339,8 @@ pub fn update(self: *Self, context: *GlobalContext) []Collision {
             for (&self.pockets, 0..) |*pocket, j| {
                 const collision_point =
                     Physics.circle_circle_collision(
-                    ball_1.collider,
-                    ball_1.body.position,
+                    ball.collider,
+                    ball.body.position,
                     pocket.collider,
                     pocket.body.position,
                 );
