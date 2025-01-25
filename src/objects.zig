@@ -836,6 +836,7 @@ pub const ItemInventory = struct {
     pub fn update(
         self: *ItemInventory,
         context: *GlobalContext,
+        turn_owner: Owner,
     ) void {
         self.dashed_line.end = context.input.mouse_pos_world;
         var hover_anything: bool = false;
@@ -846,7 +847,10 @@ pub const ItemInventory = struct {
             if (self.item_hovered(@intCast(i), context.input.mouse_pos_world)) {
                 hover_anything = true;
                 self.hovered_index = @intCast(i);
-                if (!context.state.in_game_shop and context.input.lmb == .Pressed) {
+                if (self.owner == turn_owner and
+                    !context.state.in_game_shop and
+                    context.input.lmb == .Pressed)
+                {
                     self.selected_index = @intCast(i);
                     self.dashed_line.start = self.item_position(@intCast(i));
                 }

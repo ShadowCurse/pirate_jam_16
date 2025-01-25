@@ -193,9 +193,9 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
         self.physics.pockets_to_screen_quads(context);
     }
 
-    self.opponent.item_inventory.update(context);
+    self.opponent.item_inventory.update(context, self.turn_owner);
     self.opponent.item_inventory.to_screen_quads(context);
-    self.player.item_inventory.update(context);
+    self.player.item_inventory.update(context, self.turn_owner);
     self.player.item_inventory.to_screen_quads(context);
 
     const entity = if (self.turn_owner == .Player) blk: {
