@@ -234,7 +234,7 @@ pub fn main_menu(game: *Game, context: *GlobalContext) void {
         "Start",
         .{},
         .{ .hilight = true },
-    ) and context.input.lmb) {
+    ) and context.input.lmb == .Pressed) {
         game.restart();
         context.state.in_game = true;
         context.state_change_animation.set(CAMERA_IN_GAME, .{
@@ -250,7 +250,7 @@ pub fn main_menu(game: *Game, context: *GlobalContext) void {
         "Settings",
         .{},
         .{ .hilight = true },
-    ) and context.input.lmb) {
+    ) and context.input.lmb == .Pressed) {
         context.state.settings = true;
         context.state_change_animation.set(CAMERA_SETTINGS, .{
             .settings = true,
@@ -267,7 +267,7 @@ pub fn settings(context: *GlobalContext) void {
         "Back",
         .{},
         .{ .hilight = true },
-    ) and context.input.lmb) {
+    ) and context.input.lmb == .Pressed) {
         context.state.main_menu = true;
         context.state_change_animation.set(CAMERA_MAIN_MENU, .{
             .main_menu = true,
@@ -360,7 +360,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         "SHOP",
         .{},
         .{ .hilight = true },
-    ) and context.input.lmb and
+    ) and context.input.lmb == .Pressed and
         !context.state_change_animation.is_playing())
     {
         if (context.state.in_game_shop) {
@@ -381,7 +381,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         "GIVE UP",
         .{},
         .{ .hilight = true },
-    ) and context.input.lmb) {
+    ) and context.input.lmb == .Pressed) {
         context.state.main_menu = true;
         context.state_change_animation.set(CAMERA_MAIN_MENU, .{
             .main_menu = true,
@@ -407,7 +407,7 @@ pub fn in_end_game_won(game: *Game, context: *GlobalContext) void {
         "GO AGAIN",
         .{},
         .{ .hilight = true },
-    ) and context.input.lmb) {
+    ) and context.input.lmb == .Pressed) {
         game.restart();
         context.state.in_game = true;
         context.state_change_animation.set(CAMERA_IN_GAME, .{
@@ -422,7 +422,7 @@ pub fn in_end_game_won(game: *Game, context: *GlobalContext) void {
         "I'VE GIVEN THEE COURTESY ENOUGH",
         .{},
         .{ .hilight = true },
-    ) and context.input.lmb) {
+    ) and context.input.lmb == .Pressed) {
         context.state.main_menu = true;
         context.state_change_animation.set(CAMERA_MAIN_MENU, .{
             .main_menu = true,
@@ -447,7 +447,7 @@ pub fn in_end_game_lost(game: *Game, context: *GlobalContext) void {
         "TRY AGAIN",
         .{},
         .{ .hilight = true },
-    ) and context.input.lmb) {
+    ) and context.input.lmb == .Pressed) {
         game.restart();
         context.state.in_game = true;
         context.state_change_animation.set(CAMERA_IN_GAME, .{
@@ -462,7 +462,7 @@ pub fn in_end_game_lost(game: *Game, context: *GlobalContext) void {
         "GIVE UP",
         .{},
         .{ .hilight = true },
-    ) and context.input.lmb) {
+    ) and context.input.lmb == .Pressed) {
         context.state.main_menu = true;
         context.state_change_animation.set(CAMERA_MAIN_MENU, .{
             .main_menu = true,

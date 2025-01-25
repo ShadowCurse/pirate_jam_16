@@ -178,12 +178,13 @@ pub const Ball = struct {
                 &context.texture_store,
                 &context.screen_quads,
             );
-            if (is_ball_upgrade and context.input.lmb) {
+            if (is_ball_upgrade and context.input.lmb == .Pressed) {
                 result.upgrade_applied = self.add_upgrade(selected_upgrade.?);
             }
         }
         if (show_info) {
-            result.need_refill = self.info_panel_to_screen_quads(context) and context.input.lmb;
+            result.need_refill = self.info_panel_to_screen_quads(context) and
+                context.input.lmb == .Pressed;
         }
         const object: Object2d = .{
             .type = .{ .TextureId = self.texture_id },
@@ -497,7 +498,7 @@ pub const Cue = struct {
                 &context.texture_store,
                 &context.screen_quads,
             );
-            if (is_cue_upgrade and context.input.lmb)
+            if (is_cue_upgrade and context.input.lmb == .Pressed)
                 result.upgrade_applied = self.add_upgrade(selected_upgrade.?);
         }
 
@@ -713,7 +714,7 @@ pub const CueInventory = struct {
                 selected_upgrade,
             );
 
-            if (r.hovered and context.input.lmb)
+            if (r.hovered and context.input.lmb == .Pressed)
                 self.selected_index = @intCast(i);
             upgrade_applied = upgrade_applied or r.upgrade_applied;
         }
@@ -845,7 +846,7 @@ pub const ItemInventory = struct {
             if (self.item_hovered(@intCast(i), context.input.mouse_pos_world)) {
                 hover_anything = true;
                 self.hovered_index = @intCast(i);
-                if (!context.state.in_game_shop and context.input.lmb) {
+                if (!context.state.in_game_shop and context.input.lmb == .Pressed) {
                     self.selected_index = @intCast(i);
                     self.dashed_line.start = self.item_position(@intCast(i));
                 }
@@ -853,7 +854,7 @@ pub const ItemInventory = struct {
         }
         if (!hover_anything) {
             self.hovered_index = null;
-            if (context.input.lmb)
+            if (context.input.lmb == .Pressed)
                 self.selected_index = null;
         }
     }
@@ -1089,7 +1090,7 @@ pub const Shop = struct {
                 context,
                 @intCast(i),
             );
-            if (hovered and context.input.lmb) {
+            if (hovered and context.input.lmb == .Pressed) {
                 item_clicked = self.items[i];
                 self.selected_item = @intCast(i);
             }
@@ -1103,7 +1104,7 @@ pub const Shop = struct {
             .{},
             .{ .hilight = true },
         );
-        if (want_reroll and context.input.lmb)
+        if (want_reroll and context.input.lmb == .Pressed)
             self.reroll();
 
         return item_clicked;

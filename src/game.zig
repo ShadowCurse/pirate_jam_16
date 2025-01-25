@@ -247,7 +247,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                 self.ai.update(context, self);
 
             if (!self.is_aiming) {
-                self.is_aiming = self.selected_ball != null and context.input.rmb;
+                self.is_aiming = self.selected_ball != null and context.input.rmb == .Pressed;
                 entity.cue_inventory.selected().move_storage();
                 entity.item_inventory.update(context);
             } else {
@@ -261,7 +261,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                         hit_vector,
                     );
 
-                    if (!context.input.rmb) {
+                    if (context.input.rmb == .Released) {
                         // We hit in the opposite direction of the "to_mouse" direction
                         self.physics.balls[ball.id].body.velocity = self.physics.balls[ball.id]
                             .body.velocity.add(hit_vector.neg());
@@ -280,13 +280,13 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
 
                 if (ball.owner == self.turn_owner and
                     ball.is_hovered(context.input.mouse_pos_world) and
-                    context.input.lmb)
+                    context.input.lmb == .Pressed)
                 {
                     new_ball_selected = true;
                     self.selected_ball = ball.id;
                 }
             }
-            if (!new_ball_selected and context.input.lmb)
+            if (!new_ball_selected and context.input.lmb == .Pressed)
                 self.selected_ball = null;
         },
         .Shooting => {

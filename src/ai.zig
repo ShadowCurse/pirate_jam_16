@@ -187,19 +187,12 @@ const MoveMouse = struct {
 
 const ClickMouse = struct {
     finished: bool = false,
-    lmb: bool = false,
-    rmb: bool = false,
-    timer: f32 = 0.0,
-    timer_end: f32 = 0.0,
+    lmb: Input.KeyState = .None,
+    rmb: Input.KeyState = .None,
 
-    const TIME_MIN = 0.2;
-    const TIME_MAX = 0.3;
-
-    pub fn init(ai: *Self, lmb: bool, rmb: bool) Task {
-        const random = ai.rng.random();
+    pub fn init(lmb: Input.KeyState, rmb: Input.KeyState) Task {
         return .{
             .ClickMouse = .{
-                .timer_end = TIME_MIN + (TIME_MAX - TIME_MIN) * random.float(f32),
                 .lmb = lmb,
                 .rmb = rmb,
             },
@@ -207,17 +200,13 @@ const ClickMouse = struct {
     }
 
     pub fn update(self: *ClickMouse, context: *GlobalContext, game: *Game, ai: *Self) void {
+        _ = context;
         _ = game;
         if (self.finished)
             return;
-
-        self.timer += context.dt;
-        if (self.timer < self.timer_end) {
-            ai.input.lmb = self.lmb;
-            ai.input.rmb = self.rmb;
-        } else {
-            self.finished = true;
-        }
+        ai.input.lmb = self.lmb;
+        ai.input.rmb = self.rmb;
+        self.finished = true;
     }
 };
 
@@ -254,8 +243,8 @@ const SelectBall = struct {
             "AI: selected ball position: {d}:{d}",
             .{ ball_position.x, ball_position.y },
         );
-        ai.push_task(ClickMouse.init(ai, false, false));
-        ai.push_task(ClickMouse.init(ai, true, false));
+        ai.push_task(ClickMouse.init(.None, .None));
+        ai.push_task(ClickMouse.init(.Pressed, .None));
         ai.push_task(MoveMouse.init(ai, ball_position));
         self.finished = true;
     }
@@ -316,8 +305,8 @@ const SelectCue = struct {
             "AI: selected cue position: {d}:{d}",
             .{ cue_position.x, cue_position.y },
         );
-        ai.push_task(ClickMouse.init(ai, false, false));
-        ai.push_task(ClickMouse.init(ai, true, false));
+        ai.push_task(ClickMouse.init(.None, .None));
+        ai.push_task(ClickMouse.init(.Pressed, .None));
         ai.push_task(MoveMouse.init(ai, cue_position));
         self.finished = true;
     }
@@ -426,7 +415,7 @@ const UseItem = struct {
 
         if (game.opponent.item_inventory.selected_position()) |_| {
             const target_position = upgrade_target_position(game, ai);
-            ai.push_task(ClickMouse.init(ai, true, false));
+            ai.push_task(ClickMouse.init(.Pressed, .None));
             ai.push_task(MoveMouse.init(
                 ai,
                 target_position,
@@ -439,9 +428,8 @@ const UseItem = struct {
         _ = context;
         if (random_item_index(game, ai)) |rii| {
             const rii_position = game.opponent.item_inventory.item_position(rii);
-
-            ai.push_task(ClickMouse.init(ai, false, false));
-            ai.push_task(ClickMouse.init(ai, true, false));
+            ai.push_task(ClickMouse.init(.None, .None));
+            ai.push_task(ClickMouse.init(.Pressed, .None));
             ai.push_task(MoveMouse.init(
                 ai,
                 rii_position,
@@ -529,7 +517,7 @@ const Shoot = struct {
 
         self.timer += context.dt;
         if (self.timer < self.timer_end) {
-            ai.input.rmb = true;
+            ai.input.rmb = .Pressed;
             if (self.target_ball_position == null) {
                 self.select_target(game, ai);
                 self.move_cue(OFFSET_AIM, game, ai);
@@ -543,7 +531,8 @@ const Shoot = struct {
             return;
         }
 
-        ai.push_task(ClickMouse.init(ai, false, false));
+        ai.push_task(ClickMouse.init(.None, .None));
+        ai.push_task(ClickMouse.init(.None, .Released));
 
         const random = ai.rng.random();
         const offset =

@@ -55,11 +55,17 @@ pub const State = packed struct(u8) {
 };
 
 pub const Input = struct {
-    lmb: bool = false,
-    rmb: bool = false,
-    space: bool = false,
+    lmb: KeyState = .None,
+    rmb: KeyState = .None,
+    space: KeyState = .None,
     mouse_pos: Vec2 = .{},
     mouse_pos_world: Vec2 = .{},
+
+    pub const KeyState = enum {
+        None,
+        Pressed,
+        Released,
+    };
 
     pub fn update(
         self: *Input,
@@ -80,22 +86,26 @@ pub const Input = struct {
         self.mouse_pos_world = self.mouse_pos
             .add(camera.position.xy());
 
+        self.lmb = .None;
+        self.rmb = .None;
+        self.space = .None;
+
         for (events) |event| {
             switch (event) {
                 .Mouse => |mouse| {
                     switch (mouse) {
                         .Button => |button| {
                             if (button.key == .LMB)
-                                self.lmb = button.type == .Pressed;
+                                self.lmb = if (button.type == .Pressed) .Pressed else .Released;
                             if (button.key == .RMB)
-                                self.rmb = button.type == .Pressed;
+                                self.rmb = if (button.type == .Pressed) .Pressed else .Released;
                         },
                         else => {},
                     }
                 },
                 .Keyboard => |key| {
                     switch (key.key) {
-                        .SPACE => self.space = key.type == .Pressed,
+                        .SPACE => self.space = if (key.type == .Pressed) .Pressed else .Released,
                         else => {},
                     }
                 },
@@ -178,7 +188,7 @@ pub const GlobalContext = struct {
             mouse_y,
             &self.camera,
         );
-        if (self.input.space)
+        if (self.input.space == .Pressed)
             self.state.debug = !self.state.debug;
         self.dt = dt;
         self.state_change_animation.update(dt);
