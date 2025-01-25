@@ -187,6 +187,9 @@ pub fn settings(self: *Self, context: *GlobalContext) void {
 pub fn in_game(self: *Self, context: *GlobalContext) void {
     UI.in_game(self, context);
 
+    if (self.turn_state == .NotTaken and self.turn_owner == .Opponent)
+        self.ai.update(context, self);
+
     self.table.to_screen_quad(context);
     if (context.state.debug) {
         self.physics.borders_to_screen_quads(context);
@@ -245,9 +248,6 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
 
     switch (self.turn_state) {
         .NotTaken => {
-            if (self.turn_owner == .Opponent)
-                self.ai.update(context, self);
-
             if (!self.is_aiming) {
                 self.is_aiming = self.selected_ball != null and context.input.rmb == .Pressed;
                 entity.cue_inventory.selected().move_storage();

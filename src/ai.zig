@@ -415,11 +415,9 @@ const UseItem = struct {
 
         if (game.opponent.item_inventory.selected_position()) |_| {
             const target_position = upgrade_target_position(game, ai);
+            ai.push_task(ClickMouse.init(.None, .None));
             ai.push_task(ClickMouse.init(.Pressed, .None));
-            ai.push_task(MoveMouse.init(
-                ai,
-                target_position,
-            ));
+            ai.push_task(MoveMouse.init(ai, target_position));
         }
         self.finished = true;
     }
@@ -427,13 +425,11 @@ const UseItem = struct {
     pub fn try_to_select_item(context: *GlobalContext, game: *Game, ai: *Self) void {
         _ = context;
         if (random_item_index(game, ai)) |rii| {
+            log.info(@src(), "AI: randomly selected item index: {d}", .{rii});
             const rii_position = game.opponent.item_inventory.item_position(rii);
             ai.push_task(ClickMouse.init(.None, .None));
             ai.push_task(ClickMouse.init(.Pressed, .None));
-            ai.push_task(MoveMouse.init(
-                ai,
-                rii_position,
-            ));
+            ai.push_task(MoveMouse.init(ai, rii_position));
         }
     }
 
