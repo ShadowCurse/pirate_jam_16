@@ -7,5 +7,6 @@ pkgs.mkShell {
     SDL2
     pkg-config
     emscripten
+    zip
   ];
 }

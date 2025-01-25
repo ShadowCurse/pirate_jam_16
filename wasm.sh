@@ -16,3 +16,5 @@ emcc \
   ../zig-out/lib/libunibuild_runtime.a \
   -o \
   pirate_jam_16.js
+
+ zip -r ../wasm.zip .
