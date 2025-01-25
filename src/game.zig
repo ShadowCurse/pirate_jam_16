@@ -327,6 +327,9 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                         new_opponent_hp += ball.hp;
                     },
                 }
+                if (ball.hp <= 0) {
+                    ball.physics.state.dead = true;
+                }
 
                 for (collisions) |c| {
                     if (c.ball_id != ball.id)
@@ -369,10 +372,6 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                             ball.physics.state.pocketted = true;
                             self.ball_animations.add(ball, pocket.body.position, 1.0);
                         },
-                    }
-
-                    if (ball.hp <= 0) {
-                        ball.physics.state.dead = true;
                     }
                 }
             }
