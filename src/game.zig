@@ -19,6 +19,8 @@ const Vec2 = _math.Vec2;
 const _runtime = @import("runtime.zig");
 const GlobalContext = _runtime.GlobalContext;
 
+const GamePhysics = @import("physics.zig");
+
 const UI = @import("ui.zig");
 const AI = @import("ai.zig");
 
@@ -71,6 +73,7 @@ table: Table,
 shop: Shop,
 
 balls: [PLAYER_BALLS + OPPONENT_BALLS]Ball,
+physics: GamePhysics,
 
 selected_ball: ?u32,
 is_aiming: bool,
@@ -115,56 +118,40 @@ pub fn restart(self: *Self) void {
     self.ball_animations = .{};
     self.shop.reset();
 
-    layout_balls(
-        self.balls[0..PLAYER_BALLS],
-        0,
-        .{ .x = -200.0 },
-        Vec2.NEG_X,
-        Color.GREEN,
-        self.texture_ball,
-        .Player,
-    );
-    layout_balls(
-        self.balls[PLAYER_BALLS..],
-        PLAYER_BALLS,
-        .{ .x = 200.0 },
-        Vec2.X,
-        Color.RED,
-        self.texture_ball,
-        .Opponent,
-    );
+    self.physics.init();
+    self.init_balls();
+
     self.selected_ball = null;
     self.is_aiming = false;
 }
 
-// Layout balls in a triangle with a tip beeing the top of the top ball, the
-// direction is pointing into the triangle.
-pub fn layout_balls(
-    balls: []Ball,
-    id_offset: u8,
-    tip_position: Vec2,
-    direction: Vec2,
-    color: Color,
-    texture_id: Textures.Texture.Id,
-    owner: Owner,
-) void {
-    const GAP = 3.0;
-    // rotate direction 30 degrees for balls in one layer
-    // -30 to get to the next layer
-    const angle = std.math.pi / 6.0;
-    const direction_next = direction.rotate(angle);
-    const direction_next_layer = direction.rotate(-angle);
-    var origin_position: Vec2 = tip_position.add(direction.mul_f32(Ball.RADIUS));
-    var index: u8 = 0;
-    for (0..5) |layer| {
-        for (0..(5 - layer)) |i| {
-            const position =
-                origin_position
-                .add(direction_next.mul_f32(@as(f32, @floatFromInt(i)) * (Ball.RADIUS * 2.0 + GAP)));
-            balls[index] = Ball.init(index + id_offset, color, texture_id, owner, position);
-            index += 1;
-        }
-        origin_position = origin_position.add(direction_next_layer.mul_f32(Ball.RADIUS * 2.0 + GAP));
+pub fn init_balls(self: *Self) void {
+    for (
+        self.physics.balls[0..PLAYER_BALLS],
+        self.balls[0..PLAYER_BALLS],
+        0..,
+    ) |*pb, *b, i| {
+        b.* = Ball.init(
+            @intCast(i),
+            Color.GREEN,
+            self.texture_ball,
+            .Player,
+            pb,
+        );
+    }
+
+    for (
+        self.physics.balls[PLAYER_BALLS..],
+        self.balls[PLAYER_BALLS..],
+        PLAYER_BALLS..,
+    ) |*pb, *b, i| {
+        b.* = Ball.init(
+            @intCast(i),
+            Color.RED,
+            self.texture_ball,
+            .Opponent,
+            pb,
+        );
     }
 }
 
@@ -211,10 +198,14 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
     };
 
     self.table.to_screen_quad(context);
+    if (context.state.debug) {
+        self.physics.borders_to_screen_quads(context);
+        self.physics.pockets_to_screen_quads(context);
+    }
 
     const selected_item = entity.item_inventory.selected();
     for (&self.balls) |*ball| {
-        if (ball.dead)
+        if (!ball.physics.state.playable())
             continue;
 
         const is_selected = if (self.selected_ball) |sb| blk: {
@@ -231,9 +222,6 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             break :blk ball.to_screen_quads(context, show_info, null);
         } else blk: {
             const r = ball.to_screen_quads(context, show_info, selected_item);
-            if (is_selected) {
-                ball.previous_positions_to_object_2d(context);
-            }
             break :blk r;
         };
         if (r.upgrade_applied) {
@@ -265,12 +253,18 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             } else {
                 if (self.selected_ball) |sb| {
                     const ball = &self.balls[sb];
-                    const hit_vector = context.input.mouse_pos_world.sub(ball.body.position);
-                    entity.cue_inventory.selected().move_aiming(ball.body.position, hit_vector);
+                    const hit_vector = context.input.mouse_pos_world.sub(
+                        ball.physics.body.position,
+                    );
+                    entity.cue_inventory.selected().move_aiming(
+                        ball.physics.body.position,
+                        hit_vector,
+                    );
 
                     if (!context.input.rmb) {
                         // We hit in the opposite direction of the "to_mouse" direction
-                        ball.body.velocity = ball.body.velocity.add(hit_vector.neg());
+                        self.physics.balls[ball.id].body.velocity = self.physics.balls[ball.id]
+                            .body.velocity.add(hit_vector.neg());
                         self.turn_state = .Shooting;
                         self.is_aiming = false;
                     }
@@ -281,7 +275,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
 
             var new_ball_selected: bool = false;
             for (&self.balls) |*ball| {
-                if (ball.disabled or ball.dead)
+                if (!ball.physics.state.playable())
                     continue;
 
                 if (ball.owner == self.turn_owner and
@@ -297,26 +291,21 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
         },
         .Shooting => {
             const sb = self.selected_ball.?;
-            const ball_position = self.balls[sb].body.position;
+            const ball_position = self.balls[sb].physics.body.position;
             const hit_vector = context.input.mouse_pos_world.sub(ball_position);
             if (entity.cue_inventory.selected().move_shoot(ball_position, hit_vector, context.dt))
                 self.turn_state = .Taken;
         },
         .Taken => {
             entity.cue_inventory.selected().move_storage();
-
-            for (&self.balls) |*ball| {
-                if (ball.disabled or ball.dead)
-                    continue;
-                ball.update(&self.table, &self.balls, self.turn_owner, context.dt);
-            }
+            const collisions = self.physics.update(context);
 
             var new_player_hp: i32 = 0;
             var player_overheal: i32 = 0;
             var new_opponent_hp: i32 = 0;
             var opponent_overheal: i32 = 0;
             for (&self.balls) |*ball| {
-                if (ball.disabled or ball.dead)
+                if (!ball.physics.state.playable())
                     continue;
 
                 switch (ball.owner) {
@@ -338,19 +327,51 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                     },
                 }
 
-                for (&self.table.pockets) |*pocket| {
-                    const collision_point =
-                        Physics.circle_circle_collision(
-                        ball.collider,
-                        ball.body.position,
-                        pocket.collider,
-                        pocket.body.position,
-                    );
-                    if (collision_point) |_| {
-                        if (self.selected_ball == ball.id)
-                            self.selected_ball = null;
-                        ball.disabled = true;
-                        self.ball_animations.add(ball, pocket.body.position, 1.0);
+                for (collisions) |c| {
+                    if (c.ball_id != ball.id)
+                        continue;
+
+                    switch (c.entity_2) {
+                        .Ball => |ball_2_id| {
+                            const ball_2 = &self.balls[ball_2_id];
+                            if (ball.owner == self.turn_owner) {
+                                if (ball_2.owner == self.turn_owner) {
+                                    ball.hp += ball_2.heal;
+                                    ball_2.hp += ball.heal;
+                                } else {
+                                    const min = @min(ball.damage, ball_2.hp);
+                                    const min_f32: f32 = @floatFromInt(min);
+                                    const d: i32 =
+                                        @intFromFloat(min_f32 * (1.0 - ball_2.armor));
+                                    ball.hp += d;
+                                    ball_2.hp -= d;
+                                }
+                            } else {
+                                if (ball_2.owner == self.turn_owner) {
+                                    const min = @min(ball_2.damage, ball.hp);
+                                    const min_f32: f32 = @floatFromInt(min);
+                                    const d: i32 =
+                                        @intFromFloat(min_f32 * (1.0 - ball_2.armor));
+                                    ball.hp -= d;
+                                    ball_2.hp += d;
+                                } else {
+                                    // nothing happens if 2 oppenents balls collide during players turn
+                                    // and vise versa
+                                }
+                            }
+                        },
+                        .Border => |_| {},
+                        .Pocket => |pocket_id| {
+                            const pocket = &self.physics.pockets[pocket_id];
+                            if (self.selected_ball == ball.id)
+                                self.selected_ball = null;
+                            ball.physics.state.pocketted = true;
+                            self.ball_animations.add(ball, pocket.body.position, 1.0);
+                        },
+                    }
+
+                    if (ball.hp <= 0) {
+                        ball.physics.state.dead = true;
                     }
                 }
             }
@@ -360,7 +381,6 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             self.opponent.hp_overhead += opponent_overheal;
 
             if (self.player.hp <= 0) {
-                log.info(@src(), "lost", .{});
                 context.state.lost = true;
                 context.state_change_animation.set(UI.CAMERA_END_GAME, .{
                     .lost = true,
@@ -377,14 +397,14 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                 return;
             }
 
-            var disabled_or_stationary: u8 = 0;
+            var finished_balls: u8 = 0;
             for (&self.balls) |*ball| {
-                if (ball.disabled or ball.dead or ball.stationary) {
-                    disabled_or_stationary += 1;
+                if (ball.physics.state.any()) {
+                    finished_balls += 1;
                 }
             }
             if (self.ball_animations.run(context.dt) and
-                disabled_or_stationary == self.balls.len)
+                finished_balls == self.balls.len)
             {
                 self.turn_owner = if (self.turn_owner == .Player) .Opponent else .Player;
                 self.turn_state = .NotTaken;

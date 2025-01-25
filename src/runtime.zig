@@ -41,6 +41,7 @@ const Item = _objects.Item;
 
 const UI = @import("ui.zig");
 const Game = @import("game.zig");
+const GamePhysics = @import("physics.zig");
 
 pub const State = packed struct(u8) {
     main_menu: bool = true,
@@ -221,6 +222,8 @@ const Runtime = struct {
             const TaceableTypes = struct {
                 SoftRenderer,
                 ScreenQuads,
+                _objects.Ball,
+                GamePhysics,
             };
             Tracing.prepare_next_frame(TaceableTypes);
             Tracing.to_screen_quads(
@@ -267,7 +270,7 @@ const Runtime = struct {
         );
         if (self.game.is_aiming) {
             const ball_world_position =
-                self.game.balls[self.game.selected_ball.?].body.position;
+                self.game.balls[self.game.selected_ball.?].physics.body.position;
             const ball_screen_positon =
                 ball_world_position.sub(self.context.camera.position.xy());
             const end_positon = self.context.input.mouse_pos;

@@ -99,7 +99,7 @@ pub const BallAnimations = struct {
             );
             return;
         }
-        const velocity = target.sub(ball.body.position).mul_f32(1.0 / duration);
+        const velocity = target.sub(ball.physics.body.position).mul_f32(1.0 / duration);
         self.animations[self.animation_n] = .{
             .ball = ball,
             .move_animation = .{
@@ -123,7 +123,7 @@ pub const BallAnimations = struct {
         while (start < self.animation_n) {
             const animation = &self.animations[start];
             const ball = animation.ball;
-            if (animation.move_animation.update(&ball.body.position, dt)) {
+            if (animation.move_animation.update(&ball.physics.body.position, dt)) {
                 log.info(@src(), "Removing ball animation from slot: {d}", .{start});
                 self.animations[start] = self.animations[self.animation_n - 1];
                 self.animation_n -= 1;

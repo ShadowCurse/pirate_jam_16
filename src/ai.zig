@@ -248,7 +248,7 @@ const SelectBall = struct {
         }
         const selected_ball_index = random_ball_index(.Opponent, game, ai);
         log.info(@src(), "AI: selected ball index: {d}", .{selected_ball_index});
-        const ball_position = game.balls[selected_ball_index].body.position;
+        const ball_position = game.balls[selected_ball_index].physics.body.position;
         log.info(
             @src(),
             "AI: selected ball position: {d}:{d}",
@@ -263,7 +263,7 @@ const SelectBall = struct {
     pub fn random_ball_index(owner: Owner, game: *Game, ai: *Self) u32 {
         var balls_alive: u32 = 0;
         for (&game.balls) |*ball| {
-            if (!ball.disabled and !ball.dead and ball.owner == owner)
+            if (ball.physics.state.playable() and ball.owner == owner)
                 balls_alive += 1;
         }
         const random = ai.rng.random();
@@ -271,7 +271,7 @@ const SelectBall = struct {
             @intFromFloat(random.float(f32) * @as(f32, @floatFromInt(balls_alive)));
 
         for (&game.balls, 0..) |*ball, i| {
-            if (!ball.disabled and !ball.dead and ball.owner == owner) {
+            if (ball.physics.state.playable() and ball.owner == owner) {
                 if (r_index == 0) {
                     return @intCast(i);
                 }
@@ -479,10 +479,10 @@ const UseItem = struct {
         if (selected.is_ball()) {
             while (true) {
                 for (game.balls[Game.PLAYER_BALLS..]) |*ball| {
-                    if (!ball.disabled and !ball.dead) {
+                    if (ball.physics.state.playable()) {
                         const r = random.float(f32);
                         if (r < 0.2) {
-                            return ball.body.position;
+                            return ball.physics.body.position;
                         }
                     }
                 }
@@ -554,13 +554,13 @@ const Shoot = struct {
 
     pub fn move_cue(self: *Shoot, offset: f32, game: *Game, ai: *Self) void {
         const selected_ball = &game.balls[game.selected_ball.?];
-        const from_target = selected_ball.body.position
+        const from_target = selected_ball.physics.body.position
             .sub(self.target_ball_position.?).normalize();
 
         ai.push_task(
             MoveMouse.init(
                 ai,
-                selected_ball.body.position
+                selected_ball.physics.body.position
                     .add(from_target.mul_f32(offset)),
             ),
         );
@@ -568,7 +568,7 @@ const Shoot = struct {
 
     pub fn select_target(self: *Shoot, game: *Game, ai: *Self) void {
         const player_ball_index = SelectBall.random_ball_index(.Player, game, ai);
-        self.target_ball_position = game.balls[player_ball_index].body.position;
+        self.target_ball_position = game.balls[player_ball_index].physics.body.position;
         log.info(@src(), "AI: selected player ball target index: {d}", .{player_ball_index});
     }
 };
