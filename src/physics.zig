@@ -136,12 +136,13 @@ pub fn layout_balls(
 }
 
 pub fn layout_table(self: *Self) void {
-    const WIDTH = 896;
-    const HEIGTH = 514;
-    const BORDER = 66;
-    const POCKET_GAP = 60;
-    const POCKET_RADIUS = 60;
-    const POCKET_CORNER_OFFSET = 30;
+    const WIDTH = 998;
+    const HEIGTH = 545;
+    const BORDER = 36;
+    const POCKET_GAP = 52;
+    const POCKET_CENTER_GAP = 42;
+    const POCKET_RADIUS = 35;
+    const POCKET_CORNER_OFFSET = 15;
 
     self.borders = .{
         // left
@@ -150,7 +151,7 @@ pub fn layout_table(self: *Self) void {
                 .position = .{ .x = -WIDTH / 2 + BORDER / 2 },
             },
             .collider = .{
-                .size = .{ .x = BORDER, .y = HEIGTH - POCKET_GAP * 3.0 },
+                .size = .{ .x = BORDER, .y = HEIGTH - POCKET_GAP * 2.0 },
             },
         },
         // right
@@ -159,44 +160,68 @@ pub fn layout_table(self: *Self) void {
                 .position = .{ .x = WIDTH / 2 - BORDER / 2 },
             },
             .collider = .{
-                .size = .{ .x = BORDER, .y = HEIGTH - POCKET_GAP * 3.0 },
+                .size = .{ .x = BORDER, .y = HEIGTH - POCKET_GAP * 2.0 },
             },
         },
         // bottom left
         .{
             .body = .{
-                .position = .{ .x = -WIDTH / 4 + POCKET_GAP / 2, .y = -HEIGTH / 2 + BORDER / 2 },
+                .position = .{
+                    .x = (-POCKET_CENTER_GAP / 2 - WIDTH / 2 + POCKET_GAP) / 2,
+                    .y = -HEIGTH / 2 + BORDER / 2,
+                },
             },
             .collider = .{
-                .size = .{ .x = WIDTH / 2 - POCKET_GAP * 2, .y = BORDER },
+                .size = .{
+                    .x = WIDTH / 2 - POCKET_GAP - POCKET_CENTER_GAP / 2,
+                    .y = BORDER,
+                },
             },
         },
         // bottom right
         .{
             .body = .{
-                .position = .{ .x = WIDTH / 4 - POCKET_GAP / 2, .y = -HEIGTH / 2 + BORDER / 2 },
+                .position = .{
+                    .x = (POCKET_CENTER_GAP / 2 + WIDTH / 2 - POCKET_GAP) / 2,
+                    .y = -HEIGTH / 2 + BORDER / 2,
+                },
             },
             .collider = .{
-                .size = .{ .x = WIDTH / 2 - POCKET_GAP * 2, .y = BORDER },
+                .size = .{
+                    .x = WIDTH / 2 - POCKET_GAP - POCKET_CENTER_GAP / 2,
+                    .y = BORDER,
+                },
             },
         },
 
         // top left
         .{
             .body = .{
-                .position = .{ .x = -WIDTH / 4 + POCKET_GAP / 2, .y = HEIGTH / 2 - BORDER / 2 },
+                .position = .{
+                    .x = (-POCKET_CENTER_GAP / 2 - WIDTH / 2 + POCKET_GAP) / 2,
+                    .y = HEIGTH / 2 - BORDER / 2,
+                },
             },
             .collider = .{
-                .size = .{ .x = WIDTH / 2 - POCKET_GAP * 2, .y = BORDER },
+                .size = .{
+                    .x = WIDTH / 2 - POCKET_GAP - POCKET_CENTER_GAP / 2,
+                    .y = BORDER,
+                },
             },
         },
         // top right
         .{
             .body = .{
-                .position = .{ .x = WIDTH / 4 - POCKET_GAP / 2, .y = HEIGTH / 2 - BORDER / 2 },
+                .position = .{
+                    .x = (POCKET_CENTER_GAP / 2 + WIDTH / 2 - POCKET_GAP) / 2,
+                    .y = HEIGTH / 2 - BORDER / 2,
+                },
             },
             .collider = .{
-                .size = .{ .x = WIDTH / 2 - POCKET_GAP * 2, .y = BORDER },
+                .size = .{
+                    .x = WIDTH / 2 - POCKET_GAP - POCKET_CENTER_GAP / 2,
+                    .y = BORDER,
+                },
             },
         },
     };

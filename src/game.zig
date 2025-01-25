@@ -102,7 +102,7 @@ pub fn init(self: *Self, context: *GlobalContext) void {
     self.player.init(.Player);
     self.opponent.init(.Opponent);
     self.table = Table.init(
-        context.texture_store.load(context.memory, "assets/table_prototype.png"),
+        context.texture_store.load(context.memory, "assets/table.png"),
     );
     self.restart();
 }

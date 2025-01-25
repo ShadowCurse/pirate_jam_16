@@ -303,8 +303,8 @@ pub const Cue = struct {
     scope: bool = false,
     silencer: bool = false,
 
-    const CUE_HEIGHT = 450;
-    const CUE_WIDTH = 60;
+    const CUE_HEIGHT = 512;
+    const CUE_WIDTH = 10;
     const AIM_BALL_OFFSET = Ball.RADIUS + 2;
 
     pub const UPGRADE_HILIGHT_COLOR = Color.from_parts(255, 0, 0, 64);
@@ -620,12 +620,12 @@ pub const CueInventory = struct {
     selected_index: u8,
 
     const MAX_CUE = 3;
-    const CUE_STORAGE_POSITION_PLAYER: Vec2 = .{ .x = -544.0 };
+    const CUE_STORAGE_POSITION_PLAYER: Vec2 = .{ .x = -564.0 };
     const CUE_STORAGE_ROTATION_PLAYER = 0.0;
-    const CUE_STORAGE_POSITION_OPPONENT: Vec2 = .{ .x = 544.0 };
+    const CUE_STORAGE_POSITION_OPPONENT: Vec2 = .{ .x = 564.0 };
     const CUE_STORAGE_ROTATION_OPPONENT = std.math.pi;
-    const CUE_STORAGE_WIDTH = 150;
-    const CUE_STORAGE_CUE_WIDTH = 50;
+    const CUE_STORAGE_WIDTH = 140;
+    const CUE_STORAGE_CUE_WIDTH = 45;
 
     pub fn init(owner: Owner) CueInventory {
         var self: CueInventory = undefined;

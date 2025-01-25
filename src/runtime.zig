@@ -161,7 +161,7 @@ pub const GlobalContext = struct {
             };
         }
         self.item_infos.get_mut(.CueDefault).texture_id =
-            self.texture_store.load(memory, "assets/cue_prototype.png");
+            self.texture_store.load(memory, "assets/cue.png");
         self.dt = 0.0;
     }
 
