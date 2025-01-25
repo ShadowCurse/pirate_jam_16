@@ -881,7 +881,7 @@ pub const ItemInventory = struct {
                 if (hi == i) {
                     object.tint = Color.BLUE;
                     object.options.with_tint = true;
-                    add_info_panel(context, ip, item_info);
+                    add_info_panel(context, self.owner, ip, item_info);
                 }
             }
             if (self.selected_index) |si| {
@@ -901,10 +901,11 @@ pub const ItemInventory = struct {
 
     fn add_info_panel(
         context: *GlobalContext,
+        owner: Owner,
         ip: Vec2,
         item_info: Item.Info,
     ) void {
-        const panel_position = if (!context.state.in_game_shop)
+        const panel_position = if (!context.state.in_game_shop and owner == .Player)
             ip.add(INFO_PANEL_OFFSET)
         else
             ip.add(INFO_PANEL_OFFSET.neg());

@@ -187,21 +187,24 @@ pub fn settings(self: *Self, context: *GlobalContext) void {
 pub fn in_game(self: *Self, context: *GlobalContext) void {
     UI.in_game(self, context);
 
-    const entity = if (self.turn_owner == .Player) blk: {
-        self.opponent.item_inventory.to_screen_quads(context);
-        _ = self.opponent.cue_inventory.update_and_draw(context, null);
-        break :blk &self.player;
-    } else blk: {
-        self.player.item_inventory.to_screen_quads(context);
-        _ = self.player.cue_inventory.update_and_draw(context, null);
-        break :blk &self.opponent;
-    };
-
     self.table.to_screen_quad(context);
     if (context.state.debug) {
         self.physics.borders_to_screen_quads(context);
         self.physics.pockets_to_screen_quads(context);
     }
+
+    self.opponent.item_inventory.update(context);
+    self.opponent.item_inventory.to_screen_quads(context);
+    self.player.item_inventory.update(context);
+    self.player.item_inventory.to_screen_quads(context);
+
+    const entity = if (self.turn_owner == .Player) blk: {
+        _ = self.opponent.cue_inventory.update_and_draw(context, null);
+        break :blk &self.player;
+    } else blk: {
+        _ = self.player.cue_inventory.update_and_draw(context, null);
+        break :blk &self.opponent;
+    };
 
     const selected_item = entity.item_inventory.selected();
     for (&self.balls) |*ball| {
@@ -237,7 +240,6 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
         }
     }
 
-    entity.item_inventory.to_screen_quads(context);
     if (entity.cue_inventory.update_and_draw(context, selected_item))
         entity.item_inventory.item_used();
 
@@ -249,7 +251,6 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             if (!self.is_aiming) {
                 self.is_aiming = self.selected_ball != null and context.input.rmb == .Pressed;
                 entity.cue_inventory.selected().move_storage();
-                entity.item_inventory.update(context);
             } else {
                 if (self.selected_ball) |sb| {
                     const ball = &self.balls[sb];
