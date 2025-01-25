@@ -188,7 +188,9 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
     UI.in_game(self, context);
 
     if (self.turn_state == .NotTaken and self.turn_owner == .Opponent)
-        self.ai.update(context, self);
+        self.ai.update(context, self)
+    else
+        context.input = context.player_input;
 
     self.table.to_screen_quad(context);
     if (context.state.debug) {

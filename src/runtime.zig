@@ -123,6 +123,7 @@ pub const GlobalContext = struct {
     state: State,
     state_change_animation: StateChangeAnimation,
     input: Input,
+    player_input: Input,
     camera: CameraController2d,
     item_infos: Item.Infos,
     dt: f32,
@@ -145,6 +146,7 @@ pub const GlobalContext = struct {
         };
 
         self.input = .{};
+        self.player_input = .{};
 
         self.camera = CameraController2d.init(window_width, window_height);
         self.camera.position = self.camera.position
@@ -180,7 +182,7 @@ pub const GlobalContext = struct {
         mouse_y: u32,
         dt: f32,
     ) void {
-        self.input.update(
+        self.player_input.update(
             events,
             window_width,
             window_height,
@@ -256,21 +258,40 @@ const Runtime = struct {
         );
         self.game.update_and_draw(&self.context);
 
-        const mouse_rect: Object2d = .{
-            .type = .{ .Color = Color.ORANGE },
-            .transform = .{
-                .position = self.context.input.mouse_pos_world.extend(0.0),
-            },
-            .size = .{
-                .x = 20.0,
-                .y = 20.0,
-            },
-        };
-        mouse_rect.to_screen_quad(
-            &self.context.camera,
-            &self.context.texture_store,
-            &self.context.screen_quads,
-        );
+        {
+            const mouse_rect: Object2d = .{
+                .type = .{ .Color = Color.ORANGE },
+                .transform = .{
+                    .position = self.context.input.mouse_pos_world.extend(0.0),
+                },
+                .size = .{
+                    .x = 20.0,
+                    .y = 20.0,
+                },
+            };
+            mouse_rect.to_screen_quad(
+                &self.context.camera,
+                &self.context.texture_store,
+                &self.context.screen_quads,
+            );
+        }
+        {
+            const mouse_rect: Object2d = .{
+                .type = .{ .Color = Color.BLUE },
+                .transform = .{
+                    .position = self.context.player_input.mouse_pos_world.extend(0.0),
+                },
+                .size = .{
+                    .x = 10.0,
+                    .y = 10.0,
+                },
+            };
+            mouse_rect.to_screen_quad(
+                &self.context.camera,
+                &self.context.texture_store,
+                &self.context.screen_quads,
+            );
+        }
 
         self.soft_renderer.start_rendering();
         self.context.screen_quads.render(

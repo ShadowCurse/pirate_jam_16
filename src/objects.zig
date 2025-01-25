@@ -844,16 +844,20 @@ pub const ItemInventory = struct {
             if (item == .Invalid)
                 continue;
 
-            if (self.item_hovered(@intCast(i), context.input.mouse_pos_world)) {
+            // only player can hover to show info panel
+            if (self.item_hovered(@intCast(i), context.player_input.mouse_pos_world)) {
                 hover_anything = true;
                 self.hovered_index = @intCast(i);
-                if (self.owner == turn_owner and
-                    !context.state.in_game_shop and
-                    context.input.lmb == .Pressed)
-                {
-                    self.selected_index = @intCast(i);
-                    self.dashed_line.start = self.item_position(@intCast(i));
-                }
+            }
+
+            // only turn owner can select
+            if (self.owner == turn_owner and
+                self.item_hovered(@intCast(i), context.input.mouse_pos_world) and
+                !context.state.in_game_shop and
+                context.input.lmb == .Pressed)
+            {
+                self.selected_index = @intCast(i);
+                self.dashed_line.start = self.item_position(@intCast(i));
             }
         }
         if (!hover_anything) {
