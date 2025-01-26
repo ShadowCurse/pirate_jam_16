@@ -418,6 +418,8 @@ const UseItem = struct {
             ai.push_task(ClickMouse.init(.None, .None));
             ai.push_task(ClickMouse.init(.Pressed, .None));
             ai.push_task(MoveMouse.init(ai, target_position));
+        } else {
+            log.info(@src(), "AI: no inventory item was selected", .{});
         }
         self.finished = true;
     }

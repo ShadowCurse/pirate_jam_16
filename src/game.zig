@@ -198,11 +198,6 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
         self.physics.pockets_to_screen_quads(context);
     }
 
-    self.opponent.item_inventory.update(context, self.turn_owner);
-    self.opponent.item_inventory.to_screen_quads(context);
-    self.player.item_inventory.update(context, self.turn_owner);
-    self.player.item_inventory.to_screen_quads(context);
-
     const entity = if (self.turn_owner == .Player) blk: {
         _ = self.opponent.cue_inventory.update_and_draw(context, null);
         break :blk &self.player;
@@ -247,6 +242,11 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
 
     if (entity.cue_inventory.update_and_draw(context, selected_item))
         entity.item_inventory.item_used();
+
+    self.opponent.item_inventory.update(context, self.turn_owner);
+    self.opponent.item_inventory.to_screen_quads(context);
+    self.player.item_inventory.update(context, self.turn_owner);
+    self.player.item_inventory.to_screen_quads(context);
 
     switch (self.turn_state) {
         .NotTaken => {
