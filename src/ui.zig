@@ -22,11 +22,11 @@ const Game = @import("game.zig");
 pub const CAMERA_MAIN_MENU: Vec2 = .{ .x = -1280.0 };
 pub const CAMERA_SETTINGS: Vec2 = .{ .x = -1280.0, .y = 1000.0 };
 pub const CAMERA_IN_GAME: Vec2 = .{};
-pub const CAMERA_IN_GAME_SHOP: Vec2 = .{ .y = 617 };
+pub const CAMERA_IN_GAME_SHOP: Vec2 = .{ .y = 630 };
 pub const CAMERA_END_GAME: Vec2 = .{ .y = -1000.0 };
 
-const UI_BACKGROUND_COLOR = Color.GREY;
-const UI_BACKGROUND_COLOR_PLAYING = Color.GREEN;
+pub const UI_BACKGROUND_COLOR = Color.GREY;
+pub const UI_BACKGROUND_COLOR_PLAYING = Color.GREEN;
 
 pub const UiPanel = struct {
     position: Vec2,
@@ -277,37 +277,27 @@ pub fn settings(context: *GlobalContext) void {
 }
 
 pub fn in_game(game: *Game, context: *GlobalContext) void {
-    const top_panel = UiPanel.init(
-        .{ .y = -310.0 },
-        .{ .x = 900.0, .y = 80.0 },
-        UI_BACKGROUND_COLOR,
-    );
-    top_panel.to_screen_quad(context);
-
-    const bot_panel = UiPanel.init(
-        .{ .y = 310.0 },
-        .{ .x = 900.0, .y = 80.0 },
-        UI_BACKGROUND_COLOR,
-    );
-    bot_panel.to_screen_quad(context);
+    const PANEL_OPPONENT_INFO_POSITION: Vec2 = .{ .x = 520.0, .y = -315.0 };
+    const PANEL_PLAYER_INFO_POSITION: Vec2 = .{ .x = -520.0, .y = 315.0 };
+    const PANEL_INFO_SIZE: Vec2 = .{ .x = 200.0, .y = 80.0 };
 
     const left_info_opponent_panel = UiPanel.init(
-        .{ .x = -550.0, .y = -300 },
-        .{ .x = 140.0, .y = 100.0 },
+        PANEL_OPPONENT_INFO_POSITION,
+        PANEL_INFO_SIZE,
         if (game.turn_owner == .Opponent) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
     );
     left_info_opponent_panel.to_screen_quad(context);
 
     const left_info_player_panel = UiPanel.init(
-        .{ .x = -550.0, .y = 300 },
-        .{ .x = 140.0, .y = 100.0 },
+        PANEL_PLAYER_INFO_POSITION,
+        PANEL_INFO_SIZE,
         if (game.turn_owner == .Player) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
     );
     left_info_player_panel.to_screen_quad(context);
 
     _ = UiText.to_screen_quads(
         context,
-        .{ .x = -550.0, .y = -300 },
+        PANEL_OPPONENT_INFO_POSITION.add(.{ .y = -20.0 }),
         25.0,
         "HP: {d}",
         .{game.opponent.hp},
@@ -315,7 +305,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
     );
     _ = UiText.to_screen_quads(
         context,
-        .{ .x = -550.0, .y = -280 },
+        PANEL_OPPONENT_INFO_POSITION.add(.{ .y = 20.0 }),
         25.0,
         "HP overhead: {d}",
         .{game.opponent.hp_overhead},
@@ -324,7 +314,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
 
     _ = UiText.to_screen_quads(
         context,
-        .{ .x = -550.0, .y = 280 },
+        PANEL_PLAYER_INFO_POSITION.add(.{ .y = -20 }),
         25.0,
         "HP: {d}",
         .{game.player.hp},
@@ -332,26 +322,12 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
     );
     _ = UiText.to_screen_quads(
         context,
-        .{ .x = -550.0, .y = 300 },
+        PANEL_PLAYER_INFO_POSITION.add(.{ .y = 20 }),
         25.0,
         "HP overhead: {d}",
         .{game.player.hp_overhead},
         .{},
     );
-
-    const left_cue_panel = UiPanel.init(
-        .{ .x = -550.0 },
-        .{ .x = 140.0, .y = 480.0 },
-        UI_BACKGROUND_COLOR,
-    );
-    left_cue_panel.to_screen_quad(context);
-
-    const right_cue_panel = UiPanel.init(
-        .{ .x = 550.0 },
-        .{ .x = 140.0, .y = 480.0 },
-        UI_BACKGROUND_COLOR,
-    );
-    right_cue_panel.to_screen_quad(context);
 
     if (UiText.to_screen_quads(
         context,

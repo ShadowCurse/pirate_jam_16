@@ -35,10 +35,10 @@ const SmoothStepAnimation = _animations.SmoothStepAnimation;
 
 const GamePhysics = @import("physics.zig");
 
-const _ui = @import("ui.zig");
-const UiText = _ui.UiText;
-const UiPanel = _ui.UiPanel;
-const UiDashedLine = _ui.UiDashedLine;
+const UI = @import("ui.zig");
+const UiText = UI.UiText;
+const UiPanel = UI.UiPanel;
+const UiDashedLine = UI.UiDashedLine;
 
 pub const Ball = struct {
     id: u8,
@@ -624,8 +624,9 @@ pub const CueInventory = struct {
     const CUE_STORAGE_ROTATION_PLAYER = 0.0;
     const CUE_STORAGE_POSITION_OPPONENT: Vec2 = .{ .x = 564.0 };
     const CUE_STORAGE_ROTATION_OPPONENT = std.math.pi;
-    const CUE_STORAGE_WIDTH = 140;
-    const CUE_STORAGE_CUE_WIDTH = 45;
+    const CUE_STORAGE_WIDTH = 120;
+    const CUE_STORAGE_HEIGHT = 500;
+    const CUE_STORAGE_CUE_WIDTH = 40;
 
     pub fn init(owner: Owner) CueInventory {
         var self: CueInventory = undefined;
@@ -702,6 +703,19 @@ pub const CueInventory = struct {
         context: *GlobalContext,
         selected_upgrade: ?Item.Tag,
     ) bool {
+        const panel = UiPanel.init(
+            if (self.owner == .Player)
+                CUE_STORAGE_POSITION_PLAYER
+            else
+                CUE_STORAGE_POSITION_OPPONENT,
+            .{
+                .x = CUE_STORAGE_WIDTH,
+                .y = CUE_STORAGE_HEIGHT,
+            },
+            UI.UI_BACKGROUND_COLOR,
+        );
+        panel.to_screen_quad(context);
+
         var upgrade_applied: bool = false;
         for (self.cues[0..self.cues_n], 0..) |*cue, i| {
             if (cue.tag == .Invalid)
@@ -731,12 +745,13 @@ pub const ItemInventory = struct {
     dashed_line: UiDashedLine,
 
     const MAX_ITEMS = 4;
-    const ITEMS_POSITION_PLAYER: Vec2 = .{ .x = -100.0, .y = 310.0 };
-    const ITEMS_POSITION_OPPONENT: Vec2 = .{ .x = -100.0, .y = -310.0 };
+    const ITEMS_POSITION_PLAYER: Vec2 = .{ .x = -100.0, .y = 315.0 };
+    const ITEMS_POSITION_OPPONENT: Vec2 = .{ .x = 100.0, .y = -315.0 };
     const ITEMS_WIDTH = 600;
-    const ITEM_WIDTH = 100;
-    const ITEM_HEIGHT = 100;
-    const ITEM_GAP = 50;
+    const ITEMS_HEIGHT = 80;
+    const ITEM_WIDTH = 60;
+    const ITEM_HEIGHT = 60;
+    const ITEM_GAP = 90;
 
     pub const INFO_PANEL_OFFSET: Vec2 = .{ .y = -180.0 };
     pub const INFO_PANEL_SIZE: Vec2 = .{ .x = 280.0, .y = 300.0 };
@@ -870,7 +885,6 @@ pub const ItemInventory = struct {
         if (!hover_anything) {
             self.hovered_index = null;
             if (context.input.lmb == .Pressed) {
-                log.info(@src(), "{any} Deselect item", .{self.owner});
                 self.selected_index = null;
             }
         }
@@ -880,6 +894,19 @@ pub const ItemInventory = struct {
         self: ItemInventory,
         context: *GlobalContext,
     ) void {
+        const bot_panel = UiPanel.init(
+            if (self.owner == .Player)
+                ITEMS_POSITION_PLAYER
+            else
+                ITEMS_POSITION_OPPONENT,
+            .{
+                .x = ITEMS_WIDTH,
+                .y = ITEMS_HEIGHT,
+            },
+            UI.UI_BACKGROUND_COLOR,
+        );
+        bot_panel.to_screen_quad(context);
+
         for (self.items, 0..) |item, i| {
             if (item == .Invalid)
                 continue;

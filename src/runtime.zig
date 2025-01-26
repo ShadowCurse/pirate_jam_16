@@ -230,6 +230,16 @@ const Runtime = struct {
         const scratch_alloc = memory.scratch_alloc();
         self.context.reset();
 
+        self.context.update(
+            events,
+            window_width,
+            window_height,
+            mouse_x,
+            mouse_y,
+            dt,
+        );
+        self.game.update_and_draw(&self.context);
+
         if (self.context.state.debug) {
             const TaceableTypes = struct {
                 SoftRenderer,
@@ -247,16 +257,6 @@ const Runtime = struct {
             );
             Tracing.zero_current(TaceableTypes);
         }
-
-        self.context.update(
-            events,
-            window_width,
-            window_height,
-            mouse_x,
-            mouse_y,
-            dt,
-        );
-        self.game.update_and_draw(&self.context);
 
         {
             const mouse_rect: Object2d = .{
@@ -296,8 +296,9 @@ const Runtime = struct {
         self.soft_renderer.start_rendering();
         self.context.screen_quads.render(
             &self.soft_renderer,
-            0.0,
             &self.context.texture_store,
+            0.0,
+            false,
         );
         if (self.game.is_aiming) {
             const ball_world_position =

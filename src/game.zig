@@ -185,8 +185,6 @@ pub fn settings(self: *Self, context: *GlobalContext) void {
 }
 
 pub fn in_game(self: *Self, context: *GlobalContext) void {
-    UI.in_game(self, context);
-
     if (self.turn_state == .NotTaken and self.turn_owner == .Opponent)
         self.ai.update(context, self)
     else
@@ -414,6 +412,8 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             }
         },
     }
+
+    UI.in_game(self, context);
 }
 
 pub fn in_game_shop(self: *Self, context: *GlobalContext) void {
