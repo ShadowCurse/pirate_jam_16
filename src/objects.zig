@@ -617,14 +617,14 @@ pub const CueInventory = struct {
     owner: Owner,
     selected_index: u8,
 
-    const MAX_CUE = 3;
+    const MAX_CUE = 2;
     const CUE_STORAGE_POSITION_PLAYER: Vec2 = .{ .x = -564.0 };
     const CUE_STORAGE_ROTATION_PLAYER = 0.0;
     const CUE_STORAGE_POSITION_OPPONENT: Vec2 = .{ .x = 564.0 };
     const CUE_STORAGE_ROTATION_OPPONENT = std.math.pi;
     const CUE_STORAGE_WIDTH = 120;
     const CUE_STORAGE_HEIGHT = 500;
-    const CUE_STORAGE_CUE_WIDTH = 40;
+    const CUE_STORAGE_CUE_WIDTH = 60;
 
     pub fn init(owner: Owner) CueInventory {
         var self: CueInventory = undefined;
@@ -634,8 +634,6 @@ pub const CueInventory = struct {
         self.cues[0] =
             Cue.init(.CueDefault, p_r[0], p_r[1]);
         self.cues[1] =
-            Cue.init(.Invalid, p_r[0], p_r[1]);
-        self.cues[2] =
             Cue.init(.Invalid, p_r[0], p_r[1]);
         self.cues_n = 1;
         self.selected_index = 0;
