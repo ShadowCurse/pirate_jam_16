@@ -97,7 +97,7 @@ pub const UiText = struct {
             .{ .dont_clip = true },
         );
 
-        const text_quads = if (!options.world_space)
+        const r = if (!options.world_space)
             text.to_screen_quads_raw(context.alloc())
         else
             text.to_screen_quads_world_space_raw(
@@ -107,8 +107,8 @@ pub const UiText = struct {
 
         const collision_rectangle: Physics.Rectangle = .{
             .size = .{
-                .x = text_quads.total_width,
-                .y = text.size,
+                .x = r.max_width,
+                .y = text.size * @as(f32, @floatFromInt(r.quad_lines.len)),
             },
         };
         const rectangle_position: Vec2 =
@@ -125,13 +125,17 @@ pub const UiText = struct {
             rectangle_position,
         );
         if (options.hilight and intersects) {
-            for (text_quads.quads) |*quad| {
-                quad.color = Color.RED;
-                quad.options.with_tint = true;
+            for (r.quad_lines) |quad_line| {
+                for (quad_line) |*quad| {
+                    quad.color = Color.RED;
+                    quad.options.with_tint = true;
+                }
             }
         }
-        for (text_quads.quads) |quad| {
-            context.screen_quads.add_quad(quad);
+        for (r.quad_lines) |quad_line| {
+            for (quad_line) |quad| {
+                context.screen_quads.add_quad(quad);
+            }
         }
         return intersects;
     }
