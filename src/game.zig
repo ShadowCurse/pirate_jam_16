@@ -243,13 +243,6 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
         self.selected_ball = null;
     }
 
-    if (!self.is_aiming and self.turn_state == .NotTaken) {
-        if (self.selected_ball) |sb| {
-            const ball = &self.balls[sb];
-            ball.draw_info_panel(context);
-        }
-    }
-
     // need to do this separatelly to draw info panel on top of
     // other things
     if (new_ball_hovered) |hb| {
