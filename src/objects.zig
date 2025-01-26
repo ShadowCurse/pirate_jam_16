@@ -295,8 +295,6 @@ pub const Cue = struct {
     storage_rotation: f32,
     shoot_animation: ?SmoothStepAnimation,
 
-    add_heal: i32 = 0,
-    add_damage: i32 = 0,
     hit_count: u8 = 1,
     hit_strength: f32 = 1.0,
     wiggle_ball: bool = false,
@@ -322,8 +320,6 @@ pub const Cue = struct {
     }
 
     pub fn reset_upgrades(self: *Cue) void {
-        self.add_heal = 0;
-        self.add_damage = 0;
         self.hit_count = 1;
         self.hit_strength = 1.0;
         self.wiggle_ball = false;
@@ -347,12 +343,6 @@ pub const Cue = struct {
 
     pub fn add_upgrade(self: *Cue, upgrade: Item.Tag) bool {
         switch (upgrade) {
-            .CueHP => {
-                self.add_heal += 5;
-            },
-            .CueDamage => {
-                self.add_damage += 5;
-            },
             .CueWiggleBall => {
                 if (self.wiggle_ball)
                     return false
@@ -522,31 +512,30 @@ pub const Cue = struct {
 
 pub const Item = struct {
     pub const Tag = enum(u8) {
-        Invalid = 0,
-        BallSpiky = 1,
-        BallHealthy = 2,
-        BallArmored = 3,
-        BallLight = 4,
-        BallHeavy = 5,
-        BallGravity = 6,
-        BallRunner = 7,
-        BallRingOfLight = 8,
+        Invalid,
+        BallSpiky,
+        BallHealthy,
+        BallArmored,
+        BallLight,
+        BallHeavy,
+        BallAntisocial,
+        BallGravity,
+        BallRunner,
+        BallRingOfLight,
 
-        CueHP = 9,
-        CueDamage = 10,
-        CueWiggleBall = 11,
-        CueScope = 12,
-        CueSecondBarrel = 13,
-        CueSilencer = 14,
-        CueRocketBooster = 15,
+        CueWiggleBall,
+        CueScope,
+        CueSecondBarrel,
+        CueSilencer,
+        CueRocketBooster,
 
-        CueDefault = 16,
-        Cue50CAL = 17,
-        CueShotgun = 18,
+        CueDefault,
+        CueKar98K,
+        CueCross,
 
         pub fn is_ball(self: Tag) bool {
             return self != .Invalid and
-                @intFromEnum(self) < @intFromEnum(Tag.CueHP);
+                @intFromEnum(self) < @intFromEnum(Tag.CueWiggleBall);
         }
 
         pub fn is_cue_upgrade(self: Tag) bool {
@@ -576,38 +565,47 @@ pub const Item = struct {
         .BallSpiky,
         .BallHealthy,
         .BallArmored,
-        .CueHP,
-        .CueDamage,
     };
 
     pub const RareItems = [_]Tag{
         .BallLight,
         .BallHeavy,
+        .BallAntisocial,
         .BallGravity,
         .BallRunner,
         .CueWiggleBall,
         .CueScope,
         .CueSecondBarrel,
-        .CueShotgun,
     };
 
     pub const EpicItems = [_]Tag{
         .BallRingOfLight,
         .CueSilencer,
         .CueRocketBooster,
-        .Cue50CAL,
+        .CueKar98K,
+        .CueCross,
     };
 
     pub const Infos = struct {
         infos: [@typeInfo(Tag).Enum.fields.len]Info,
 
         pub fn get(self: *const Infos, tag: Tag) *const Info {
-            log.assert(@src(), @intFromEnum(tag) < @typeInfo(Tag).Enum.fields.len - 1, "", .{});
+            log.assert(
+                @src(),
+                @intFromEnum(tag) < @typeInfo(Tag).Enum.fields.len,
+                "Trying to get item info for index: {d} out of {d}",
+                .{ @intFromEnum(tag), @typeInfo(Tag).Enum.fields.len },
+            );
             return &self.infos[@intFromEnum(tag)];
         }
 
         pub fn get_mut(self: *Infos, tag: Tag) *Info {
-            log.assert(@src(), @intFromEnum(tag) < @typeInfo(Tag).Enum.fields.len - 1, "", .{});
+            log.assert(
+                @src(),
+                @intFromEnum(tag) < @typeInfo(Tag).Enum.fields.len,
+                "Trying to get item info for index: {d} out of {d}",
+                .{ @intFromEnum(tag), @typeInfo(Tag).Enum.fields.len },
+            );
             return &self.infos[@intFromEnum(tag)];
         }
     };
@@ -672,7 +670,7 @@ pub const CueInventory = struct {
     pub fn add(self: *CueInventory, cue: Item.Tag) bool {
         log.assert(
             @src(),
-            @intFromEnum(Item.Tag.Cue50CAL) <= @intFromEnum(cue),
+            @intFromEnum(Item.Tag.CueKar98K) <= @intFromEnum(cue),
             "Trying to add item to the cue inventory",
             .{},
         );
@@ -790,7 +788,7 @@ pub const ItemInventory = struct {
     pub fn add(self: *ItemInventory, item: Item.Tag) bool {
         log.assert(
             @src(),
-            @intFromEnum(item) < @intFromEnum(Item.Tag.Cue50CAL),
+            @intFromEnum(item) < @intFromEnum(Item.Tag.CueKar98K),
             "Trying to add cue to the item inventory",
             .{},
         );

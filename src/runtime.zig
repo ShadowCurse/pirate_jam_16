@@ -138,6 +138,7 @@ pub const GlobalContext = struct {
         self.screen_quads = ScreenQuads.init(memory, 4096) catch unreachable;
         self.texture_store.init(memory) catch unreachable;
         self.font = Font.init(memory, &self.texture_store, "assets/Hack-Regular.ttf", 64);
+        // self.font = Font.init(memory, &self.texture_store, "assets/pixel_font.ttf", 16);
 
         self.state = .{};
         self.state_change_animation = .{
@@ -160,8 +161,111 @@ pub const GlobalContext = struct {
                 .price = 5,
             };
         }
-        self.item_infos.get_mut(.CueDefault).texture_id =
-            self.texture_store.load(memory, "assets/cue.png");
+        self.item_infos.get_mut(.BallSpiky).* = .{
+            .texture_id = Textures.Texture.ID_DEBUG,
+            .name = "Spiky ball",
+            .description = "Increases the ball damage by 5",
+            .price = 20,
+        };
+        self.item_infos.get_mut(.BallHealthy).* = .{
+            .texture_id = Textures.Texture.ID_DEBUG,
+            .name = "Healthy ball",
+            .description = "Increases the ball hp by 5",
+            .price = 20,
+        };
+        self.item_infos.get_mut(.BallArmored).* = .{
+            .texture_id = Textures.Texture.ID_DEBUG,
+            .name = "Armored ball",
+            .description = "Increases the armor of the ball by 5",
+            .price = 20,
+        };
+        self.item_infos.get_mut(.BallLight).* = .{
+            .texture_id = Textures.Texture.ID_DEBUG,
+            .name = "Light ball",
+            .description = "Makes a ball lighter",
+            .price = 20,
+        };
+        self.item_infos.get_mut(.BallHeavy).* = .{
+            .texture_id = Textures.Texture.ID_DEBUG,
+            .name = "Heavy ball",
+            .description = "Makes a ball heavier",
+            .price = 20,
+        };
+        self.item_infos.get_mut(.BallAntisocial).* = .{
+            .texture_id = Textures.Texture.ID_DEBUG,
+            .name = "Antisocial ball",
+            .description = "Ball gains additional velocity when collides with other balls",
+            .price = 20,
+        };
+        self.item_infos.get_mut(.BallGravity).* = .{
+            .texture_id = Textures.Texture.ID_DEBUG,
+            .name = "Gravity ball",
+            .description = "TODO",
+            .price = 20,
+        };
+        self.item_infos.get_mut(.BallRunner).* = .{
+            .texture_id = Textures.Texture.ID_DEBUG,
+            .name = "Runner ball",
+            .description = "TODO",
+            .price = 20,
+        };
+        self.item_infos.get_mut(.BallRingOfLight).* = .{
+            .texture_id = Textures.Texture.ID_DEBUG,
+            .name = "Ring of light",
+            .description = "TODO",
+            .price = 20,
+        };
+
+        self.item_infos.get_mut(.CueWiggleBall).* = .{
+            .texture_id = Textures.Texture.ID_DEBUG,
+            .name = "Wiggle ball",
+            .description = "Makes the hit ball to traven in a sin wave pattern",
+            .price = 20,
+        };
+        self.item_infos.get_mut(.CueScope).* = .{
+            .texture_id = Textures.Texture.ID_DEBUG,
+            .name = "Sniper scope",
+            .description = "Adds a trajectory line when aiming",
+            .price = 20,
+        };
+        self.item_infos.get_mut(.CueSecondBarrel).* = .{
+            .texture_id = Textures.Texture.ID_DEBUG,
+            .name = "Second barrel",
+            .description = "",
+            .price = 20,
+        };
+        self.item_infos.get_mut(.CueSilencer).* = .{
+            .texture_id = Textures.Texture.ID_DEBUG,
+            .name = "Silencer",
+            .description = "The ball you hit will ghost through allied balls and only collide with the first enemy ball",
+            .price = 20,
+        };
+        self.item_infos.get_mut(.CueRocketBooster).* = .{
+            .texture_id = Textures.Texture.ID_DEBUG,
+            .name = "Rocket booster",
+            .description = "Increases the strength of the hit",
+            .price = 20,
+        };
+
+        self.item_infos.get_mut(.CueDefault).* = .{
+            .texture_id = self.texture_store.load(memory, "assets/cue.png"),
+            .name = "Default cue",
+            .description = "",
+            .price = 20,
+        };
+        self.item_infos.get_mut(.CueKar98K).* = .{
+            .texture_id = self.texture_store.load(memory, "assets/cue.png"),
+            .name = "Kar98k",
+            .description = "In addition to hitting the ball, deals 50 damage to all enemy balls in a straight line",
+            .price = 20,
+        };
+        self.item_infos.get_mut(.CueCross).* = .{
+            .texture_id = self.texture_store.load(memory, "assets/cue.png"),
+            .name = "Silver cross",
+            .description = "In addition to hitting the ball, heals all allied balls and damages all enemy balls in a small radius",
+            .price = 20,
+        };
+
         self.dt = 0.0;
     }
 
