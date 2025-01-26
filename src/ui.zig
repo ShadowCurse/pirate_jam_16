@@ -41,6 +41,17 @@ pub const UiPanel = struct {
         };
     }
 
+    pub fn hovered(self: UiPanel, context: *GlobalContext) bool {
+        const collision_rectangle: Physics.Rectangle = .{
+            .size = self.size,
+        };
+        return Physics.point_rectangle_intersect(
+            context.player_input.mouse_pos_world,
+            collision_rectangle,
+            self.position,
+        );
+    }
+
     pub fn to_screen_quad(
         self: UiPanel,
         context: *GlobalContext,

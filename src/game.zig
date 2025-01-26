@@ -205,6 +205,8 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
     };
 
     const selected_item = entity.item_inventory.selected();
+    var new_ball_selected: bool = false;
+    var new_ball_hovered: ?u32 = null;
     for (&self.balls) |*ball| {
         if (!ball.physics.state.playable())
             continue;
@@ -217,25 +219,42 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
         } else blk: {
             break :blk false;
         };
-        const show_info = is_selected and !self.is_aiming and self.turn_state == .NotTaken;
-
         const r = if (ball.owner != self.turn_owner) blk: {
-            break :blk ball.to_screen_quads(context, show_info, null);
+            break :blk ball.update_and_draw(context, is_selected, null);
         } else blk: {
-            const r = ball.to_screen_quads(context, show_info, selected_item);
+            const r = ball.update_and_draw(context, is_selected, selected_item);
             break :blk r;
         };
         if (r.upgrade_applied) {
             entity.item_inventory.item_used();
         }
-        if (r.need_refill) {
-            const to_refill = ball.max_hp - ball.hp;
-            if (to_refill <= entity.hp_overhead) {
-                ball.hp = ball.max_hp;
-                entity.hp += to_refill;
-                entity.hp_overhead -= to_refill;
-            }
+        if (r.selected and
+            ball.owner == self.turn_owner)
+        {
+            new_ball_selected = true;
+            self.selected_ball = ball.id;
         }
+        if (r.hovered) {
+            new_ball_hovered = ball.id;
+            ball.draw_info_panel(context);
+        }
+    }
+    if (!new_ball_selected) {
+        self.selected_ball = null;
+    }
+
+    if (!self.is_aiming and self.turn_state == .NotTaken) {
+        if (self.selected_ball) |sb| {
+            const ball = &self.balls[sb];
+            ball.draw_info_panel(context);
+        }
+    }
+
+    // need to do this separatelly to draw info panel on top of
+    // other things
+    if (new_ball_hovered) |hb| {
+        const ball = &self.balls[hb];
+        _ = ball.draw_info_panel(context);
     }
 
     if (entity.cue_inventory.update_and_draw(context, selected_item))
@@ -273,22 +292,6 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                     self.is_aiming = false;
                 }
             }
-
-            var new_ball_selected: bool = false;
-            for (&self.balls) |*ball| {
-                if (!ball.physics.state.playable())
-                    continue;
-
-                if (ball.owner == self.turn_owner and
-                    ball.is_hovered(context.input.mouse_pos_world) and
-                    context.input.lmb == .Pressed)
-                {
-                    new_ball_selected = true;
-                    self.selected_ball = ball.id;
-                }
-            }
-            if (!new_ball_selected and context.input.lmb == .Pressed)
-                self.selected_ball = null;
         },
         .Shooting => {
             const sb = self.selected_ball.?;

@@ -128,19 +128,31 @@ pub const Ball = struct {
         return true;
     }
 
-    pub const ToScreenQuadsResult = struct {
+    pub const UpdateAndDrawResult = struct {
+        hovered: bool = false,
+        selected: bool = false,
         upgrade_applied: bool = false,
-        need_refill: bool = false,
     };
 
-    pub fn to_screen_quads(
+    pub fn update_and_draw(
         self: *Ball,
         context: *GlobalContext,
-        show_info: bool,
+        is_selected: bool,
         selected_upgrade: ?Item.Tag,
-    ) ToScreenQuadsResult {
-        var result: ToScreenQuadsResult = .{};
+    ) UpdateAndDrawResult {
+        var result: UpdateAndDrawResult = .{};
+
         const is_ball_upgrade = if (selected_upgrade) |si| si.is_ball() else false;
+        const hovered = self.is_hovered(context.input.mouse_pos_world);
+        const player_hovered = self.is_hovered(context.player_input.mouse_pos_world);
+        result.hovered = hovered or player_hovered;
+
+        result.selected = is_selected;
+        if (!hovered and context.input.lmb == .Pressed)
+            result.selected = false;
+        if (hovered and context.input.lmb == .Pressed)
+            result.selected = true;
+
         if (is_ball_upgrade) {
             const object: Object2d = .{
                 .type = .{ .TextureId = self.texture_id },
@@ -160,7 +172,7 @@ pub const Ball = struct {
                 &context.screen_quads,
             );
         }
-        if (self.is_hovered(context.input.mouse_pos_world)) {
+        if (is_selected or hovered) {
             const object: Object2d = .{
                 .type = .{ .TextureId = self.texture_id },
                 .tint = HOVER_HILIGHT_COLOR,
@@ -178,13 +190,11 @@ pub const Ball = struct {
                 &context.texture_store,
                 &context.screen_quads,
             );
+        }
+        if (hovered) {
             if (is_ball_upgrade and context.input.lmb == .Pressed) {
                 result.upgrade_applied = self.add_upgrade(selected_upgrade.?);
             }
-        }
-        if (show_info) {
-            result.need_refill = self.info_panel_to_screen_quads(context) and
-                context.input.lmb == .Pressed;
         }
         const object: Object2d = .{
             .type = .{ .TextureId = self.texture_id },
@@ -215,7 +225,7 @@ pub const Ball = struct {
         );
     }
 
-    pub fn info_panel_to_screen_quads(self: Ball, context: *GlobalContext) bool {
+    pub fn draw_info_panel(self: Ball, context: *GlobalContext) void {
         const panel_position = self.physics.body.position.add(INFO_PANEL_OFFSET);
         const info_panel = UiPanel.init(
             panel_position,
@@ -223,7 +233,6 @@ pub const Ball = struct {
             Color.GREY,
         );
         info_panel.to_screen_quad(context);
-
         {
             _ = UiText.to_screen_quads(
                 context,
@@ -245,15 +254,6 @@ pub const Ball = struct {
                 .{},
             );
         }
-
-        return UiText.to_screen_quads(
-            context,
-            panel_position.add(.{ .y = 40.0 }),
-            25.0,
-            "Refill ball HP with {d} overhead HP",
-            .{self.max_hp - self.hp},
-            .{},
-        );
     }
 };
 
