@@ -530,11 +530,11 @@ const Shoot = struct {
         }
 
         ai.push_task(ClickMouse.init(.None, .None));
-        ai.push_task(ClickMouse.init(.None, .Released));
+        ai.push_task(ClickMouse.init(.Released, .None));
         const random = ai.rng.random();
         const offset = OFFSET_AIM + Cue.MAX_STRENGTH * random.float(f32);
         self.move_cue(offset, game, ai);
-        ai.push_task(ClickMouse.init(.None, .Pressed));
+        ai.push_task(ClickMouse.init(.Pressed, .None));
 
         self.finished = true;
     }

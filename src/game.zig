@@ -241,7 +241,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             ball.draw_info_panel(context);
         }
     }
-    if (!new_ball_selected) {
+    if (!new_ball_selected and self.cue_aim_start_positon == null) {
         self.selected_ball = null;
     }
 
@@ -282,7 +282,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                     strength,
                 );
 
-                if (context.input.rmb == .Released) {
+                if (context.input.lmb == .Released) {
                     ball.physics.body.velocity = ball.physics.body.velocity
                         .add(ball_to_start.neg().mul_f32(strength * Cue.STRENGTH_MUL));
                     self.turn_state = .Shooting;
@@ -299,7 +299,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                         hit_vector,
                         0.0,
                     );
-                    if (context.input.rmb == .Pressed) {
+                    if (context.input.lmb == .Pressed) {
                         self.cue_aim_start_positon = context.input.mouse_pos_world;
                     }
                 } else {

@@ -151,9 +151,9 @@ pub const Ball = struct {
         result.hovered = hovered or player_hovered;
 
         result.selected = is_selected;
-        if (!hovered and context.input.lmb == .Pressed)
+        if (!hovered and context.input.lmb == .Released)
             result.selected = false;
-        if (hovered and context.input.lmb == .Pressed)
+        if (hovered and context.input.lmb == .Released)
             result.selected = true;
 
         if (is_ball_upgrade) {
