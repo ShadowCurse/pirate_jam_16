@@ -76,7 +76,7 @@ balls: [PLAYER_BALLS + OPPONENT_BALLS]Ball,
 physics: GamePhysics,
 
 selected_ball: ?u32,
-is_aiming: bool,
+cue_aim_start_positon: ?Vec2,
 
 pub const PLAYER_BALLS = 15;
 pub const OPPONENT_BALLS = 15;
@@ -122,7 +122,7 @@ pub fn restart(self: *Self) void {
     self.init_balls();
 
     self.selected_ball = null;
-    self.is_aiming = false;
+    self.cue_aim_start_positon = null;
 }
 
 pub fn init_balls(self: *Self) void {
@@ -198,9 +198,11 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
 
     const entity = if (self.turn_owner == .Player) blk: {
         _ = self.opponent.cue_inventory.update_and_draw(context, null);
+        self.opponent.cue_inventory.selected().move_storage();
         break :blk &self.player;
     } else blk: {
         _ = self.player.cue_inventory.update_and_draw(context, null);
+        self.player.cue_inventory.selected().move_storage();
         break :blk &self.opponent;
     };
 
@@ -260,9 +262,32 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
 
     switch (self.turn_state) {
         .NotTaken => {
-            if (!self.is_aiming) {
-                self.is_aiming = self.selected_ball != null and context.input.rmb == .Pressed;
-                entity.cue_inventory.selected().move_storage();
+            if (self.cue_aim_start_positon) |casp| {
+                const sb = self.selected_ball.?;
+                const ball = &self.balls[sb];
+
+                const hit_vector = casp.sub(
+                    ball.physics.body.position,
+                );
+                const ball_to_start = hit_vector.normalize();
+                const start_to_mouse = context.input.mouse_pos_world.sub(casp);
+                const strength = @max(
+                    0.0,
+                    @min(Cue.MAX_STRENGTH, start_to_mouse.dot(ball_to_start)),
+                );
+
+                entity.cue_inventory.selected().move_aiming(
+                    ball.physics.body.position,
+                    hit_vector,
+                    strength,
+                );
+
+                if (context.input.rmb == .Released) {
+                    ball.physics.body.velocity = ball.physics.body.velocity
+                        .add(ball_to_start.neg().mul_f32(strength * Cue.STRENGTH_MUL));
+                    self.turn_state = .Shooting;
+                    self.cue_aim_start_positon = null;
+                }
             } else {
                 if (self.selected_ball) |sb| {
                     const ball = &self.balls[sb];
@@ -272,17 +297,13 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                     entity.cue_inventory.selected().move_aiming(
                         ball.physics.body.position,
                         hit_vector,
+                        0.0,
                     );
-
-                    if (context.input.rmb == .Released) {
-                        // We hit in the opposite direction of the "to_mouse" direction
-                        self.physics.balls[ball.id].body.velocity = self.physics.balls[ball.id]
-                            .body.velocity.add(hit_vector.neg());
-                        self.turn_state = .Shooting;
-                        self.is_aiming = false;
+                    if (context.input.rmb == .Pressed) {
+                        self.cue_aim_start_positon = context.input.mouse_pos_world;
                     }
                 } else {
-                    self.is_aiming = false;
+                    entity.cue_inventory.selected().move_storage();
                 }
             }
         },

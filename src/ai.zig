@@ -10,6 +10,9 @@ const _runtime = @import("runtime.zig");
 const GlobalContext = _runtime.GlobalContext;
 const Input = _runtime.Input;
 
+const _objects = @import("objects.zig");
+const Cue = _objects.Cue;
+
 const Game = @import("game.zig");
 const Owner = Game.Owner;
 
@@ -497,8 +500,6 @@ const Shoot = struct {
     const TIME_MIN = 0.5;
     const TIME_MAX = 1.5;
     const OFFSET_AIM = 120.0;
-    const OFFSET_SHOOT_MIN = 200.0;
-    const OFFSET_SHOOT_MAX = 800.0;
 
     pub fn init(ai: *Self) Task {
         const random = ai.rng.random();
@@ -515,7 +516,6 @@ const Shoot = struct {
 
         self.timer += context.dt;
         if (self.timer < self.timer_end) {
-            ai.input.rmb = .Pressed;
             if (self.target_ball_position == null) {
                 self.select_target(game, ai);
                 self.move_cue(OFFSET_AIM, game, ai);
@@ -531,11 +531,11 @@ const Shoot = struct {
 
         ai.push_task(ClickMouse.init(.None, .None));
         ai.push_task(ClickMouse.init(.None, .Released));
-
         const random = ai.rng.random();
-        const offset =
-            OFFSET_SHOOT_MIN + (OFFSET_SHOOT_MAX - OFFSET_SHOOT_MIN) * random.float(f32);
+        const offset = OFFSET_AIM + Cue.MAX_STRENGTH * random.float(f32);
         self.move_cue(offset, game, ai);
+        ai.push_task(ClickMouse.init(.None, .Pressed));
+
         self.finished = true;
     }
 

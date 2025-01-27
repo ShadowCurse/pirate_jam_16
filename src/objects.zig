@@ -295,9 +295,11 @@ pub const Cue = struct {
     scope: bool = false,
     silencer: bool = false,
 
-    const CUE_HEIGHT = 512;
-    const CUE_WIDTH = 10;
-    const AIM_BALL_OFFSET = Ball.RADIUS + 2;
+    pub const CUE_HEIGHT = 512;
+    pub const CUE_WIDTH = 10;
+    pub const AIM_BALL_OFFSET = Ball.RADIUS + 5;
+    pub const MAX_STRENGTH = 150.0;
+    pub const STRENGTH_MUL = 4.0;
 
     pub const UPGRADE_HILIGHT_COLOR = Color.from_parts(255, 0, 0, 64);
     pub const HOVER_HILIGHT_COLOR = Color.from_parts(0, 0, 255, 64);
@@ -377,6 +379,7 @@ pub const Cue = struct {
         self: *Cue,
         ball_position: Vec2,
         hit_vector: Vec2,
+        offset: f32,
     ) void {
         const hv_len = hit_vector.len();
         if (hv_len == 0.0)
@@ -386,8 +389,7 @@ pub const Cue = struct {
         const cue_postion = ball_position.add(
             hv_normalized
                 .mul_f32(AIM_BALL_OFFSET +
-                CUE_HEIGHT / 2 +
-                hv_len),
+                CUE_HEIGHT / 2 + offset),
         );
         const c = hv_normalized.cross(.{ .y = 1 });
         const d = hv_normalized.dot(.{ .y = 1 });
@@ -693,6 +695,11 @@ pub const CueInventory = struct {
         context: *GlobalContext,
         selected_upgrade: ?Item.Tag,
     ) bool {
+        for (&self.cues, 0..) |*cue, i| {
+            if (i != self.selected_index)
+                cue.move_storage();
+        }
+
         const panel = UiPanel.init(
             if (self.owner == .Player)
                 CUE_STORAGE_POSITION_PLAYER

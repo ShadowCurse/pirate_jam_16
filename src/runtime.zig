@@ -461,18 +461,6 @@ const Runtime = struct {
             0.0,
             false,
         );
-        if (self.game.is_aiming) {
-            const ball_world_position =
-                self.game.balls[self.game.selected_ball.?].physics.body.position;
-            const ball_screen_positon =
-                ball_world_position.sub(self.context.camera.position.xy());
-            const end_positon = self.context.input.mouse_pos;
-            self.soft_renderer.draw_line(
-                ball_screen_positon,
-                end_positon,
-                Color.MAGENTA,
-            );
-        }
         self.soft_renderer.end_rendering();
     }
 };
