@@ -116,6 +116,8 @@ pub const Input = struct {
 };
 
 pub const Assets = struct {
+    ball_player: Textures.Texture.Id,
+    ball_opponent: Textures.Texture.Id,
     table: Textures.Texture.Id,
     cue_defult: Textures.Texture.Id,
     button: Textures.Texture.Id,
@@ -150,6 +152,12 @@ pub const GlobalContext = struct {
         self.screen_quads = ScreenQuads.init(memory, 4096) catch unreachable;
         self.texture_store.init(memory) catch unreachable;
         self.font = Font.init(memory, &self.texture_store, "assets/rm-albion.regular.ttf", 64);
+
+        self.assets.ball_player = self.texture_store.load(
+            self.memory,
+            "assets/ball_prototype.png",
+        );
+        self.assets.ball_opponent = self.assets.ball_player;
 
         self.assets.table = self.texture_store.load(memory, "assets/table.png");
         self.assets.cue_defult = self.texture_store.load(memory, "assets/cue.png");

@@ -95,19 +95,13 @@ pub const Owner = enum(u1) {
 const Self = @This();
 
 pub fn init(self: *Self, context: *GlobalContext) void {
-    self.texture_ball = context.texture_store.load(
-        context.memory,
-        "assets/ball_prototype.png",
-    );
     self.player.init(.Player);
     self.opponent.init(.Opponent);
-    self.table = Table.init(
-        context.texture_store.load(context.memory, "assets/table.png"),
-    );
-    self.restart();
+    self.table = Table.init(context.assets.table);
+    self.restart(context);
 }
 
-pub fn restart(self: *Self) void {
+pub fn restart(self: *Self, context: *GlobalContext) void {
     self.turn_owner = .Player;
     self.turn_state = .NotTaken;
 
@@ -119,13 +113,13 @@ pub fn restart(self: *Self) void {
     self.shop.reset();
 
     self.physics.init();
-    self.init_balls();
+    self.init_balls(context);
 
     self.selected_ball = null;
     self.cue_aim_start_positon = null;
 }
 
-pub fn init_balls(self: *Self) void {
+pub fn init_balls(self: *Self, context: *GlobalContext) void {
     for (
         self.physics.balls[0..PLAYER_BALLS],
         self.balls[0..PLAYER_BALLS],
@@ -133,8 +127,8 @@ pub fn init_balls(self: *Self) void {
     ) |*pb, *b, i| {
         b.* = Ball.init(
             @intCast(i),
-            Color.RED,
-            self.texture_ball,
+            Color.from_parts(255, 0, 0, 200),
+            context.assets.ball_player,
             .Player,
             pb,
         );
@@ -147,8 +141,8 @@ pub fn init_balls(self: *Self) void {
     ) |*pb, *b, i| {
         b.* = Ball.init(
             @intCast(i),
-            Color.from_parts(60, 52, 65, 255),
-            self.texture_ball,
+            Color.from_parts(71, 182, 210, 200),
+            context.assets.ball_opponent,
             .Opponent,
             pb,
         );

@@ -315,7 +315,7 @@ pub fn main_menu(game: *Game, context: *GlobalContext) void {
     {
         const S = struct {
             fn on_press(args: anytype) void {
-                args.game.restart();
+                args.game.restart(args.context);
                 args.context.state.in_game = true;
                 args.context.state_change_animation.set(CAMERA_IN_GAME, .{
                     .in_game = true,
@@ -498,7 +498,7 @@ pub fn in_end_game_won(game: *Game, context: *GlobalContext) void {
     {
         const S = struct {
             fn on_press(args: anytype) void {
-                args.game.restart();
+                args.game.restart(args.context);
                 args.context.state.in_game = true;
                 args.context.state_change_animation.set(CAMERA_IN_GAME, .{
                     .in_game = true,
@@ -547,7 +547,7 @@ pub fn in_end_game_lost(game: *Game, context: *GlobalContext) void {
     {
         const S = struct {
             fn on_press(args: anytype) void {
-                args.game.restart();
+                args.game.restart(args.context);
                 args.context.state.in_game = true;
                 args.context.state_change_animation.set(CAMERA_IN_GAME, .{
                     .in_game = true,

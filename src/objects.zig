@@ -45,6 +45,7 @@ pub const Ball = struct {
     id: u8,
     texture_id: Textures.Texture.Id,
     color_v4: Vec4,
+    accumulator: f32,
 
     physics: *GamePhysics.Ball,
 
@@ -66,10 +67,9 @@ pub const Ball = struct {
     pub const INFO_PANEL_SIZE: Vec2 = .{ .x = 100.0, .y = 150.0 };
     pub const UPGRADE_HILIGHT_COLOR = Color.from_parts(255, 0, 0, 64);
     pub const HOVER_HILIGHT_COLOR = Color.from_parts(0, 0, 255, 64);
-    pub const LOW_HP_COLOR_V4: Vec4 = Color.from_parts(12, 15, 21, 255).to_vec4_norm();
+    pub const LOW_HP_COLOR_V4: Vec4 = Color.from_parts(12, 15, 21, 64).to_vec4_norm();
 
     pub const trace = Tracing.Measurements(struct {
-        // update: Tracing.Counter,
         to_object_2d: Tracing.Counter,
         previous_positions_to_object_2d: Tracing.Counter,
     });
@@ -85,6 +85,7 @@ pub const Ball = struct {
             .id = id,
             .texture_id = texture_id,
             .color_v4 = color.to_vec4_norm(),
+            .accumulator = 0.0,
             .owner = owner,
             .physics = physics,
         };
@@ -156,43 +157,16 @@ pub const Ball = struct {
         if (hovered and context.input.lmb == .Released)
             result.selected = true;
 
+        var color_v4: Vec4 = self.color_v4;
         if (is_ball_upgrade) {
-            const object: Object2d = .{
-                .type = .{ .TextureId = self.texture_id },
-                .tint = UPGRADE_HILIGHT_COLOR,
-                .transform = .{
-                    .position = self.physics.body.position.extend(0.0),
-                },
-                .size = .{
-                    .x = RADIUS * 2.0 * 2.0,
-                    .y = RADIUS * 2.0 * 2.0,
-                },
-                .options = .{ .with_tint = true },
-            };
-            object.to_screen_quad(
-                &context.camera,
-                &context.texture_store,
-                &context.screen_quads,
+            self.accumulator += context.dt * 1.5;
+            color_v4 = color_v4.lerp(
+                Color.WHITE.to_vec4_norm(),
+                @abs(@sin(self.accumulator) * 0.6),
             );
         }
         if (is_selected or hovered) {
-            const object: Object2d = .{
-                .type = .{ .TextureId = self.texture_id },
-                .tint = HOVER_HILIGHT_COLOR,
-                .transform = .{
-                    .position = self.physics.body.position.extend(0.0),
-                },
-                .size = .{
-                    .x = RADIUS * 2.0 * 1.5,
-                    .y = RADIUS * 2.0 * 1.5,
-                },
-                .options = .{ .with_tint = true },
-            };
-            object.to_screen_quad(
-                &context.camera,
-                &context.texture_store,
-                &context.screen_quads,
-            );
+            color_v4 = color_v4.lerp(Color.WHITE.to_vec4_norm(), 0.5);
         }
         if (hovered) {
             if (is_ball_upgrade and context.input.lmb == .Pressed) {
@@ -202,7 +176,7 @@ pub const Ball = struct {
         const hp_percent: f32 =
             @as(f32, @floatFromInt(self.hp)) /
             @as(f32, @floatFromInt(self.max_hp));
-        const tint = Color.from_vec4_norm(LOW_HP_COLOR_V4.lerp(self.color_v4, hp_percent));
+        const tint = Color.from_vec4_norm(LOW_HP_COLOR_V4.lerp(color_v4, hp_percent));
         const object: Object2d = .{
             .type = .{ .TextureId = self.texture_id },
             .tint = tint,
