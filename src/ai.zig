@@ -87,64 +87,80 @@ pub fn update(
                 return;
             }
 
-            const current_task = &self.tasks[self.tasks_n - 1];
-            switch (current_task.*) {
-                .MoveMouse => |*t| {
-                    if (t.finished) {
-                        // log.info(@src(), "Finished MoveMouse", .{});
-                        self.tasks_n -= 1;
-                    }
-                    // log.info(@src(), "Executing MoveMouse", .{});
-                    t.update(context, game, self);
-                },
-                .ClickMouse => |*t| {
-                    if (t.finished) {
-                        // log.info(@src(), "Finished ClickMouse", .{});
-                        self.tasks_n -= 1;
-                    }
-                    // log.info(@src(), "Executing ClickMouse", .{});
-                    t.update(context, game, self);
-                },
-                .SelectBall => |*t| {
-                    if (t.finished) {
-                        // log.info(@src(), "Finished SelectBall", .{});
-                        self.tasks_n -= 1;
-                    }
-                    // log.info(@src(), "Executing SelectBall", .{});
-                    t.update(context, game, self);
-                },
-                .SelectCue => |*t| {
-                    if (t.finished) {
-                        // log.info(@src(), "Finished SelectCue", .{});
-                        self.tasks_n -= 1;
-                    }
-                    // log.info(@src(), "Executing SelectCue", .{});
-                    t.update(context, game, self);
-                },
-                .TryBuyItem => |*t| {
-                    if (t.finished) {
-                        // log.info(@src(), "Finished TryBuyItem", .{});
-                        self.tasks_n -= 1;
-                    }
-                    // log.info(@src(), "Executing TryBuyItem", .{});
-                    t.update(context, game, self);
-                },
-                .UseItem => |*t| {
-                    if (t.finished) {
-                        // log.info(@src(), "Finished UseItem", .{});
-                        self.tasks_n -= 1;
-                    }
-                    // log.info(@src(), "Executing UseItem", .{});
-                    t.update(context, game, self);
-                },
-                .Shoot => |*t| {
-                    if (t.finished) {
-                        // log.info(@src(), "Finished Shoot", .{});
-                        self.tasks_n -= 1;
-                    }
-                    // log.info(@src(), "Executing Shoot", .{});
-                    t.update(context, game, self);
-                },
+            while (self.tasks_n != 0) {
+                const current_task = &self.tasks[self.tasks_n - 1];
+                switch (current_task.*) {
+                    .MoveMouse => |*t| {
+                        if (t.finished) {
+                            // log.info(@src(), "Finished MoveMouse", .{});
+                            self.tasks_n -= 1;
+                        } else {
+                            // log.info(@src(), "Executing MoveMouse", .{});
+                            t.update(context, game, self);
+                            break;
+                        }
+                    },
+                    .ClickMouse => |*t| {
+                        if (t.finished) {
+                            // log.info(@src(), "Finished ClickMouse", .{});
+                            self.tasks_n -= 1;
+                        } else {
+                            // log.info(@src(), "Executing ClickMouse", .{});
+                            t.update(context, game, self);
+                            break;
+                        }
+                    },
+                    .SelectBall => |*t| {
+                        if (t.finished) {
+                            // log.info(@src(), "Finished SelectBall", .{});
+                            self.tasks_n -= 1;
+                        } else {
+                            // log.info(@src(), "Executing SelectBall", .{});
+                            t.update(context, game, self);
+                            break;
+                        }
+                    },
+                    .SelectCue => |*t| {
+                        if (t.finished) {
+                            // log.info(@src(), "Finished SelectCue", .{});
+                            self.tasks_n -= 1;
+                        } else {
+                            // log.info(@src(), "Executing SelectCue", .{});
+                            t.update(context, game, self);
+                            break;
+                        }
+                    },
+                    .TryBuyItem => |*t| {
+                        if (t.finished) {
+                            // log.info(@src(), "Finished TryBuyItem", .{});
+                            self.tasks_n -= 1;
+                        } else {
+                            // log.info(@src(), "Executing TryBuyItem", .{});
+                            t.update(context, game, self);
+                            break;
+                        }
+                    },
+                    .UseItem => |*t| {
+                        if (t.finished) {
+                            // log.info(@src(), "Finished UseItem", .{});
+                            self.tasks_n -= 1;
+                        } else {
+                            // log.info(@src(), "Executing UseItem", .{});
+                            t.update(context, game, self);
+                            break;
+                        }
+                    },
+                    .Shoot => |*t| {
+                        if (t.finished) {
+                            // log.info(@src(), "Finished Shoot", .{});
+                            self.tasks_n -= 1;
+                        } else {
+                            // log.info(@src(), "Executing Shoot", .{});
+                            t.update(context, game, self);
+                            break;
+                        }
+                    },
+                }
             }
         },
     }
@@ -419,7 +435,7 @@ const UseItem = struct {
         if (game.opponent.item_inventory.selected_position()) |_| {
             const target_position = upgrade_target_position(game, ai);
             ai.push_task(ClickMouse.init(.None, .None));
-            ai.push_task(ClickMouse.init(.Pressed, .None));
+            ai.push_task(ClickMouse.init(.Released, .None));
             ai.push_task(MoveMouse.init(ai, target_position));
         } else {
             log.info(@src(), "AI: no inventory item was selected", .{});

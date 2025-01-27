@@ -169,7 +169,9 @@ pub const Ball = struct {
             color_v4 = color_v4.lerp(Color.WHITE.to_vec4_norm(), 0.5);
         }
         if (hovered) {
-            if (is_ball_upgrade and context.input.lmb == .Pressed) {
+            if (is_ball_upgrade and context.input.lmb == .Released) {
+                log.info(@src(), "ball upgrade", .{});
+                result.selected = false;
                 result.upgrade_applied = self.add_upgrade(selected_upgrade.?);
             }
         }
@@ -458,7 +460,7 @@ pub const Cue = struct {
                 &context.texture_store,
                 &context.screen_quads,
             );
-            if (is_cue_upgrade and context.input.lmb == .Pressed)
+            if (is_cue_upgrade and context.input.lmb == .Released)
                 result.upgrade_applied = self.add_upgrade(selected_upgrade.?);
         }
 
@@ -852,7 +854,7 @@ pub const ItemInventory = struct {
         }
         if (!hover_anything) {
             self.hovered_index = null;
-            if (context.input.lmb == .Pressed) {
+            if (context.input.lmb == .Released) {
                 self.selected_index = null;
             }
         }

@@ -224,7 +224,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
         if (r.upgrade_applied) {
             entity.item_inventory.item_used();
         }
-        if (r.selected and
+        if (!r.upgrade_applied and r.selected and
             ball.owner == self.turn_owner)
         {
             new_ball_selected = true;
@@ -309,6 +309,8 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                 self.turn_state = .Taken;
         },
         .Taken => {
+            self.selected_ball = null;
+
             entity.cue_inventory.selected().move_storage();
             const collisions = self.physics.update(context);
 
@@ -378,8 +380,6 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                         .Border => |_| {},
                         .Pocket => |pocket_id| {
                             const pocket = &self.physics.pockets[pocket_id];
-                            if (self.selected_ball == ball.id)
-                                self.selected_ball = null;
                             ball.physics.state.pocketted = true;
                             self.ball_animations.add(ball, pocket.body.position, 1.0);
                         },
