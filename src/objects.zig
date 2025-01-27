@@ -978,13 +978,10 @@ pub const Shop = struct {
     selected_item: ?u8 = null,
 
     pub const CAMERA_IN_GAME_SHOP: Vec2 = .{ .y = 617 };
-    const ITEM_PANEL_SIZE: Vec2 = .{ .x = 350.0, .y = 500.0 };
+    const ITEM_PANEL_SIZE: Vec2 = .{ .x = 400.0, .y = 500.0 };
     const ITEM_PANEL_GAP = 30;
     const ITEM_PANEL_DIFF = ITEM_PANEL_SIZE.x + ITEM_PANEL_GAP;
-
-    const ITEM_0_POSITION: Vec2 = CAMERA_IN_GAME_SHOP.add(.{ .x = -400 });
-    const ITEM_1_POSITION: Vec2 = CAMERA_IN_GAME_SHOP;
-    const ITEM_2_POSITION: Vec2 = CAMERA_IN_GAME_SHOP.add(.{ .x = 400 });
+    const REROLL_BUTTON_POSITION: Vec2 = CAMERA_IN_GAME_SHOP.add(.{ .y = 335.0 });
 
     const TEXT_SIZE_NAME = 60;
     const TEXT_SIZE_DESCRIPTION = 50;
@@ -1058,6 +1055,7 @@ pub const Shop = struct {
         const position = CAMERA_IN_GAME_SHOP.add(.{
             .x = -ITEM_PANEL_DIFF / 2.0 * (MAX_ITEMS - 1) +
                 @as(f32, @floatFromInt(index)) * ITEM_PANEL_DIFF,
+            .y = 20.0,
         });
 
         const collision_rectangle: Physics.Rectangle = .{
@@ -1072,7 +1070,7 @@ pub const Shop = struct {
         const color: ?Color = if (is_hovered) ITEM_HILIGHT_TINT else null;
         const item_panel = UiPanel.init(
             position,
-            context.assets.button,
+            context.assets.shop_panel,
             color,
         );
         item_panel.to_screen_quad(context);
@@ -1092,7 +1090,7 @@ pub const Shop = struct {
 
         _ = UiText.to_screen_quads(
             context,
-            position.add(.{ .y = -200.0 }),
+            position.add(.{ .y = -220.0 }),
             TEXT_SIZE_NAME,
             "{s}",
             .{item_info.name},
@@ -1108,12 +1106,17 @@ pub const Shop = struct {
         );
         _ = UiText.to_screen_quads(
             context,
-            position.add(.{ .y = 200 }),
+            position.add(.{ .x = -10.0, .y = 220 }),
             TEXT_SIZE_PRICE,
-            "{d}",
+            "Cost: {d}",
             .{item_info.price},
             null,
         );
+        UiPanel.init(
+            position.add(.{ .x = 90.0, .y = 205 }),
+            context.assets.souls,
+            null,
+        ).to_screen_quad(context);
 
         return is_hovered;
     }
@@ -1138,7 +1141,7 @@ pub const Shop = struct {
         };
         UI.add_button(
             context,
-            CAMERA_IN_GAME_SHOP.add(.{ .y = 300 }),
+            REROLL_BUTTON_POSITION,
             "Reroll",
             S.on_press,
             self,

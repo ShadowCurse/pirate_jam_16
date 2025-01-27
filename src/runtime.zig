@@ -121,6 +121,7 @@ pub const Assets = struct {
     button: Textures.Texture.Id,
     cue_background: Textures.Texture.Id,
     items_background: Textures.Texture.Id,
+    shop_panel: Textures.Texture.Id,
     blood: Textures.Texture.Id,
     souls: Textures.Texture.Id,
 };
@@ -154,7 +155,9 @@ pub const GlobalContext = struct {
         self.assets.cue_defult = self.texture_store.load(memory, "assets/cue.png");
         self.assets.button = self.texture_store.load(memory, "assets/button.png");
         self.assets.cue_background = self.texture_store.load(memory, "assets/cue_background.png");
-        self.assets.items_background = self.texture_store.load(memory, "assets/items_background.png");
+        self.assets.items_background =
+            self.texture_store.load(memory, "assets/items_background.png");
+        self.assets.shop_panel = self.texture_store.load(memory, "assets/shop_panel.png");
         self.assets.blood = self.texture_store.load(memory, "assets/blood.png");
         self.assets.souls = self.texture_store.load(memory, "assets/souls.png");
 
