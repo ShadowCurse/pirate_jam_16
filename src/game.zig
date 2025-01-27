@@ -191,11 +191,11 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
     }
 
     const entity = if (self.turn_owner == .Player) blk: {
-        _ = self.opponent.cue_inventory.update_and_draw(context, null);
+        _ = self.opponent.cue_inventory.update_and_draw(context, null, true);
         self.opponent.cue_inventory.selected().move_storage();
         break :blk &self.player;
     } else blk: {
-        _ = self.player.cue_inventory.update_and_draw(context, null);
+        _ = self.player.cue_inventory.update_and_draw(context, null, true);
         self.player.cue_inventory.selected().move_storage();
         break :blk &self.opponent;
     };
@@ -246,7 +246,11 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
         _ = ball.draw_info_panel(context);
     }
 
-    if (entity.cue_inventory.update_and_draw(context, selected_item))
+    if (entity.cue_inventory.update_and_draw(
+        context,
+        selected_item,
+        self.selected_ball == null,
+    ))
         entity.item_inventory.item_used();
 
     self.opponent.item_inventory.update(context, self.turn_owner);

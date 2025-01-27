@@ -670,6 +670,7 @@ pub const CueInventory = struct {
         self: *CueInventory,
         context: *GlobalContext,
         selected_upgrade: ?Item.Tag,
+        can_select: bool,
     ) bool {
         for (&self.cues, 0..) |*cue, i| {
             if (i != self.selected_index)
@@ -698,7 +699,7 @@ pub const CueInventory = struct {
                 selected_upgrade,
             );
 
-            if (r.hovered and context.input.lmb == .Pressed)
+            if (can_select and r.hovered and context.input.lmb == .Pressed)
                 self.selected_index = @intCast(i);
             upgrade_applied = upgrade_applied or r.upgrade_applied;
         }
