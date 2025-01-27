@@ -22,7 +22,7 @@ const Game = @import("game.zig");
 pub const CAMERA_MAIN_MENU: Vec2 = .{ .x = -1280.0 };
 pub const CAMERA_SETTINGS: Vec2 = .{ .x = -1280.0, .y = 1000.0 };
 pub const CAMERA_IN_GAME: Vec2 = .{};
-pub const CAMERA_IN_GAME_SHOP: Vec2 = .{ .y = 630 };
+pub const CAMERA_IN_GAME_SHOP: Vec2 = .{ .y = 640 };
 pub const CAMERA_END_GAME: Vec2 = .{ .y = -1000.0 };
 
 pub const UI_HILIGHT_TINT = Color.from_parts(128, 10, 10, 128);
@@ -367,8 +367,8 @@ pub fn settings(context: *GlobalContext) void {
 }
 
 pub fn in_game(game: *Game, context: *GlobalContext) void {
-    const PANEL_PLAYER_INFO_POSITION: Vec2 = .{ .x = -520.0, .y = -315.0 };
-    const PANEL_OPPONENT_INFO_POSITION: Vec2 = .{ .x = 520.0, .y = -315.0 };
+    const PANEL_PLAYER_INFO_POSITION: Vec2 = .{ .x = -520.0, .y = 325.0 };
+    const PANEL_OPPONENT_INFO_POSITION: Vec2 = .{ .x = 520.0, .y = -310.0 };
 
     const PANEL_TEXT_SIZE = 60;
     const PANEL_BLOOD_OFFSET = .{ .x = -100.0, .y = -15.0 };
