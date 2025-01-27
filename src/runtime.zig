@@ -119,7 +119,9 @@ pub const Assets = struct {
     ball_player: Textures.Texture.Id,
     ball_opponent: Textures.Texture.Id,
     table: Textures.Texture.Id,
-    cue_defult: Textures.Texture.Id,
+    cue_default: Textures.Texture.Id,
+    cue_kar98k: Textures.Texture.Id,
+    cue_cross: Textures.Texture.Id,
     button: Textures.Texture.Id,
     cue_background: Textures.Texture.Id,
     items_background: Textures.Texture.Id,
@@ -160,7 +162,9 @@ pub const GlobalContext = struct {
         self.assets.ball_opponent = self.assets.ball_player;
 
         self.assets.table = self.texture_store.load(memory, "assets/table.png");
-        self.assets.cue_defult = self.texture_store.load(memory, "assets/cue.png");
+        self.assets.cue_default = self.texture_store.load(memory, "assets/cue_default.png");
+        self.assets.cue_kar98k = self.texture_store.load(memory, "assets/cue_kar98k.png");
+        self.assets.cue_cross = self.texture_store.load(memory, "assets/cue_cross.png");
         self.assets.button = self.texture_store.load(memory, "assets/button.png");
         self.assets.cue_background = self.texture_store.load(memory, "assets/cue_background.png");
         self.assets.items_background =
@@ -303,13 +307,13 @@ pub const GlobalContext = struct {
         };
 
         self.item_infos.get_mut(.CueDefault).* = .{
-            .texture_id = self.assets.cue_defult,
+            .texture_id = self.assets.cue_default,
             .name = "Default cue",
             .description = "",
             .price = 20,
         };
         self.item_infos.get_mut(.CueKar98K).* = .{
-            .texture_id = self.assets.cue_defult,
+            .texture_id = self.assets.cue_kar98k,
             .name = "Kar98k",
             .description =
             \\In addition to hitting
@@ -320,7 +324,7 @@ pub const GlobalContext = struct {
             .price = 20,
         };
         self.item_infos.get_mut(.CueCross).* = .{
-            .texture_id = self.assets.cue_defult,
+            .texture_id = self.assets.cue_cross,
             .name = "Silver cross",
             .description =
             \\In addition to hitting 
