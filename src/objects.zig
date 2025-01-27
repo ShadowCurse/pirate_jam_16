@@ -22,6 +22,7 @@ const Object2d = _objects.Object2d;
 
 const _math = stygian.math;
 const Vec2 = _math.Vec2;
+const Vec4 = _math.Vec4;
 
 const _runtime = @import("runtime.zig");
 const InputState = _runtime.InputState;
@@ -43,7 +44,7 @@ const UiDashedLine = UI.UiDashedLine;
 pub const Ball = struct {
     id: u8,
     texture_id: Textures.Texture.Id,
-    color: Color,
+    color_v4: Vec4,
 
     physics: *GamePhysics.Ball,
 
@@ -65,6 +66,7 @@ pub const Ball = struct {
     pub const INFO_PANEL_SIZE: Vec2 = .{ .x = 100.0, .y = 150.0 };
     pub const UPGRADE_HILIGHT_COLOR = Color.from_parts(255, 0, 0, 64);
     pub const HOVER_HILIGHT_COLOR = Color.from_parts(0, 0, 255, 64);
+    pub const LOW_HP_COLOR_V4: Vec4 = Color.from_parts(12, 15, 21, 255).to_vec4_norm();
 
     pub const trace = Tracing.Measurements(struct {
         // update: Tracing.Counter,
@@ -82,7 +84,7 @@ pub const Ball = struct {
         return .{
             .id = id,
             .texture_id = texture_id,
-            .color = color,
+            .color_v4 = color.to_vec4_norm(),
             .owner = owner,
             .physics = physics,
         };
@@ -197,33 +199,24 @@ pub const Ball = struct {
                 result.upgrade_applied = self.add_upgrade(selected_upgrade.?);
             }
         }
+        const hp_percent: f32 =
+            @as(f32, @floatFromInt(self.hp)) /
+            @as(f32, @floatFromInt(self.max_hp));
+        const tint = Color.from_vec4_norm(LOW_HP_COLOR_V4.lerp(self.color_v4, hp_percent));
         const object: Object2d = .{
             .type = .{ .TextureId = self.texture_id },
-            .tint = self.color,
+            .tint = tint,
             .transform = .{
                 .position = self.physics.body.position.extend(0.0),
             },
-            .options = .{ .draw_aabb = true, .no_scale_rotate = true, .with_tint = true },
+            .options = .{
+                // .draw_aabb = true,
+                .no_scale_rotate = true,
+                .with_tint = true,
+            },
         };
         object.to_screen_quad(&context.camera, &context.texture_store, &context.screen_quads);
-
-        self.hp_to_screen_quads(context);
-
         return result;
-    }
-
-    pub fn hp_to_screen_quads(
-        self: Ball,
-        context: *GlobalContext,
-    ) void {
-        _ = UiText.to_screen_quads(
-            context,
-            self.physics.body.position.add(.{ .y = HP_TEXT_SIZE / 4.0 }),
-            HP_TEXT_SIZE,
-            "{d}",
-            .{self.hp},
-            null,
-        );
     }
 
     pub fn draw_info_panel(self: Ball, context: *GlobalContext) void {

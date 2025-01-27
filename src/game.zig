@@ -133,7 +133,7 @@ pub fn init_balls(self: *Self) void {
     ) |*pb, *b, i| {
         b.* = Ball.init(
             @intCast(i),
-            Color.GREEN,
+            Color.RED,
             self.texture_ball,
             .Player,
             pb,
@@ -147,7 +147,7 @@ pub fn init_balls(self: *Self) void {
     ) |*pb, *b, i| {
         b.* = Ball.init(
             @intCast(i),
-            Color.RED,
+            Color.from_parts(60, 52, 65, 255),
             self.texture_ball,
             .Opponent,
             pb,
