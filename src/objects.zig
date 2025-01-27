@@ -221,7 +221,7 @@ pub const Ball = struct {
             HP_TEXT_SIZE,
             "{d}",
             .{self.hp},
-            .{},
+            null,
         );
     }
 
@@ -229,8 +229,8 @@ pub const Ball = struct {
         const panel_position = self.physics.body.position.add(INFO_PANEL_OFFSET);
         const info_panel = UiPanel.init(
             panel_position,
-            INFO_PANEL_SIZE,
-            Color.GREY,
+            context.assets.button,
+            null,
         );
         info_panel.to_screen_quad(context);
         {
@@ -240,7 +240,7 @@ pub const Ball = struct {
                 HP_TEXT_SIZE,
                 "HP: {d}",
                 .{self.hp},
-                .{},
+                null,
             );
         }
 
@@ -251,7 +251,7 @@ pub const Ball = struct {
                 HP_TEXT_SIZE,
                 "Damage: {d}",
                 .{self.damage},
-                .{},
+                null,
             );
         }
     }
@@ -704,11 +704,8 @@ pub const CueInventory = struct {
                 CUE_STORAGE_POSITION_PLAYER
             else
                 CUE_STORAGE_POSITION_OPPONENT,
-            .{
-                .x = CUE_STORAGE_WIDTH,
-                .y = CUE_STORAGE_HEIGHT,
-            },
-            UI.UI_BACKGROUND_COLOR,
+            context.assets.cue_background,
+            null,
         );
         panel.to_screen_quad(context);
 
@@ -740,14 +737,14 @@ pub const ItemInventory = struct {
     hovered_index: ?u8,
     dashed_line: UiDashedLine,
 
-    const MAX_ITEMS = 4;
-    const ITEMS_POSITION_PLAYER: Vec2 = .{ .x = -100.0, .y = 315.0 };
-    const ITEMS_POSITION_OPPONENT: Vec2 = .{ .x = 100.0, .y = -315.0 };
-    const ITEMS_WIDTH = 600;
-    const ITEMS_HEIGHT = 80;
-    const ITEM_WIDTH = 60;
-    const ITEM_HEIGHT = 60;
-    const ITEM_GAP = 90;
+    const MAX_ITEMS = 5;
+    const ITEMS_POSITION_PLAYER: Vec2 = .{ .y = 315.0 };
+    const ITEMS_POSITION_OPPONENT: Vec2 = .{ .y = -315.0 };
+    const ITEMS_WIDTH = 321;
+    const ITEMS_LEFT_GAP = 10;
+    const ITEM_WIDTH = 53;
+    const ITEM_HEIGHT = 53;
+    const ITEM_GAP = 9;
 
     pub const INFO_PANEL_OFFSET: Vec2 = .{ .y = -180.0 };
     pub const INFO_PANEL_SIZE: Vec2 = .{ .x = 280.0, .y = 300.0 };
@@ -767,7 +764,7 @@ pub const ItemInventory = struct {
             ITEMS_POSITION_PLAYER.add(
                 .{
                     .x = -ITEMS_WIDTH / 2 +
-                        ITEM_GAP / 2 +
+                        ITEMS_LEFT_GAP +
                         ITEM_WIDTH / 2 +
                         @as(f32, @floatFromInt(index)) * (ITEM_WIDTH + ITEM_GAP),
                 },
@@ -776,7 +773,7 @@ pub const ItemInventory = struct {
             ITEMS_POSITION_OPPONENT.add(
                 .{
                     .x = -ITEMS_WIDTH / 2 +
-                        ITEM_GAP / 2 +
+                        ITEMS_LEFT_GAP +
                         ITEM_WIDTH / 2 +
                         @as(f32, @floatFromInt(index)) * (ITEM_WIDTH + ITEM_GAP),
                 },
@@ -895,11 +892,8 @@ pub const ItemInventory = struct {
                 ITEMS_POSITION_PLAYER
             else
                 ITEMS_POSITION_OPPONENT,
-            .{
-                .x = ITEMS_WIDTH,
-                .y = ITEMS_HEIGHT,
-            },
-            UI.UI_BACKGROUND_COLOR,
+            context.assets.items_background,
+            null,
         );
         bot_panel.to_screen_quad(context);
 
@@ -951,8 +945,8 @@ pub const ItemInventory = struct {
             ip.add(INFO_PANEL_OFFSET.neg());
         const info_panel = UiPanel.init(
             panel_position,
-            INFO_PANEL_SIZE,
-            Color.GREY,
+            context.assets.button,
+            null,
         );
         info_panel.to_screen_quad(context);
 
@@ -962,7 +956,7 @@ pub const ItemInventory = struct {
             32.0,
             "{s}",
             .{item_info.name},
-            .{},
+            null,
         );
         _ = UiText.to_screen_quads(
             context,
@@ -970,7 +964,7 @@ pub const ItemInventory = struct {
             32.0,
             "{s}",
             .{item_info.description},
-            .{},
+            null,
         );
     }
 };
@@ -995,8 +989,7 @@ pub const Shop = struct {
     const TEXT_SIZE_DESCRIPTION = 28;
     const TEXT_SIZE_PRICE = 28;
 
-    const UI_BACKGROUND_COLOR = Color.GREY;
-    const UI_BACKGROUND_COLOR_PLAYING = Color.GREEN;
+    const ITEM_HILIGHT_TINT = Color.from_parts(128, 10, 10, 128);
 
     const MAX_ITEMS = 3;
     const REROLL_COST_INC = 1.2;
@@ -1075,10 +1068,10 @@ pub const Shop = struct {
             position,
         );
 
-        const color = if (is_hovered) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR;
+        const color: ?Color = if (is_hovered) ITEM_HILIGHT_TINT else null;
         const item_panel = UiPanel.init(
             position,
-            ITEM_PANEL_SIZE,
+            context.assets.button,
             color,
         );
         item_panel.to_screen_quad(context);
@@ -1102,7 +1095,7 @@ pub const Shop = struct {
             TEXT_SIZE_NAME,
             "{s}",
             .{item_info.name},
-            .{},
+            null,
         );
         _ = UiText.to_screen_quads(
             context,
@@ -1110,7 +1103,7 @@ pub const Shop = struct {
             TEXT_SIZE_DESCRIPTION,
             "{s}",
             .{item_info.description},
-            .{},
+            null,
         );
         _ = UiText.to_screen_quads(
             context,
@@ -1118,7 +1111,7 @@ pub const Shop = struct {
             TEXT_SIZE_PRICE,
             "{d}",
             .{item_info.price},
-            .{},
+            null,
         );
 
         return is_hovered;
@@ -1137,17 +1130,18 @@ pub const Shop = struct {
             }
         }
 
-        const want_reroll = UiText.to_screen_quads(
+        const S = struct {
+            fn on_press(s: anytype) void {
+                s.reroll();
+            }
+        };
+        UI.add_button(
             context,
             CAMERA_IN_GAME_SHOP.add(.{ .y = 300 }),
-            32.0,
             "REROLL",
-            .{},
-            .{ .hilight = true },
+            S.on_press,
+            self,
         );
-        if (want_reroll and context.input.lmb == .Pressed)
-            self.reroll();
-
         return item_clicked;
     }
 };

@@ -25,25 +25,33 @@ pub const CAMERA_IN_GAME: Vec2 = .{};
 pub const CAMERA_IN_GAME_SHOP: Vec2 = .{ .y = 630 };
 pub const CAMERA_END_GAME: Vec2 = .{ .y = -1000.0 };
 
+pub const UI_HILIGHT_TINT = Color.from_parts(128, 10, 10, 128);
 pub const UI_BACKGROUND_COLOR = Color.GREY;
 pub const UI_BACKGROUND_COLOR_PLAYING = Color.GREEN;
 
 pub const UiPanel = struct {
     position: Vec2,
-    size: Vec2,
-    color: Color,
+    tint: ?Color,
+    texture_id: Textures.Texture.Id,
 
-    pub fn init(position: Vec2, size: Vec2, color: Color) UiPanel {
+    pub fn init(
+        position: Vec2,
+        texture_id: Textures.Texture.Id,
+        tint: ?Color,
+    ) UiPanel {
         return .{
             .position = position,
-            .size = size,
-            .color = color,
+            .tint = tint,
+            .texture_id = texture_id,
         };
     }
 
     pub fn hovered(self: UiPanel, context: *GlobalContext) bool {
         const collision_rectangle: Physics.Rectangle = .{
-            .size = self.size,
+            .size = .{
+                .x = @floatFromInt(context.texture_store.get_texture(self.texture_id).width),
+                .y = @floatFromInt(context.texture_store.get_texture(self.texture_id).height),
+            },
         };
         return Physics.point_rectangle_intersect(
             context.player_input.mouse_pos_world,
@@ -57,29 +65,51 @@ pub const UiPanel = struct {
         context: *GlobalContext,
     ) void {
         const position = context.camera.transform(self.position.extend(0.0));
-        context.screen_quads.add_quad(.{
-            .color = self.color,
-            .texture_id = Textures.Texture.ID_SOLID_COLOR,
-            .position = position.xy().extend(0.0),
-            .size = self.size.mul_f32(position.z),
-            .options = .{ .clip = false, .no_scale_rotate = true, .no_alpha_blend = true },
-        });
+        if (self.tint) |t| {
+            context.screen_quads.add_quad(.{
+                .color = t,
+                .texture_id = self.texture_id,
+                .position = position.xy().extend(0.0),
+                .uv_size = .{
+                    .x = @floatFromInt(context.texture_store.get_texture(self.texture_id).width),
+                    .y = @floatFromInt(context.texture_store.get_texture(self.texture_id).height),
+                },
+                .options = .{
+                    // .draw_aabb = true,
+                    .clip = false,
+                    .no_scale_rotate = true,
+                    // .no_alpha_blend = true,
+                    .with_tint = true,
+                },
+            });
+        } else {
+            context.screen_quads.add_quad(.{
+                .texture_id = self.texture_id,
+                .position = position.xy().extend(0.0),
+                .uv_size = .{
+                    .x = @floatFromInt(context.texture_store.get_texture(self.texture_id).width),
+                    .y = @floatFromInt(context.texture_store.get_texture(self.texture_id).height),
+                },
+                .options = .{
+                    // .draw_aabb = true,
+                    .clip = false,
+                    .no_scale_rotate = true,
+                    // .no_alpha_blend = true,
+                },
+            });
+        }
     }
 };
 
 pub const UiText = struct {
-    pub const Options = struct {
-        world_space: bool = true,
-        hilight: bool = false,
-    };
     pub fn to_screen_quads(
         context: *GlobalContext,
         position: Vec2,
         text_size: f32,
         comptime format: []const u8,
         args: anytype,
-        comptime options: Options,
-    ) bool {
+        tint: ?Color,
+    ) void {
         const t = std.fmt.allocPrint(
             context.alloc(),
             format,
@@ -97,37 +127,15 @@ pub const UiText = struct {
             .{ .dont_clip = true },
         );
 
-        const r = if (!options.world_space)
-            text.to_screen_quads_raw(context.alloc())
-        else
-            text.to_screen_quads_world_space_raw(
-                context.alloc(),
-                &context.camera,
-            );
-
-        const collision_rectangle: Physics.Rectangle = .{
-            .size = .{
-                .x = r.max_width,
-                .y = text.size * @as(f32, @floatFromInt(r.quad_lines.len)),
-            },
-        };
-        const rectangle_position: Vec2 =
-            text.position.xy().add(.{ .y = -text.size / 2.0 });
-
-        const mouse_pos = if (options.world_space)
-            context.player_input.mouse_pos_world
-        else
-            context.player_input.mouse_pos;
-
-        const intersects = Physics.point_rectangle_intersect(
-            mouse_pos,
-            collision_rectangle,
-            rectangle_position,
+        const r = text.to_screen_quads_world_space_raw(
+            context.alloc(),
+            &context.camera,
         );
-        if (options.hilight and intersects) {
+
+        if (tint) |ti| {
             for (r.quad_lines) |quad_line| {
                 for (quad_line) |*quad| {
-                    quad.color = Color.RED;
+                    quad.color = ti;
                     quad.options.with_tint = true;
                 }
             }
@@ -137,7 +145,6 @@ pub const UiText = struct {
                 context.screen_quads.add_quad(quad);
             }
         }
-        return intersects;
     }
 };
 
@@ -241,143 +248,204 @@ pub const UiDashedLine = struct {
     }
 };
 
-pub fn main_menu(game: *Game, context: *GlobalContext) void {
-    if (UiText.to_screen_quads(
+pub fn add_button(
+    context: *GlobalContext,
+    position: Vec2,
+    comptime text: []const u8,
+    comptime on_press: fn (anytype) void,
+    args: anytype,
+) void {
+    const panel = UiPanel.init(
+        position,
+        context.assets.button,
+        null,
+    );
+    const panel_hovered = panel.hovered(context);
+    const tint: ?Color = if (panel_hovered) UI_HILIGHT_TINT else null;
+    panel.to_screen_quad(context);
+    UiText.to_screen_quads(
         context,
-        CAMERA_MAIN_MENU,
+        position,
         32.0,
-        "Start",
+        text,
         .{},
-        .{ .hilight = true },
-    ) and context.player_input.lmb == .Pressed) {
-        game.restart();
-        context.state.in_game = true;
-        context.state_change_animation.set(CAMERA_IN_GAME, .{
-            .in_game = true,
-            .debug = context.state.debug,
-        });
+        tint,
+    );
+    if (panel_hovered and context.player_input.lmb == .Pressed) {
+        on_press(args);
     }
+}
 
-    if (UiText.to_screen_quads(
-        context,
-        CAMERA_MAIN_MENU.add(.{ .y = 50.0 }),
-        32.0,
-        "Settings",
-        .{},
-        .{ .hilight = true },
-    ) and context.player_input.lmb == .Pressed) {
-        context.state.settings = true;
-        context.state_change_animation.set(CAMERA_SETTINGS, .{
-            .settings = true,
-            .debug = context.state.debug,
-        });
+pub fn main_menu(game: *Game, context: *GlobalContext) void {
+    {
+        const S = struct {
+            fn on_press(args: anytype) void {
+                args.game.restart();
+                args.context.state.in_game = true;
+                args.context.state_change_animation.set(CAMERA_IN_GAME, .{
+                    .in_game = true,
+                    .debug = args.context.state.debug,
+                });
+            }
+        };
+        add_button(
+            context,
+            CAMERA_MAIN_MENU,
+            "Start",
+            S.on_press,
+            .{ .game = game, .context = context },
+        );
+    }
+    {
+        const S = struct {
+            fn on_press(args: anytype) void {
+                args.context.state.settings = true;
+                args.context.state_change_animation.set(CAMERA_SETTINGS, .{
+                    .settings = true,
+                    .debug = args.context.state.debug,
+                });
+            }
+        };
+        add_button(
+            context,
+            CAMERA_MAIN_MENU.add(.{ .y = 80.0 }),
+            "Settings",
+            S.on_press,
+            .{ .context = context },
+        );
     }
 }
 
 pub fn settings(context: *GlobalContext) void {
-    if (UiText.to_screen_quads(
-        context,
-        CAMERA_SETTINGS,
-        32.0,
-        "Back",
-        .{},
-        .{ .hilight = true },
-    ) and context.player_input.lmb == .Pressed) {
-        context.state.main_menu = true;
-        context.state_change_animation.set(CAMERA_MAIN_MENU, .{
-            .main_menu = true,
-            .debug = context.state.debug,
-        });
+    {
+        const S = struct {
+            fn on_press(args: anytype) void {
+                args.context.state.main_menu = true;
+                args.context.state_change_animation.set(CAMERA_MAIN_MENU, .{
+                    .main_menu = true,
+                    .debug = args.context.state.debug,
+                });
+            }
+        };
+        add_button(
+            context,
+            CAMERA_SETTINGS,
+            "Back",
+            S.on_press,
+            .{ .context = context },
+        );
     }
 }
 
 pub fn in_game(game: *Game, context: *GlobalContext) void {
+    const PANEL_PLAYER_INFO_POSITION: Vec2 = .{ .x = -520.0, .y = -315.0 };
     const PANEL_OPPONENT_INFO_POSITION: Vec2 = .{ .x = 520.0, .y = -315.0 };
-    const PANEL_PLAYER_INFO_POSITION: Vec2 = .{ .x = -520.0, .y = 315.0 };
-    const PANEL_INFO_SIZE: Vec2 = .{ .x = 200.0, .y = 80.0 };
 
-    const left_info_opponent_panel = UiPanel.init(
-        PANEL_OPPONENT_INFO_POSITION,
-        PANEL_INFO_SIZE,
-        if (game.turn_owner == .Opponent) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
-    );
-    left_info_opponent_panel.to_screen_quad(context);
+    const PANEL_BLOOD_OFFSET = .{ .x = -100.0, .y = -10.0 };
+    const PANEL_HP_OFFSET = .{ .x = -50.0 };
+    const PANEL_SOULS_OFFSET = .{ .y = -5.0 };
+    const PANEL_OVERHEAL_OFFSET = .{ .x = 50.0 };
 
-    const left_info_player_panel = UiPanel.init(
-        PANEL_PLAYER_INFO_POSITION,
-        PANEL_INFO_SIZE,
-        if (game.turn_owner == .Player) UI_BACKGROUND_COLOR_PLAYING else UI_BACKGROUND_COLOR,
-    );
-    left_info_player_panel.to_screen_quad(context);
-
+    // OPPONENT HP
+    UiPanel.init(
+        PANEL_OPPONENT_INFO_POSITION.add(PANEL_BLOOD_OFFSET),
+        context.assets.blood,
+        null,
+    ).to_screen_quad(context);
     _ = UiText.to_screen_quads(
         context,
-        PANEL_OPPONENT_INFO_POSITION.add(.{ .y = -20.0 }),
+        PANEL_OPPONENT_INFO_POSITION.add(PANEL_HP_OFFSET),
         25.0,
-        "HP: {d}",
+        "{d}",
         .{game.opponent.hp},
-        .{},
+        null,
     );
+    // OPPONENT Overheal
+    UiPanel.init(
+        PANEL_OPPONENT_INFO_POSITION.add(PANEL_SOULS_OFFSET),
+        context.assets.souls,
+        null,
+    ).to_screen_quad(context);
     _ = UiText.to_screen_quads(
         context,
-        PANEL_OPPONENT_INFO_POSITION.add(.{ .y = 20.0 }),
+        PANEL_OPPONENT_INFO_POSITION.add(PANEL_OVERHEAL_OFFSET),
         25.0,
-        "HP overhead: {d}",
+        "{d}",
         .{game.opponent.hp_overhead},
-        .{},
+        null,
     );
 
+    // PLAYER HP
+    UiPanel.init(
+        PANEL_PLAYER_INFO_POSITION.add(PANEL_BLOOD_OFFSET),
+        context.assets.blood,
+        null,
+    ).to_screen_quad(context);
     _ = UiText.to_screen_quads(
         context,
-        PANEL_PLAYER_INFO_POSITION.add(.{ .y = -20 }),
+        PANEL_PLAYER_INFO_POSITION.add(PANEL_HP_OFFSET),
         25.0,
-        "HP: {d}",
+        "{d}",
         .{game.player.hp},
-        .{},
+        null,
     );
+    // PLAYER Overheal
+    UiPanel.init(
+        PANEL_PLAYER_INFO_POSITION.add(PANEL_SOULS_OFFSET),
+        context.assets.souls,
+        null,
+    ).to_screen_quad(context);
     _ = UiText.to_screen_quads(
         context,
-        PANEL_PLAYER_INFO_POSITION.add(.{ .y = 20 }),
+        PANEL_PLAYER_INFO_POSITION.add(PANEL_OVERHEAL_OFFSET),
         25.0,
-        "HP overhead: {d}",
+        "{d}",
         .{game.player.hp_overhead},
-        .{},
+        null,
     );
 
-    if (UiText.to_screen_quads(
-        context,
-        .{ .x = 350.0, .y = 320.0 },
-        32.0,
-        "SHOP",
-        .{},
-        .{ .hilight = true },
-    ) and context.player_input.lmb == .Pressed and
-        !context.state_change_animation.is_playing())
     {
-        if (context.state.in_game_shop) {
-            context.state_change_animation.set(CAMERA_IN_GAME, .{
-                .in_game = true,
-                .debug = context.state.debug,
-            });
-        } else {
-            context.state.in_game_shop = true;
-            context.state_change_animation.set(CAMERA_IN_GAME_SHOP, context.state);
-        }
+        const S = struct {
+            fn on_press(args: anytype) void {
+                if (args.context.state.in_game_shop) {
+                    args.context.state_change_animation.set(CAMERA_IN_GAME, .{
+                        .in_game = true,
+                        .debug = args.context.state.debug,
+                    });
+                } else {
+                    args.context.state.in_game_shop = true;
+                    args.context.state_change_animation.set(
+                        CAMERA_IN_GAME_SHOP,
+                        args.context.state,
+                    );
+                }
+            }
+        };
+        add_button(
+            context,
+            .{ .x = 350.0, .y = 320.0 },
+            "SHOP",
+            S.on_press,
+            .{ .context = context },
+        );
     }
-
-    if (UiText.to_screen_quads(
-        context,
-        .{ .x = 550.0, .y = 320.0 },
-        32.0,
-        "GIVE UP",
-        .{},
-        .{ .hilight = true },
-    ) and context.player_input.lmb == .Pressed) {
-        context.state.main_menu = true;
-        context.state_change_animation.set(CAMERA_MAIN_MENU, .{
-            .main_menu = true,
-            .debug = context.state.debug,
-        });
+    {
+        const S = struct {
+            fn on_press(args: anytype) void {
+                args.context.state.main_menu = true;
+                args.context.state_change_animation.set(CAMERA_MAIN_MENU, .{
+                    .main_menu = true,
+                    .debug = args.context.state.debug,
+                });
+            }
+        };
+        add_button(
+            context,
+            .{ .x = 550.0, .y = 320.0 },
+            "GIVE UP",
+            S.on_press,
+            .{ .context = context },
+        );
     }
 }
 
@@ -388,37 +456,45 @@ pub fn in_end_game_won(game: *Game, context: *GlobalContext) void {
         32.0,
         "YOU WON",
         .{},
-        .{},
+        null,
     );
 
-    if (UiText.to_screen_quads(
-        context,
-        CAMERA_END_GAME,
-        32.0,
-        "GO AGAIN",
-        .{},
-        .{ .hilight = true },
-    ) and context.player_input.lmb == .Pressed) {
-        game.restart();
-        context.state.in_game = true;
-        context.state_change_animation.set(CAMERA_IN_GAME, .{
-            .in_game = true,
-            .debug = context.state.debug,
-        });
+    {
+        const S = struct {
+            fn on_press(args: anytype) void {
+                args.game.restart();
+                args.context.state.in_game = true;
+                args.context.state_change_animation.set(CAMERA_IN_GAME, .{
+                    .in_game = true,
+                    .debug = args.context.state.debug,
+                });
+            }
+        };
+        add_button(
+            context,
+            CAMERA_END_GAME,
+            "GO AGAIN",
+            S.on_press,
+            .{ .game = game, .context = context },
+        );
     }
-    if (UiText.to_screen_quads(
-        context,
-        CAMERA_END_GAME.add(.{ .y = 100.0 }),
-        32.0,
-        "I'VE GIVEN THEE COURTESY ENOUGH",
-        .{},
-        .{ .hilight = true },
-    ) and context.player_input.lmb == .Pressed) {
-        context.state.main_menu = true;
-        context.state_change_animation.set(CAMERA_MAIN_MENU, .{
-            .main_menu = true,
-            .debug = context.state.debug,
-        });
+    {
+        const S = struct {
+            fn on_press(args: anytype) void {
+                args.context.state.main_menu = true;
+                args.context.state_change_animation.set(CAMERA_MAIN_MENU, .{
+                    .main_menu = true,
+                    .debug = args.context.state.debug,
+                });
+            }
+        };
+        add_button(
+            context,
+            CAMERA_END_GAME.add(.{ .y = 100.0 }),
+            "I'VE HAD ENOUGH",
+            S.on_press,
+            .{ .context = context },
+        );
     }
 }
 
@@ -429,36 +505,48 @@ pub fn in_end_game_lost(game: *Game, context: *GlobalContext) void {
         32.0,
         "YOU LOST",
         .{},
-        .{},
+        null,
     );
-    if (UiText.to_screen_quads(
-        context,
-        CAMERA_END_GAME,
-        32.0,
-        "TRY AGAIN",
-        .{},
-        .{ .hilight = true },
-    ) and context.player_input.lmb == .Pressed) {
-        game.restart();
-        context.state.in_game = true;
-        context.state_change_animation.set(CAMERA_IN_GAME, .{
-            .in_game = true,
-            .debug = context.state.debug,
-        });
+
+    {
+        const S = struct {
+            fn on_press(args: anytype) void {
+                args.game.restart();
+                args.context.state.in_game = true;
+                args.context.state_change_animation.set(CAMERA_IN_GAME, .{
+                    .in_game = true,
+                    .debug = args.context.state.debug,
+                });
+            }
+        };
+        add_button(
+            context,
+            CAMERA_END_GAME,
+            "TRY AGAIN",
+            S.on_press,
+            .{
+                .game = game,
+                .context = context,
+            },
+        );
     }
-    if (UiText.to_screen_quads(
-        context,
-        CAMERA_END_GAME.add(.{ .y = 100.0 }),
-        32.0,
-        "GIVE UP",
-        .{},
-        .{ .hilight = true },
-    ) and context.player_input.lmb == .Pressed) {
-        context.state.main_menu = true;
-        context.state_change_animation.set(CAMERA_MAIN_MENU, .{
-            .main_menu = true,
-            .debug = context.state.debug,
-        });
+    {
+        const S = struct {
+            fn on_press(args: anytype) void {
+                args.context.state.main_menu = true;
+                args.context.state_change_animation.set(CAMERA_MAIN_MENU, .{
+                    .main_menu = true,
+                    .debug = args.context.state.debug,
+                });
+            }
+        };
+        add_button(
+            context,
+            CAMERA_END_GAME.add(.{ .y = 100.0 }),
+            "GIVE UP",
+            S.on_press,
+            .{ .context = context },
+        );
     }
 }
 
@@ -472,6 +560,6 @@ pub fn debug(context: *GlobalContext) void {
         32.0,
         "FPS: {d:.1} FT: {d:.3}s",
         .{ 1.0 / context.dt, context.dt },
-        .{ .world_space = false },
+        null,
     );
 }

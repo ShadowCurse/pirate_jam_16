@@ -115,11 +115,22 @@ pub const Input = struct {
     }
 };
 
+pub const Assets = struct {
+    table: Textures.Texture.Id,
+    cue_defult: Textures.Texture.Id,
+    button: Textures.Texture.Id,
+    cue_background: Textures.Texture.Id,
+    items_background: Textures.Texture.Id,
+    blood: Textures.Texture.Id,
+    souls: Textures.Texture.Id,
+};
+
 pub const GlobalContext = struct {
     memory: *Memory,
     screen_quads: ScreenQuads,
     texture_store: Textures.Store,
     font: Font,
+    assets: Assets,
     state: State,
     state_change_animation: StateChangeAnimation,
     input: Input,
@@ -138,6 +149,14 @@ pub const GlobalContext = struct {
         self.screen_quads = ScreenQuads.init(memory, 4096) catch unreachable;
         self.texture_store.init(memory) catch unreachable;
         self.font = Font.init(memory, &self.texture_store, "assets/Hack-Regular.ttf", 64);
+
+        self.assets.table = self.texture_store.load(memory, "assets/table.png");
+        self.assets.cue_defult = self.texture_store.load(memory, "assets/cue.png");
+        self.assets.button = self.texture_store.load(memory, "assets/button.png");
+        self.assets.cue_background = self.texture_store.load(memory, "assets/cue_background.png");
+        self.assets.items_background = self.texture_store.load(memory, "assets/items_background.png");
+        self.assets.blood = self.texture_store.load(memory, "assets/blood.png");
+        self.assets.souls = self.texture_store.load(memory, "assets/souls.png");
 
         self.state = .{};
         self.state_change_animation = .{
@@ -273,13 +292,13 @@ pub const GlobalContext = struct {
         };
 
         self.item_infos.get_mut(.CueDefault).* = .{
-            .texture_id = self.texture_store.load(memory, "assets/cue.png"),
+            .texture_id = self.assets.cue_defult,
             .name = "Default cue",
             .description = "",
             .price = 20,
         };
         self.item_infos.get_mut(.CueKar98K).* = .{
-            .texture_id = self.texture_store.load(memory, "assets/cue.png"),
+            .texture_id = self.assets.cue_defult,
             .name = "Kar98k",
             .description =
             \\In addition to hitting
@@ -290,7 +309,7 @@ pub const GlobalContext = struct {
             .price = 20,
         };
         self.item_infos.get_mut(.CueCross).* = .{
-            .texture_id = self.texture_store.load(memory, "assets/cue.png"),
+            .texture_id = self.assets.cue_defult,
             .name = "Silver cross",
             .description =
             \\In addition to hitting 
