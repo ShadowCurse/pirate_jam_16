@@ -247,7 +247,7 @@ const SelectBall = struct {
             .{ ball_position.x, ball_position.y },
         );
         ai.push_task(ClickMouse.init(.None, .None));
-        ai.push_task(ClickMouse.init(.Pressed, .None));
+        ai.push_task(ClickMouse.init(.Released, .None));
         ai.push_task(MoveMouse.init(ai, ball_position));
         self.finished = true;
     }
