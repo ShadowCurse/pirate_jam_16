@@ -885,7 +885,7 @@ pub const ItemInventory = struct {
     }
 
     pub fn to_screen_quads(
-        self: ItemInventory,
+        self: *ItemInventory,
         context: *GlobalContext,
     ) void {
         const bot_panel = UiPanel.init(

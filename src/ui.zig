@@ -151,12 +151,14 @@ pub const UiText = struct {
 pub const UiDashedLine = struct {
     start: Vec2,
     end: Vec2,
+    accumulator: f32,
 
     const COLOR = Color.WHITE;
-    const WIDTH: f32 = 10;
-    const SEGMENT_GAP: f32 = 10;
-    const SEGMENT_LENGTH: f32 = 30;
+    const WIDTH: f32 = 5;
+    const SEGMENT_GAP: f32 = 15;
+    const SEGMENT_LENGTH: f32 = 20;
     const TOTAL_SEGMENT_LEN: f32 = SEGMENT_LENGTH + SEGMENT_GAP;
+    const ANIMATIO_SPEED = 20;
 
     const ARROW_ANGLE: f32 = std.math.pi / 4.0;
     const ARROW_H = std.math.sqrt((SEGMENT_LENGTH / 2 * SEGMENT_LENGTH / 2) + (WIDTH / 2 * WIDTH / 2));
@@ -167,20 +169,29 @@ pub const UiDashedLine = struct {
     const ARROW_DELTA_PERP: f32 = @cos(ARROW_ANGLE_C) * ARROW_H;
 
     pub fn to_screen_quads(
-        self: UiDashedLine,
+        self: *UiDashedLine,
         context: *GlobalContext,
     ) void {
+        self.accumulator += ANIMATIO_SPEED * context.dt;
+        const animation_offset = @rem(self.accumulator, SEGMENT_LENGTH + SEGMENT_GAP);
+
         const delta = self.end.sub(self.start);
         const delta_len = delta.len();
         const delta_normalized = delta.mul_f32(1.0 / delta_len);
+        const actual_len = delta_len - animation_offset;
+        if (actual_len <= 0.0)
+            return;
+
         const c = delta_normalized.cross(.{ .y = 1 });
         const d = delta_normalized.dot(.{ .y = 1 });
         const rotation = if (c < 0.0) -std.math.acos(d) else std.math.acos(d);
         const num_segments: u32 =
-            @intFromFloat(@floor(delta_len / TOTAL_SEGMENT_LEN));
+            @intFromFloat(@floor(actual_len / TOTAL_SEGMENT_LEN));
+        const first_segment_len = animation_offset - SEGMENT_GAP;
         var last_segment_len =
-            delta_len - @as(f32, @floatFromInt(num_segments)) * TOTAL_SEGMENT_LEN - ARROW_DELTA;
-        var segment_positon = self.start.add(delta_normalized.mul_f32(SEGMENT_LENGTH / 2));
+            actual_len - @as(f32, @floatFromInt(num_segments)) * TOTAL_SEGMENT_LEN - ARROW_DELTA;
+        var segment_positon = self.start
+            .add(delta_normalized.mul_f32(SEGMENT_LENGTH / 2 + animation_offset));
         for (0..num_segments) |_| {
             const position = context.camera.transform(segment_positon.extend(0.0));
             const size: Vec2 = .{ .x = WIDTH, .y = SEGMENT_LENGTH };
@@ -195,6 +206,22 @@ pub const UiDashedLine = struct {
 
             segment_positon =
                 segment_positon.add(delta_normalized.mul_f32(TOTAL_SEGMENT_LEN));
+        }
+
+        if (0.0 < first_segment_len) {
+            const first_segment_positon = self.start
+                .add(delta_normalized
+                .mul_f32(first_segment_len / 2.0));
+            const position = context.camera.transform(first_segment_positon.extend(0.0));
+            const size: Vec2 = .{ .x = WIDTH, .y = first_segment_len };
+            context.screen_quads.add_quad(.{
+                .color = COLOR,
+                .texture_id = Textures.Texture.ID_SOLID_COLOR,
+                .position = position.xy().extend(0.0),
+                .rotation = rotation,
+                .size = size.mul_f32(position.z),
+                .options = .{ .no_alpha_blend = true },
+            });
         }
 
         if (0.0 < last_segment_len) {
