@@ -148,7 +148,7 @@ pub const GlobalContext = struct {
         self.memory = memory;
         self.screen_quads = ScreenQuads.init(memory, 4096) catch unreachable;
         self.texture_store.init(memory) catch unreachable;
-        self.font = Font.init(memory, &self.texture_store, "assets/Hack-Regular.ttf", 64);
+        self.font = Font.init(memory, &self.texture_store, "assets/rm-albion.regular.ttf", 64);
 
         self.assets.table = self.texture_store.load(memory, "assets/table.png");
         self.assets.cue_defult = self.texture_store.load(memory, "assets/cue.png");

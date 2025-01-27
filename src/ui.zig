@@ -255,6 +255,8 @@ pub fn add_button(
     comptime on_press: fn (anytype) void,
     args: anytype,
 ) void {
+    const BUTTON_TEXT_SIZE: f32 = 50.0;
+    const BUTTON_TEXT_OFFSET: Vec2 = .{ .x = 10.0, .y = 10.0 };
     const panel = UiPanel.init(
         position,
         context.assets.button,
@@ -265,8 +267,8 @@ pub fn add_button(
     panel.to_screen_quad(context);
     UiText.to_screen_quads(
         context,
-        position,
-        32.0,
+        position.add(BUTTON_TEXT_OFFSET),
+        BUTTON_TEXT_SIZE,
         text,
         .{},
         tint,
@@ -341,10 +343,11 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
     const PANEL_PLAYER_INFO_POSITION: Vec2 = .{ .x = -520.0, .y = -315.0 };
     const PANEL_OPPONENT_INFO_POSITION: Vec2 = .{ .x = 520.0, .y = -315.0 };
 
-    const PANEL_BLOOD_OFFSET = .{ .x = -100.0, .y = -10.0 };
-    const PANEL_HP_OFFSET = .{ .x = -50.0 };
-    const PANEL_SOULS_OFFSET = .{ .y = -5.0 };
-    const PANEL_OVERHEAL_OFFSET = .{ .x = 50.0 };
+    const PANEL_TEXT_SIZE = 60;
+    const PANEL_BLOOD_OFFSET = .{ .x = -100.0, .y = -15.0 };
+    const PANEL_HP_OFFSET = .{ .x = -40.0 };
+    const PANEL_SOULS_OFFSET = .{ .x = 10.0, .y = -10.0 };
+    const PANEL_OVERHEAL_OFFSET = .{ .x = 70.0 };
 
     // OPPONENT HP
     UiPanel.init(
@@ -355,7 +358,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
     _ = UiText.to_screen_quads(
         context,
         PANEL_OPPONENT_INFO_POSITION.add(PANEL_HP_OFFSET),
-        25.0,
+        PANEL_TEXT_SIZE,
         "{d}",
         .{game.opponent.hp},
         null,
@@ -369,7 +372,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
     _ = UiText.to_screen_quads(
         context,
         PANEL_OPPONENT_INFO_POSITION.add(PANEL_OVERHEAL_OFFSET),
-        25.0,
+        PANEL_TEXT_SIZE,
         "{d}",
         .{game.opponent.hp_overhead},
         null,
@@ -384,7 +387,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
     _ = UiText.to_screen_quads(
         context,
         PANEL_PLAYER_INFO_POSITION.add(PANEL_HP_OFFSET),
-        25.0,
+        PANEL_TEXT_SIZE,
         "{d}",
         .{game.player.hp},
         null,
@@ -398,7 +401,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
     _ = UiText.to_screen_quads(
         context,
         PANEL_PLAYER_INFO_POSITION.add(PANEL_OVERHEAL_OFFSET),
-        25.0,
+        PANEL_TEXT_SIZE,
         "{d}",
         .{game.player.hp_overhead},
         null,
@@ -424,7 +427,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         add_button(
             context,
             .{ .x = 350.0, .y = 320.0 },
-            "SHOP",
+            "Shop",
             S.on_press,
             .{ .context = context },
         );
@@ -442,7 +445,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         add_button(
             context,
             .{ .x = 550.0, .y = 320.0 },
-            "GIVE UP",
+            "Give Up",
             S.on_press,
             .{ .context = context },
         );
@@ -454,7 +457,7 @@ pub fn in_end_game_won(game: *Game, context: *GlobalContext) void {
         context,
         CAMERA_END_GAME.add(.{ .y = -200.0 }),
         32.0,
-        "YOU WON",
+        "You Won",
         .{},
         null,
     );
@@ -473,7 +476,7 @@ pub fn in_end_game_won(game: *Game, context: *GlobalContext) void {
         add_button(
             context,
             CAMERA_END_GAME,
-            "GO AGAIN",
+            "Go Again",
             S.on_press,
             .{ .game = game, .context = context },
         );
@@ -503,7 +506,7 @@ pub fn in_end_game_lost(game: *Game, context: *GlobalContext) void {
         context,
         CAMERA_END_GAME.add(.{ .y = -200.0 }),
         32.0,
-        "YOU LOST",
+        "You Lost",
         .{},
         null,
     );
@@ -522,7 +525,7 @@ pub fn in_end_game_lost(game: *Game, context: *GlobalContext) void {
         add_button(
             context,
             CAMERA_END_GAME,
-            "TRY AGAIN",
+            "Try Again",
             S.on_press,
             .{
                 .game = game,
@@ -543,7 +546,7 @@ pub fn in_end_game_lost(game: *Game, context: *GlobalContext) void {
         add_button(
             context,
             CAMERA_END_GAME.add(.{ .y = 100.0 }),
-            "GIVE UP",
+            "Give Up",
             S.on_press,
             .{ .context = context },
         );

@@ -59,7 +59,8 @@ pub const Ball = struct {
 
     // This is sprite size dependent because I don't scale balls for perf gains.
     pub const RADIUS = 10;
-    pub const HP_TEXT_SIZE = 20;
+    pub const HP_TEXT_SIZE = 24;
+    pub const INFO_PANEL_TEXT_SIZE = 40;
     pub const INFO_PANEL_OFFSET: Vec2 = .{ .y = -100.0 };
     pub const INFO_PANEL_SIZE: Vec2 = .{ .x = 100.0, .y = 150.0 };
     pub const UPGRADE_HILIGHT_COLOR = Color.from_parts(255, 0, 0, 64);
@@ -236,8 +237,8 @@ pub const Ball = struct {
         {
             _ = UiText.to_screen_quads(
                 context,
-                panel_position.add(.{ .y = -40.0 }),
-                HP_TEXT_SIZE,
+                panel_position.add(.{ .y = -10.0 }),
+                INFO_PANEL_TEXT_SIZE,
                 "HP: {d}",
                 .{self.hp},
                 null,
@@ -247,8 +248,8 @@ pub const Ball = struct {
         {
             _ = UiText.to_screen_quads(
                 context,
-                panel_position.add(.{ .y = -20.0 }),
-                HP_TEXT_SIZE,
+                panel_position.add(.{ .y = 10.0 }),
+                INFO_PANEL_TEXT_SIZE,
                 "Damage: {d}",
                 .{self.damage},
                 null,
@@ -985,9 +986,9 @@ pub const Shop = struct {
     const ITEM_1_POSITION: Vec2 = CAMERA_IN_GAME_SHOP;
     const ITEM_2_POSITION: Vec2 = CAMERA_IN_GAME_SHOP.add(.{ .x = 400 });
 
-    const TEXT_SIZE_NAME = 40;
-    const TEXT_SIZE_DESCRIPTION = 28;
-    const TEXT_SIZE_PRICE = 28;
+    const TEXT_SIZE_NAME = 60;
+    const TEXT_SIZE_DESCRIPTION = 50;
+    const TEXT_SIZE_PRICE = 60;
 
     const ITEM_HILIGHT_TINT = Color.from_parts(128, 10, 10, 128);
 
@@ -1138,7 +1139,7 @@ pub const Shop = struct {
         UI.add_button(
             context,
             CAMERA_IN_GAME_SHOP.add(.{ .y = 300 }),
-            "REROLL",
+            "Reroll",
             S.on_press,
             self,
         );
