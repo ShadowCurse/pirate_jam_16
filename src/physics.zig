@@ -15,6 +15,9 @@ const Textures = stygian.textures;
 const _math = stygian.math;
 const Vec2 = _math.Vec2;
 
+const _objects = @import("objects.zig");
+const GravityParticleEffect = _objects.Ball.GravityParticleEffect;
+
 pub const trace = Tracing.Measurements(struct {
     update: Tracing.Counter,
 });
@@ -39,7 +42,11 @@ pub const Ball = struct {
         dead: bool = false,
         pocketted: bool = false,
         stationary: bool = true,
-        _: u5 = 0,
+        antisocial: bool = false,
+        gravity: bool = false,
+        runner: bool = false,
+        ring_of_light: bool = false,
+        ghost: bool = false,
 
         pub fn any(self: State) bool {
             return self.dead or self.pocketted or self.stationary;
@@ -295,7 +302,11 @@ pub fn layout_table(self: *Self) void {
     };
 }
 
-pub fn update(self: *Self, context: *GlobalContext) []Collision {
+pub const UpdateResult = struct {
+    collisions: []Collision,
+    distances: []f32,
+};
+pub fn update(self: *Self, context: *GlobalContext) UpdateResult {
     const trace_start = trace.start();
     defer trace.end(@src(), trace_start);
 
@@ -303,15 +314,19 @@ pub fn update(self: *Self, context: *GlobalContext) []Collision {
 
     const dt = context.dt / ITERATIONS;
     var collisions = std.ArrayList(Collision).init(context.alloc());
+    var distances = context.alloc().alloc(f32, self.balls.len) catch unreachable;
+    @memset(distances, 0);
     var prev_collisions_n: usize = 0;
     for (0..ITERATIONS) |_| {
-        for (&self.balls) |*ball| {
+        for (&self.balls, 0..) |*ball, i| {
             if (!ball.state.playable())
                 continue;
             ball.body.acceleration = ball.body.velocity.mul_f32(ball.body.friction).neg();
-            ball.body.position = ball.body.acceleration.mul_f32(0.5 * dt * dt)
+            const ball_new_position = ball.body.acceleration.mul_f32(0.5 * dt * dt)
                 .add(ball.body.velocity.mul_f32(dt))
                 .add(ball.body.position);
+            distances[i] += ball_new_position.sub(ball.body.position).len();
+            ball.body.position = ball_new_position;
             ball.body.velocity = ball.body.velocity.add(ball.body.acceleration.mul_f32(dt));
 
             if (ball.body.velocity.len_squared() < 0.1) {
@@ -328,6 +343,19 @@ pub fn update(self: *Self, context: *GlobalContext) []Collision {
             for (self.balls[i + 1 .. self.balls.len], i + 1..) |*ball_2, j| {
                 if (!ball_2.state.playable())
                     continue;
+
+                if (ball_1.state.gravity) {
+                    const to_ball_2 = ball_2.body.position.sub(ball_1.body.position);
+                    const to_ball_2_len_sq = to_ball_2.len_squared();
+                    const RANGE = GravityParticleEffect.RADIUS * GravityParticleEffect.RADIUS;
+                    const FORCE = GravityParticleEffect.FORCE;
+                    if (to_ball_2_len_sq < RANGE) {
+                        ball_2.body.velocity =
+                            ball_2.body.velocity
+                            .add(to_ball_2.mul_f32(1.0 / to_ball_2_len_sq *
+                            (RANGE - to_ball_2_len_sq) / RANGE * FORCE));
+                    }
+                }
                 const collision_point =
                     Physics.circle_circle_collision(
                     ball_1.collider,
@@ -389,6 +417,9 @@ pub fn update(self: *Self, context: *GlobalContext) []Collision {
                         &ball_2.body,
                         collision.collision,
                     );
+                    if (ball.state.antisocial) {
+                        ball.body.velocity = ball.body.velocity.mul_f32(1.2);
+                    }
                 },
                 .Border => |border_id| {
                     const border = &self.borders[border_id];
@@ -405,7 +436,10 @@ pub fn update(self: *Self, context: *GlobalContext) []Collision {
         }
         prev_collisions_n = collisions.items.len;
     }
-    return collisions.items;
+    return .{
+        .collisions = collisions.items,
+        .distances = distances,
+    };
 }
 
 pub fn borders_to_screen_quads(

@@ -155,7 +155,7 @@ pub const GlobalContext = struct {
         window_height: u32,
     ) void {
         self.memory = memory;
-        self.screen_quads = ScreenQuads.init(memory, 4096) catch unreachable;
+        self.screen_quads = ScreenQuads.init(memory, 8192) catch unreachable;
         self.texture_store.init(memory) catch unreachable;
         self.font = Font.init(memory, &self.texture_store, "assets/rm-albion.regular.ttf", 64);
 
@@ -245,23 +245,27 @@ pub const GlobalContext = struct {
         };
         self.item_infos.get_mut(.BallAntisocial).* = .{
             .texture_id = Textures.Texture.ID_DEBUG,
-            .name = "Antisocial ball",
+            .name = "Bouncy ball",
             .description =
             \\Ball gains additional
-            \\velocity when collides with other balls
+            \\velocity when collides
+            \\with other balls
             ,
             .price = 20,
         };
         self.item_infos.get_mut(.BallGravity).* = .{
             .texture_id = Textures.Texture.ID_DEBUG,
-            .name = "Gravity ball",
-            .description = "TODO",
+            .name = "Antigravity ball",
+            .description = "Pushes all balls away",
             .price = 20,
         };
         self.item_infos.get_mut(.BallRunner).* = .{
             .texture_id = Textures.Texture.ID_DEBUG,
             .name = "Runner ball",
-            .description = "TODO",
+            .description =
+            \\Restores HP with the
+            \\distance traveled
+            ,
             .price = 20,
         };
         self.item_infos.get_mut(.BallRingOfLight).* = .{

@@ -391,7 +391,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         context,
         PANEL_OPPONENT_INFO_POSITION.add(PANEL_HP_OFFSET),
         PANEL_TEXT_SIZE,
-        "{d}",
+        "{d:.0}",
         .{game.opponent.hp},
         .{},
     );
@@ -405,7 +405,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         context,
         PANEL_OPPONENT_INFO_POSITION.add(PANEL_OVERHEAL_OFFSET),
         PANEL_TEXT_SIZE,
-        "{d}",
+        "{d:.0}",
         .{game.opponent.hp_overhead},
         .{},
     );
@@ -429,7 +429,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         context,
         PANEL_PLAYER_INFO_POSITION.add(PANEL_HP_OFFSET),
         PANEL_TEXT_SIZE,
-        "{d}",
+        "{d:.0}",
         .{game.player.hp},
         .{},
     );
@@ -443,7 +443,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         context,
         PANEL_PLAYER_INFO_POSITION.add(PANEL_OVERHEAL_OFFSET),
         PANEL_TEXT_SIZE,
-        "{d}",
+        "{d:.0}",
         .{game.player.hp_overhead},
         .{},
     );

@@ -37,8 +37,8 @@ const _animations = @import("animations.zig");
 const BallAnimations = _animations.BallAnimations;
 
 const PlayerContext = struct {
-    hp: i32 = 100,
-    hp_overhead: i32 = 100,
+    hp: f32 = 100,
+    hp_overhead: f32 = 100,
     item_inventory: ItemInventory,
     cue_inventory: CueInventory,
 
@@ -51,6 +51,8 @@ const PlayerContext = struct {
 
     pub fn reset(self: *PlayerContext, owner: Owner) void {
         self.item_inventory = ItemInventory.init(owner);
+        _ = self.item_inventory.add(.BallGravity);
+        _ = self.item_inventory.add(.BallRunner);
         self.cue_inventory.reset();
         _ = self.cue_inventory.add(.CueCross);
         _ = self.cue_inventory.add(.CueKar98K);
@@ -126,6 +128,7 @@ pub fn init_balls(self: *Self, context: *GlobalContext) void {
         0..,
     ) |*pb, *b, i| {
         b.* = Ball.init(
+            context,
             @intCast(i),
             Color.from_parts(255, 0, 0, 200),
             context.assets.ball_player,
@@ -140,6 +143,7 @@ pub fn init_balls(self: *Self, context: *GlobalContext) void {
         PLAYER_BALLS..,
     ) |*pb, *b, i| {
         b.* = Ball.init(
+            context,
             @intCast(i),
             Color.from_parts(71, 182, 210, 200),
             context.assets.ball_opponent,
@@ -234,6 +238,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             new_ball_hovered = ball.id;
             ball.draw_info_panel(context);
         }
+        ball.draw_effect(context);
     }
     if (!new_ball_selected and self.cue_aim_start_positon == null) {
         self.selected_ball = null;
@@ -319,15 +324,22 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             self.selected_ball = null;
 
             entity.cue_inventory.selected().move_storage();
-            const collisions = self.physics.update(context);
+            const pr = self.physics.update(context);
 
-            var new_player_hp: i32 = 0;
-            var player_overheal: i32 = 0;
-            var new_opponent_hp: i32 = 0;
-            var opponent_overheal: i32 = 0;
-            for (&self.balls) |*ball| {
+            var new_player_hp: f32 = 0;
+            var player_overheal: f32 = 0;
+            var new_opponent_hp: f32 = 0;
+            var opponent_overheal: f32 = 0;
+            for (&self.balls, 0..) |*ball, i| {
                 if (!ball.physics.state.playable())
                     continue;
+
+                if (ball.physics.state.runner) {
+                    const add_hp: f32 =
+                        pr.distances[i] *
+                        Ball.RunnerParticleEffect.HEAL_PER_UNIT;
+                    ball.hp += add_hp;
+                }
 
                 switch (ball.owner) {
                     .Player => {
@@ -351,7 +363,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                     ball.physics.state.dead = true;
                 }
 
-                for (collisions) |c| {
+                for (pr.collisions) |c| {
                     if (c.ball_id != ball.id)
                         continue;
 
@@ -364,18 +376,14 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                                     ball_2.hp += ball.heal;
                                 } else {
                                     const min = @min(ball.damage, ball_2.hp);
-                                    const min_f32: f32 = @floatFromInt(min);
-                                    const d: i32 =
-                                        @intFromFloat(min_f32 * (1.0 - ball_2.armor));
+                                    const d = min * (1.0 - ball_2.armor);
                                     ball.hp += d;
                                     ball_2.hp -= d;
                                 }
                             } else {
                                 if (ball_2.owner == self.turn_owner) {
                                     const min = @min(ball_2.damage, ball.hp);
-                                    const min_f32: f32 = @floatFromInt(min);
-                                    const d: i32 =
-                                        @intFromFloat(min_f32 * (1.0 - ball_2.armor));
+                                    const d = min * (1.0 - ball_2.armor);
                                     ball.hp -= d;
                                     ball_2.hp += d;
                                 } else {

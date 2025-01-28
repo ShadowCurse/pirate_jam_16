@@ -52,14 +52,115 @@ pub const Ball = struct {
     physics: *GamePhysics.Ball,
 
     owner: Owner,
-    hp: i32 = 10,
-    max_hp: i32 = 10,
-    damage: i32 = 5,
-    heal: i32 = 1,
+    hp: f32 = 10,
+    max_hp: f32 = 10,
+    damage: f32 = 5,
+    heal: f32 = 1,
     armor: f32 = 0.0,
-    gravity_level: u8 = 0,
-    runner_level: u8 = 0,
-    ring_of_light_level: u8 = 0,
+
+    particles_gravity: Particles,
+    particles_runner: Particles,
+
+    pub const GravityParticleEffect = struct {
+        pub const NUM = 100;
+        pub const RADIUS = 50.0;
+        pub const FORCE = 100.0;
+
+        fn update(
+            _ball: *anyopaque,
+            particle_index: u32,
+            particle: *Particles.Particle,
+            rng: *std.rand.DefaultPrng,
+            dt: f32,
+        ) void {
+            _ = rng;
+            _ = dt;
+            const ball: *const Ball = @alignCast(@ptrCast(_ball));
+            const angle = std.math.pi * 2.0 / @as(f32, NUM) *
+                @as(f32, @floatFromInt(particle_index));
+            const c = @cos(angle);
+            const s = @sin(angle);
+            const additional_offset: Vec3 = .{ .x = c, .y = s, .z = 0.0 };
+            particle.object.transform.position =
+                ball.physics.body.position.extend(0.0)
+                .add(additional_offset.mul_f32(GravityParticleEffect.RADIUS));
+            particle.object.options = .{ .no_scale_rotate = true, .no_alpha_blend = true };
+        }
+    };
+
+    pub const RunnerParticleEffect = struct {
+        pub const HEAL_PER_UNIT = 0.02;
+        const NUM = 100;
+        const RADIUS = 8.0;
+        const GAP: f32 = (RunnerParticleEffect.RADIUS * 2.0) / @as(f32, NUM);
+        const LERP_BASE = 0.2;
+        const LERP_SPEED = 0.2;
+        const MAX_COLOR_VELOCITY = 100.0;
+        const COLOR: Color = Color.from_parts(76, 158, 0, 255);
+
+        fn update(
+            _ball: *anyopaque,
+            particle_index: u32,
+            particle: *Particles.Particle,
+            rng: *std.rand.DefaultPrng,
+            dt: f32,
+        ) void {
+            _ = rng;
+            _ = dt;
+            const ball: *const Ball = @alignCast(@ptrCast(_ball));
+            const neg_vel = ball.physics.body.velocity.neg();
+            const neg_vel_len = neg_vel.len();
+            const pi = @as(f32, @floatFromInt(particle_index));
+            if (0.1 < neg_vel_len) {
+                const neg_vel_norm = neg_vel.mul_f32(1.0 / neg_vel_len);
+                // left perp
+                const orth_norm = neg_vel_norm.perp();
+                const p_x = RunnerParticleEffect.RADIUS - GAP / 2.0 - GAP * pi;
+                const lerp_mul = @abs(p_x) / RunnerParticleEffect.RADIUS;
+                const position_trail: Vec3 =
+                    ball.physics.body.position
+                    .add(orth_norm.mul_f32(p_x))
+                    .extend(0.0);
+
+                const angle = std.math.pi * 2.0 / @as(f32, NUM) * pi;
+                const c = @cos(angle);
+                const s = @sin(angle);
+                const offset: Vec2 = .{ .x = c, .y = s };
+                const position_stand: Vec3 =
+                    ball.physics.body.position
+                    .add(offset.mul_f32(RunnerParticleEffect.RADIUS))
+                    .extend(0.0);
+
+                const m = @max(
+                    0.0,
+                    @min(
+                        1.0,
+                        (MAX_COLOR_VELOCITY - neg_vel_len) / MAX_COLOR_VELOCITY,
+                    ),
+                );
+                const position = position_stand.lerp(position_trail, 1.0 - m);
+
+                particle.object.transform.position =
+                    (particle.object.transform.position
+                    .lerp(position, LERP_BASE + LERP_SPEED * lerp_mul));
+            } else {
+                const angle = std.math.pi * 2.0 / @as(f32, NUM) * pi;
+                const c = @cos(angle);
+                const s = @sin(angle);
+                const offset: Vec2 = .{ .x = c, .y = s };
+                const position: Vec3 =
+                    ball.physics.body.position
+                    .add(offset.mul_f32(RunnerParticleEffect.RADIUS))
+                    .extend(0.0);
+
+                particle.object.transform.position =
+                    (particle.object.transform.position
+                    .lerp(position, LERP_BASE));
+            }
+
+            particle.object.options = .{ .no_scale_rotate = true };
+        }
+    };
 
     // This is sprite size dependent because I don't scale balls for perf gains.
     pub const RADIUS = 10;
@@ -77,6 +178,7 @@ pub const Ball = struct {
     });
 
     pub fn init(
+        context: *GlobalContext,
         id: u8,
         color: Color,
         texture_id: Textures.Texture.Id,
@@ -90,6 +192,27 @@ pub const Ball = struct {
             .accumulator = 0.0,
             .owner = owner,
             .physics = physics,
+
+            .particles_gravity = Particles.init(
+                context.memory,
+                GravityParticleEffect.NUM,
+                .{ .Color = Color.BLUE },
+                physics.body.position.extend(0.0),
+                .{ .x = 4.0, .y = 4.0 },
+                0.0,
+                3.0,
+                true,
+            ),
+            .particles_runner = Particles.init(
+                context.memory,
+                RunnerParticleEffect.NUM,
+                .{ .Color = RunnerParticleEffect.COLOR },
+                physics.body.position.extend(0.0),
+                .{ .x = 3.0, .y = 3.0 },
+                0.0,
+                3.0,
+                true,
+            ),
         };
     }
 
@@ -119,14 +242,25 @@ pub const Ball = struct {
             .BallHeavy => {
                 self.physics.body.inv_mass -= 0.1;
             },
+            .BallAntisocial => {
+                if (self.physics.state.antisocial)
+                    return false;
+                self.physics.state.antisocial = true;
+            },
             .BallGravity => {
-                self.gravity_level += 1;
+                if (self.physics.state.gravity)
+                    return false;
+                self.physics.state.gravity = true;
             },
             .BallRunner => {
-                self.runner_level += 1;
+                if (self.physics.state.runner)
+                    return false;
+                self.physics.state.runner = true;
             },
             .BallRingOfLight => {
-                self.ring_of_light_level += 1;
+                if (self.physics.state.ring_of_light)
+                    return false;
+                self.physics.state.ring_of_light = true;
             },
             else => unreachable,
         }
@@ -177,9 +311,7 @@ pub const Ball = struct {
                 result.upgrade_applied = self.add_upgrade(selected_upgrade.?);
             }
         }
-        const hp_percent: f32 =
-            @as(f32, @floatFromInt(self.hp)) /
-            @as(f32, @floatFromInt(self.max_hp));
+        const hp_percent: f32 = self.hp / self.max_hp;
         const tint = Color.from_vec4_norm(LOW_HP_COLOR_V4.lerp(color_v4, hp_percent));
         const object: Object2d = .{
             .type = .{ .TextureId = self.texture_id },
@@ -197,6 +329,25 @@ pub const Ball = struct {
         return result;
     }
 
+    pub fn draw_effect(self: *Ball, context: *GlobalContext) void {
+        if (self.physics.state.gravity) {
+            self.particles_gravity.update(self, &GravityParticleEffect.update, 0.0);
+            self.particles_gravity.to_screen_quad(
+                &context.camera,
+                &context.texture_store,
+                &context.screen_quads,
+            );
+        }
+        if (self.physics.state.runner) {
+            self.particles_runner.update(self, &RunnerParticleEffect.update, 0.0);
+            self.particles_runner.to_screen_quad(
+                &context.camera,
+                &context.texture_store,
+                &context.screen_quads,
+            );
+        }
+    }
+
     pub fn draw_info_panel(self: Ball, context: *GlobalContext) void {
         const panel_position = self.physics.body.position.add(INFO_PANEL_OFFSET);
         const info_panel = UiPanel.init(
@@ -211,7 +362,7 @@ pub const Ball = struct {
                 context,
                 panel_position.add(.{ .x = -110.0, .y = -70.0 }),
                 INFO_PANEL_TEXT_SIZE,
-                "HP: {d}",
+                "HP: {d:.0}",
                 .{self.hp},
                 .{ .center = false },
             );
@@ -222,7 +373,7 @@ pub const Ball = struct {
                 context,
                 panel_position.add(.{ .x = -110.0, .y = -40.0 }),
                 INFO_PANEL_TEXT_SIZE,
-                "Damage: {d}",
+                "Damage: {d:.0}",
                 .{self.damage},
                 .{ .center = false },
             );
@@ -233,41 +384,44 @@ pub const Ball = struct {
                 context,
                 panel_position.add(.{ .x = -110.0, .y = -10.0 }),
                 INFO_PANEL_TEXT_SIZE,
-                "Armor: {d}",
+                "Armor: {d:.0}",
                 .{self.armor},
                 .{ .center = false },
             );
         }
 
         {
+            const s = if (self.physics.state.gravity) "yes" else "no";
             _ = UiText.to_screen_quads(
                 context,
                 panel_position.add(.{ .x = -110.0, .y = 20.0 }),
                 INFO_PANEL_TEXT_SIZE,
-                "Gravity level: {d}",
-                .{self.gravity_level},
+                "Gravity: {s}",
+                .{s},
                 .{ .center = false },
             );
         }
 
         {
+            const s = if (self.physics.state.runner) "yes" else "no";
             _ = UiText.to_screen_quads(
                 context,
                 panel_position.add(.{ .x = -110.0, .y = 50.0 }),
                 INFO_PANEL_TEXT_SIZE,
-                "Runner level: {d}",
-                .{self.runner_level},
+                "Runner: {s}",
+                .{s},
                 .{ .center = false },
             );
         }
 
         {
+            const s = if (self.physics.state.ring_of_light) "yes" else "no";
             _ = UiText.to_screen_quads(
                 context,
                 panel_position.add(.{ .x = -110.0, .y = 80.0 }),
                 INFO_PANEL_TEXT_SIZE,
-                "Ring of light level: {d}",
-                .{self.ring_of_light_level},
+                "Ring of light: {s}",
+                .{s},
                 .{ .center = false },
             );
         }
@@ -556,7 +710,7 @@ pub const Item = struct {
         texture_id: Textures.Texture.Id,
         name: []const u8,
         description: []const u8,
-        price: i32,
+        price: f32,
     };
 
     pub const NormalDropRate = 0.5;
@@ -564,9 +718,28 @@ pub const Item = struct {
     pub const EpicDropRate = 0.2;
 
     pub const NormalItems = [_]Tag{
+        // .BallSpiky,
+        // .BallHealthy,
+        // .BallArmored,
+
         .BallSpiky,
         .BallHealthy,
         .BallArmored,
+        .BallLight,
+        .BallHeavy,
+        .BallAntisocial,
+        .BallGravity,
+        .BallRunner,
+        .BallRingOfLight,
+
+        .CueWiggleBall,
+        .CueScope,
+        .CueSecondBarrel,
+        .CueSilencer,
+        .CueRocketBooster,
+
+        .CueKar98K,
+        .CueCross,
     };
 
     pub const RareItems = [_]Tag{
