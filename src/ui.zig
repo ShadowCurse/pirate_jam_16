@@ -381,6 +381,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
     const PANEL_HP_OFFSET = .{ .x = -40.0 };
     const PANEL_SOULS_OFFSET = .{ .x = 10.0, .y = -10.0 };
     const PANEL_OVERHEAL_OFFSET = .{ .x = 70.0 };
+    const PANEL_BAR_OFFSET = .{ .x = -12.0, .y = 20.0 };
 
     // OPPONENT HP
     UiPanel.init(
@@ -410,6 +411,15 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         .{game.opponent.hp_overhead},
         null,
     );
+    const ot = if (game.turn_owner == .Opponent)
+        context.assets.under_hp_bar_turn
+    else
+        context.assets.under_hp_bar;
+    UiPanel.init(
+        PANEL_OPPONENT_INFO_POSITION.add(PANEL_BAR_OFFSET),
+        ot,
+        null,
+    ).to_screen_quad(context);
 
     // PLAYER HP
     UiPanel.init(
@@ -439,6 +449,15 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         .{game.player.hp_overhead},
         null,
     );
+    const pt = if (game.turn_owner == .Player)
+        context.assets.under_hp_bar_turn
+    else
+        context.assets.under_hp_bar;
+    UiPanel.init(
+        PANEL_PLAYER_INFO_POSITION.add(PANEL_BAR_OFFSET),
+        pt,
+        null,
+    ).to_screen_quad(context);
 
     {
         const S = struct {
