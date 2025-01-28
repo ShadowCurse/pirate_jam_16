@@ -404,7 +404,6 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                     .lost = true,
                     .debug = context.state.debug,
                 });
-                return;
             }
             if (self.opponent.hp <= 0) {
                 context.state.won = true;
@@ -412,7 +411,6 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                     .won = true,
                     .debug = context.state.debug,
                 });
-                return;
             }
 
             var finished_balls: u8 = 0;
