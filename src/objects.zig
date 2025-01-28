@@ -765,12 +765,11 @@ pub const CueInventory = struct {
     }
 
     pub fn remove(self: *CueInventory, cue: Item.Tag) void {
-        for (self.cues[0..self.cues_n], 0..) |*it, i| {
-            if (it == cue) {
-                self.cues[i] = self.cues[self.cues_n - 1];
-                self.cues_n -= 1;
-            }
-        }
+        if (cue == .CueDefault)
+            return;
+        self.cues[1].tag = .Invalid;
+        self.cues_n -= 1;
+        self.selected_index = 0;
     }
 
     pub fn selected(self: *CueInventory) *Cue {

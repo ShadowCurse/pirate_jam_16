@@ -337,9 +337,7 @@ const SelectCue = struct {
                 cues_alive += 1;
         }
         const random = ai.rng.random();
-        var r_index: u32 =
-            @intFromFloat(random.float(f32) * @as(f32, @floatFromInt(cues_alive)));
-
+        var r_index: u32 = random.uintLessThan(u32, cues_alive);
         for (&game.opponent.cue_inventory.cues, 0..) |*cue, i| {
             if (cue.tag != .Invalid) {
                 if (r_index == 0) {
