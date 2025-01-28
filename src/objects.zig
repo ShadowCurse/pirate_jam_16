@@ -197,7 +197,7 @@ pub const Ball = struct {
     pub const RADIUS = 10;
     pub const HP_TEXT_SIZE = 24;
     pub const INFO_PANEL_TEXT_SIZE = 35;
-    pub const INFO_PANEL_OFFSET: Vec2 = .{ .y = -120.0 };
+    pub const INFO_PANEL_OFFSET: Vec2 = .{ .y = -180.0 };
     pub const INFO_PANEL_SIZE: Vec2 = .{ .x = 100.0, .y = 150.0 };
     pub const UPGRADE_HILIGHT_COLOR = Color.from_parts(255, 0, 0, 64);
     pub const HOVER_HILIGHT_COLOR = Color.from_parts(0, 0, 255, 64);
@@ -409,7 +409,7 @@ pub const Ball = struct {
         {
             _ = UiText.to_screen_quads(
                 context,
-                panel_position.add(.{ .x = -110.0, .y = -70.0 }),
+                panel_position.add(.{ .x = -110.0, .y = -100.0 }),
                 INFO_PANEL_TEXT_SIZE,
                 "HP: {d:.0}",
                 .{self.hp},
@@ -420,7 +420,7 @@ pub const Ball = struct {
         {
             _ = UiText.to_screen_quads(
                 context,
-                panel_position.add(.{ .x = -110.0, .y = -40.0 }),
+                panel_position.add(.{ .x = -110.0, .y = -70.0 }),
                 INFO_PANEL_TEXT_SIZE,
                 "Damage: {d:.0}",
                 .{self.damage},
@@ -431,10 +431,22 @@ pub const Ball = struct {
         {
             _ = UiText.to_screen_quads(
                 context,
-                panel_position.add(.{ .x = -110.0, .y = -10.0 }),
+                panel_position.add(.{ .x = -110.0, .y = -40.0 }),
                 INFO_PANEL_TEXT_SIZE,
                 "Armor: {d:.0}",
                 .{self.armor},
+                .{ .center = false },
+            );
+        }
+
+        {
+            const s = if (self.physics.state.antisocial) "yes" else "no";
+            _ = UiText.to_screen_quads(
+                context,
+                panel_position.add(.{ .x = -110.0, .y = -10.0 }),
+                INFO_PANEL_TEXT_SIZE,
+                "Bouncy: {s}",
+                .{s},
                 .{ .center = false },
             );
         }
@@ -470,6 +482,18 @@ pub const Ball = struct {
                 panel_position.add(.{ .x = -110.0, .y = 80.0 }),
                 INFO_PANEL_TEXT_SIZE,
                 "Ring of light: {s}",
+                .{s},
+                .{ .center = false },
+            );
+        }
+
+        {
+            const s = if (self.physics.state.ghost) "yes" else "no";
+            _ = UiText.to_screen_quads(
+                context,
+                panel_position.add(.{ .x = -110.0, .y = 110.0 }),
+                INFO_PANEL_TEXT_SIZE,
+                "Ghost: {s}",
                 .{s},
                 .{ .center = false },
             );
