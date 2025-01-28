@@ -17,6 +17,7 @@ const Vec2 = _math.Vec2;
 
 const _objects = @import("objects.zig");
 const GravityParticleEffect = _objects.Ball.GravityParticleEffect;
+const RingOfLightParticleEffect = _objects.Ball.RingOfLightParticleEffect;
 
 pub const trace = Tracing.Measurements(struct {
     update: Tracing.Counter,
@@ -89,12 +90,14 @@ pub const Collision = struct {
     entity_2: Type,
 
     pub const Tag = enum {
+        BallRingOfLight,
         Ball,
         Border,
         Pocket,
     };
 
     pub const Type = union(Tag) {
+        BallRingOfLight: u8,
         Ball: u8,
         Border: u8,
         Pocket: u8,
@@ -344,9 +347,9 @@ pub fn update(self: *Self, context: *GlobalContext) UpdateResult {
                 if (!ball_2.state.playable())
                     continue;
 
+                const to_ball_2 = ball_2.body.position.sub(ball_1.body.position);
+                const to_ball_2_len_sq = to_ball_2.len_squared();
                 if (ball_1.state.gravity) {
-                    const to_ball_2 = ball_2.body.position.sub(ball_1.body.position);
-                    const to_ball_2_len_sq = to_ball_2.len_squared();
                     const RANGE = GravityParticleEffect.RADIUS * GravityParticleEffect.RADIUS;
                     const FORCE = GravityParticleEffect.FORCE;
                     if (to_ball_2_len_sq < RANGE) {
@@ -354,6 +357,17 @@ pub fn update(self: *Self, context: *GlobalContext) UpdateResult {
                             ball_2.body.velocity
                             .add(to_ball_2.mul_f32(1.0 / to_ball_2_len_sq *
                             (RANGE - to_ball_2_len_sq) / RANGE * FORCE));
+                    }
+                }
+                if (ball_1.state.ring_of_light) {
+                    const RANGE = RingOfLightParticleEffect.RADIUS *
+                        RingOfLightParticleEffect.RADIUS;
+                    if (to_ball_2_len_sq < RANGE) {
+                        collisions.append(.{
+                            .collision = undefined,
+                            .ball_id = @intCast(i),
+                            .entity_2 = .{ .BallRingOfLight = @intCast(j) },
+                        }) catch unreachable;
                     }
                 }
                 const collision_point =
@@ -410,6 +424,7 @@ pub fn update(self: *Self, context: *GlobalContext) UpdateResult {
         for (collisions.items[prev_collisions_n..]) |*collision| {
             const ball = &self.balls[collision.ball_id];
             switch (collision.entity_2) {
+                .BallRingOfLight => {},
                 .Ball => |ball_2_id| {
                     const ball_2 = &self.balls[ball_2_id];
                     Physics.apply_collision_impulse(

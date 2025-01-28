@@ -53,6 +53,7 @@ const PlayerContext = struct {
         self.item_inventory = ItemInventory.init(owner);
         _ = self.item_inventory.add(.BallGravity);
         _ = self.item_inventory.add(.BallRunner);
+        _ = self.item_inventory.add(.BallRingOfLight);
         self.cue_inventory.reset();
         _ = self.cue_inventory.add(.CueCross);
         _ = self.cue_inventory.add(.CueKar98K);
@@ -265,6 +266,9 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
 
     switch (self.turn_state) {
         .NotTaken => {
+            for (&self.balls) |*ball|
+                ball.hit_by_ring_of_light = false;
+
             if (self.cue_aim_start_positon) |casp| {
                 const sb = self.selected_ball.?;
                 const ball = &self.balls[sb];
@@ -368,6 +372,37 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                         continue;
 
                     switch (c.entity_2) {
+                        .BallRingOfLight => |ball_2_id| {
+                            var ball_2 = &self.balls[ball_2_id];
+                            if (ball_2.hit_by_ring_of_light)
+                                continue;
+                            ball_2.hit_by_ring_of_light = true;
+                            if (ball.owner == self.turn_owner) {
+                                if (ball_2.owner == self.turn_owner) {
+                                    ball.hp += ball_2.heal *
+                                        Ball.RingOfLightParticleEffect.STRENGTH_MUL;
+                                    ball_2.hp += ball.heal *
+                                        Ball.RingOfLightParticleEffect.STRENGTH_MUL;
+                                } else {
+                                    const min = @min(ball.damage, ball_2.hp);
+                                    const d = min * (1.0 - ball_2.armor) *
+                                        Ball.RingOfLightParticleEffect.STRENGTH_MUL;
+                                    ball.hp += d;
+                                    ball_2.hp -= d;
+                                }
+                            } else {
+                                if (ball_2.owner == self.turn_owner) {
+                                    const min = @min(ball_2.damage, ball.hp);
+                                    const d = min * (1.0 - ball_2.armor) *
+                                        Ball.RingOfLightParticleEffect.STRENGTH_MUL;
+                                    ball.hp -= d;
+                                    ball_2.hp += d;
+                                } else {
+                                    // nothing happens if 2 oppenents balls collide during players turn
+                                    // and vise versa
+                                }
+                            }
+                        },
                         .Ball => |ball_2_id| {
                             const ball_2 = &self.balls[ball_2_id];
                             if (ball.owner == self.turn_owner) {

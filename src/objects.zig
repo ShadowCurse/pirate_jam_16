@@ -58,13 +58,16 @@ pub const Ball = struct {
     heal: f32 = 1,
     armor: f32 = 0.0,
 
+    hit_by_ring_of_light: bool = false,
     particles_gravity: Particles,
     particles_runner: Particles,
+    particles_ring_of_light: Particles,
 
     pub const GravityParticleEffect = struct {
         pub const NUM = 100;
         pub const RADIUS = 50.0;
         pub const FORCE = 100.0;
+        const COLOR: Color = Color.from_parts(41, 39, 117, 255);
 
         fn update(
             _ball: *anyopaque,
@@ -162,6 +165,34 @@ pub const Ball = struct {
         }
     };
 
+    pub const RingOfLightParticleEffect = struct {
+        pub const NUM = 100;
+        pub const RADIUS = 30.0;
+        pub const STRENGTH_MUL = 0.2;
+        const COLOR: Color = Color.from_parts(255, 225, 71, 255);
+
+        fn update(
+            _ball: *anyopaque,
+            particle_index: u32,
+            particle: *Particles.Particle,
+            rng: *std.rand.DefaultPrng,
+            dt: f32,
+        ) void {
+            _ = rng;
+            _ = dt;
+            const ball: *const Ball = @alignCast(@ptrCast(_ball));
+            const angle = std.math.pi * 2.0 / @as(f32, NUM) *
+                @as(f32, @floatFromInt(particle_index));
+            const c = @cos(angle);
+            const s = @sin(angle);
+            const additional_offset: Vec3 = .{ .x = c, .y = s, .z = 0.0 };
+            particle.object.transform.position =
+                ball.physics.body.position.extend(0.0)
+                .add(additional_offset.mul_f32(RingOfLightParticleEffect.RADIUS));
+            particle.object.options = .{ .no_scale_rotate = true, .no_alpha_blend = true };
+        }
+    };
+
     // This is sprite size dependent because I don't scale balls for perf gains.
     pub const RADIUS = 10;
     pub const HP_TEXT_SIZE = 24;
@@ -196,7 +227,7 @@ pub const Ball = struct {
             .particles_gravity = Particles.init(
                 context.memory,
                 GravityParticleEffect.NUM,
-                .{ .Color = Color.BLUE },
+                .{ .Color = GravityParticleEffect.COLOR },
                 physics.body.position.extend(0.0),
                 .{ .x = 4.0, .y = 4.0 },
                 0.0,
@@ -209,6 +240,16 @@ pub const Ball = struct {
                 .{ .Color = RunnerParticleEffect.COLOR },
                 physics.body.position.extend(0.0),
                 .{ .x = 3.0, .y = 3.0 },
+                0.0,
+                3.0,
+                true,
+            ),
+            .particles_ring_of_light = Particles.init(
+                context.memory,
+                RingOfLightParticleEffect.NUM,
+                .{ .Color = RingOfLightParticleEffect.COLOR },
+                physics.body.position.extend(0.0),
+                .{ .x = 4.0, .y = 4.0 },
                 0.0,
                 3.0,
                 true,
@@ -341,6 +382,14 @@ pub const Ball = struct {
         if (self.physics.state.runner) {
             self.particles_runner.update(self, &RunnerParticleEffect.update, 0.0);
             self.particles_runner.to_screen_quad(
+                &context.camera,
+                &context.texture_store,
+                &context.screen_quads,
+            );
+        }
+        if (self.physics.state.ring_of_light) {
+            self.particles_ring_of_light.update(self, &RingOfLightParticleEffect.update, 0.0);
+            self.particles_ring_of_light.to_screen_quad(
                 &context.camera,
                 &context.texture_store,
                 &context.screen_quads,
