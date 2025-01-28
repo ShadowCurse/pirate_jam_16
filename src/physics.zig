@@ -39,7 +39,7 @@ pub const Ball = struct {
 
     pub const RADIUS = 10;
 
-    pub const State = packed struct(u8) {
+    pub const State = packed struct(u32) {
         dead: bool = false,
         pocketted: bool = false,
         stationary: bool = true,
@@ -48,6 +48,8 @@ pub const Ball = struct {
         runner: bool = false,
         ring_of_light: bool = false,
         ghost: bool = false,
+        belongs_to_player: bool = false,
+        _: u23 = 0,
 
         pub fn any(self: State) bool {
             return self.dead or self.pocketted or self.stationary;
@@ -58,7 +60,7 @@ pub const Ball = struct {
         }
     };
 
-    pub fn init(position: Vec2, radius: f32) Ball {
+    pub fn init(position: Vec2, radius: f32, belongs_to_player: bool) Ball {
         return .{
             .body = .{
                 .position = position,
@@ -69,7 +71,9 @@ pub const Ball = struct {
             .collider = .{
                 .radius = radius,
             },
-            .state = .{},
+            .state = .{
+                .belongs_to_player = belongs_to_player,
+            },
         };
     }
 };
@@ -109,11 +113,13 @@ pub fn init(self: *Self) void {
         self.balls[0..PLAYER_BALLS],
         .{ .x = -200.0 },
         Vec2.NEG_X,
+        true,
     );
     layout_balls(
         self.balls[PLAYER_BALLS..],
         .{ .x = 200.0 },
         Vec2.X,
+        false,
     );
     self.layout_table();
 }
@@ -124,6 +130,7 @@ pub fn layout_balls(
     balls: []Ball,
     tip_position: Vec2,
     direction: Vec2,
+    belongs_to_player: bool,
 ) void {
     const GAP = 3.0;
     // rotate direction 30 degrees for balls in one layer
@@ -138,7 +145,7 @@ pub fn layout_balls(
             const position =
                 origin_position
                 .add(direction_next.mul_f32(@as(f32, @floatFromInt(i)) * (Ball.RADIUS * 2.0 + GAP)));
-            balls[index] = Ball.init(position, Ball.RADIUS);
+            balls[index] = Ball.init(position, Ball.RADIUS, belongs_to_player);
             index += 1;
         }
         origin_position = origin_position.add(direction_next_layer.mul_f32(Ball.RADIUS * 2.0 + GAP));
@@ -378,6 +385,13 @@ pub fn update(self: *Self, context: *GlobalContext) UpdateResult {
                     ball_2.body.position,
                 );
                 if (collision_point) |cp| {
+                    if (ball_1.state.ghost) {
+                        if (ball_1.state.belongs_to_player == ball_2.state.belongs_to_player)
+                            continue
+                        else
+                            ball_1.state.ghost = false;
+                    }
+
                     collisions.append(.{
                         .collision = cp,
                         .ball_id = @intCast(i),
