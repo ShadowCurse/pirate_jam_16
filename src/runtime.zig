@@ -118,6 +118,7 @@ pub const Input = struct {
 pub const Assets = struct {
     ball_player: Textures.Texture.Id,
     ball_opponent: Textures.Texture.Id,
+    ball_info_panel: Textures.Texture.Id,
     table: Textures.Texture.Id,
     cue_default: Textures.Texture.Id,
     cue_kar98k: Textures.Texture.Id,
@@ -163,6 +164,8 @@ pub const GlobalContext = struct {
             "assets/ball_prototype.png",
         );
         self.assets.ball_opponent = self.assets.ball_player;
+        self.assets.ball_info_panel =
+            self.texture_store.load(memory, "assets/ball_info_panel.png");
 
         self.assets.table = self.texture_store.load(memory, "assets/table.png");
         self.assets.cue_default = self.texture_store.load(memory, "assets/cue_default.png");
@@ -171,7 +174,8 @@ pub const GlobalContext = struct {
         self.assets.button = self.texture_store.load(memory, "assets/button.png");
         self.assets.button_hover = self.texture_store.load(memory, "assets/button_hover.png");
         self.assets.under_hp_bar = self.texture_store.load(memory, "assets/under_hp_bar.png");
-        self.assets.under_hp_bar_turn = self.texture_store.load(memory, "assets/under_hp_bar_turn.png");
+        self.assets.under_hp_bar_turn =
+            self.texture_store.load(memory, "assets/under_hp_bar_turn.png");
         self.assets.cue_background = self.texture_store.load(memory, "assets/cue_background.png");
         self.assets.items_background =
             self.texture_store.load(memory, "assets/items_background.png");

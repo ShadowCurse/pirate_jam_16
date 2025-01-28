@@ -64,8 +64,8 @@ pub const Ball = struct {
     // This is sprite size dependent because I don't scale balls for perf gains.
     pub const RADIUS = 10;
     pub const HP_TEXT_SIZE = 24;
-    pub const INFO_PANEL_TEXT_SIZE = 40;
-    pub const INFO_PANEL_OFFSET: Vec2 = .{ .y = -100.0 };
+    pub const INFO_PANEL_TEXT_SIZE = 35;
+    pub const INFO_PANEL_OFFSET: Vec2 = .{ .y = -120.0 };
     pub const INFO_PANEL_SIZE: Vec2 = .{ .x = 100.0, .y = 150.0 };
     pub const UPGRADE_HILIGHT_COLOR = Color.from_parts(255, 0, 0, 64);
     pub const HOVER_HILIGHT_COLOR = Color.from_parts(0, 0, 255, 64);
@@ -201,29 +201,74 @@ pub const Ball = struct {
         const panel_position = self.physics.body.position.add(INFO_PANEL_OFFSET);
         const info_panel = UiPanel.init(
             panel_position,
-            context.assets.button,
+            context.assets.ball_info_panel,
             null,
         );
         info_panel.to_screen_quad(context);
+
         {
             _ = UiText.to_screen_quads(
                 context,
-                panel_position.add(.{ .y = -10.0 }),
+                panel_position.add(.{ .x = -110.0, .y = -70.0 }),
                 INFO_PANEL_TEXT_SIZE,
                 "HP: {d}",
                 .{self.hp},
-                null,
+                .{ .center = false },
             );
         }
 
         {
             _ = UiText.to_screen_quads(
                 context,
-                panel_position.add(.{ .y = 10.0 }),
+                panel_position.add(.{ .x = -110.0, .y = -40.0 }),
                 INFO_PANEL_TEXT_SIZE,
                 "Damage: {d}",
                 .{self.damage},
-                null,
+                .{ .center = false },
+            );
+        }
+
+        {
+            _ = UiText.to_screen_quads(
+                context,
+                panel_position.add(.{ .x = -110.0, .y = -10.0 }),
+                INFO_PANEL_TEXT_SIZE,
+                "Armor: {d}",
+                .{self.armor},
+                .{ .center = false },
+            );
+        }
+
+        {
+            _ = UiText.to_screen_quads(
+                context,
+                panel_position.add(.{ .x = -110.0, .y = 20.0 }),
+                INFO_PANEL_TEXT_SIZE,
+                "Gravity level: {d}",
+                .{self.gravity_level},
+                .{ .center = false },
+            );
+        }
+
+        {
+            _ = UiText.to_screen_quads(
+                context,
+                panel_position.add(.{ .x = -110.0, .y = 50.0 }),
+                INFO_PANEL_TEXT_SIZE,
+                "Runner level: {d}",
+                .{self.runner_level},
+                .{ .center = false },
+            );
+        }
+
+        {
+            _ = UiText.to_screen_quads(
+                context,
+                panel_position.add(.{ .x = -110.0, .y = 80.0 }),
+                INFO_PANEL_TEXT_SIZE,
+                "Ring of light level: {d}",
+                .{self.ring_of_light_level},
+                .{ .center = false },
             );
         }
     }
@@ -1053,7 +1098,7 @@ pub const ItemInventory = struct {
             32.0,
             "{s}",
             .{item_info.name},
-            null,
+            .{},
         );
         _ = UiText.to_screen_quads(
             context,
@@ -1061,7 +1106,7 @@ pub const ItemInventory = struct {
             32.0,
             "{s}",
             .{item_info.description},
-            null,
+            .{},
         );
     }
 };
@@ -1190,7 +1235,7 @@ pub const Shop = struct {
             TEXT_SIZE_NAME,
             "{s}",
             .{item_info.name},
-            null,
+            .{},
         );
         _ = UiText.to_screen_quads(
             context,
@@ -1198,7 +1243,7 @@ pub const Shop = struct {
             TEXT_SIZE_DESCRIPTION,
             "{s}",
             .{item_info.description},
-            null,
+            .{},
         );
         _ = UiText.to_screen_quads(
             context,
@@ -1206,7 +1251,7 @@ pub const Shop = struct {
             TEXT_SIZE_PRICE,
             "Cost: {d}",
             .{item_info.price},
-            null,
+            .{},
         );
         UiPanel.init(
             position.add(.{ .x = 90.0, .y = 205 }),

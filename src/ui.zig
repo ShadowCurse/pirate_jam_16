@@ -101,13 +101,17 @@ pub const UiPanel = struct {
 };
 
 pub const UiText = struct {
+    pub const Options = struct {
+        tint: ?Color = null,
+        center: bool = true,
+    };
     pub fn to_screen_quads(
         context: *GlobalContext,
         position: Vec2,
         text_size: f32,
         comptime format: []const u8,
         args: anytype,
-        tint: ?Color,
+        options: Options,
     ) void {
         const t = std.fmt.allocPrint(
             context.alloc(),
@@ -123,7 +127,7 @@ pub const UiText = struct {
             position.extend(0.0),
             0.0,
             .{},
-            .{ .dont_clip = true },
+            .{ .dont_clip = true, .center = options.center },
         );
 
         const r = text.to_screen_quads_world_space_raw(
@@ -131,7 +135,7 @@ pub const UiText = struct {
             &context.camera,
         );
 
-        if (tint) |ti| {
+        if (options.tint) |ti| {
             for (r.quad_lines) |quad_line| {
                 for (quad_line) |*quad| {
                     quad.color = ti;
@@ -298,7 +302,7 @@ pub fn add_button(
         BUTTON_TEXT_SIZE,
         text,
         .{},
-        null,
+        .{},
     );
     if (panel_hovered and context.player_input.lmb == .Pressed) {
         on_press(args);
@@ -389,7 +393,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         PANEL_TEXT_SIZE,
         "{d}",
         .{game.opponent.hp},
-        null,
+        .{},
     );
     // OPPONENT Overheal
     UiPanel.init(
@@ -403,7 +407,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         PANEL_TEXT_SIZE,
         "{d}",
         .{game.opponent.hp_overhead},
-        null,
+        .{},
     );
     const ot = if (game.turn_owner == .Opponent)
         context.assets.under_hp_bar_turn
@@ -427,7 +431,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         PANEL_TEXT_SIZE,
         "{d}",
         .{game.player.hp},
-        null,
+        .{},
     );
     // PLAYER Overheal
     UiPanel.init(
@@ -441,7 +445,7 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
         PANEL_TEXT_SIZE,
         "{d}",
         .{game.player.hp_overhead},
-        null,
+        .{},
     );
     const pt = if (game.turn_owner == .Player)
         context.assets.under_hp_bar_turn
@@ -505,7 +509,7 @@ pub fn in_end_game_won(game: *Game, context: *GlobalContext) void {
         32.0,
         "You Won",
         .{},
-        null,
+        .{},
     );
 
     {
@@ -554,7 +558,7 @@ pub fn in_end_game_lost(game: *Game, context: *GlobalContext) void {
         32.0,
         "You Lost",
         .{},
-        null,
+        .{},
     );
 
     {
@@ -609,6 +613,6 @@ pub fn debug(context: *GlobalContext) void {
         32.0,
         "FPS: {d:.1} FT: {d:.3}s",
         .{ 1.0 / context.dt, context.dt },
-        null,
+        .{},
     );
 }
