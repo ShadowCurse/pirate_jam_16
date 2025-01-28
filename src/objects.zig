@@ -12,6 +12,7 @@ const Memory = stygian.memory;
 const Physics = stygian.physics;
 const Color = stygian.color.Color;
 const Textures = stygian.textures;
+const Particles = stygian.particles;
 const Events = stygian.platform.event;
 const ScreenQuads = stygian.screen_quads;
 const SoftRenderer = stygian.soft_renderer.renderer;
@@ -22,6 +23,7 @@ const Object2d = _objects.Object2d;
 
 const _math = stygian.math;
 const Vec2 = _math.Vec2;
+const Vec3 = _math.Vec3;
 const Vec4 = _math.Vec4;
 
 const _runtime = @import("runtime.zig");
@@ -264,6 +266,7 @@ pub const Cue = struct {
     storage_position: Vec2,
     storage_rotation: f32,
     shoot_animation: ?SmoothStepAnimation,
+    accumulator: f32,
 
     hit_count: u8 = 1,
     hit_strength: f32 = 1.0,
@@ -288,6 +291,7 @@ pub const Cue = struct {
             .storage_position = storage_position,
             .storage_rotation = storage_rotation,
             .shoot_animation = null,
+            .accumulator = 0.0,
         };
     }
 
@@ -424,54 +428,35 @@ pub const Cue = struct {
             .y = @floatFromInt(context.texture_store.get_texture(texture_id).height),
         };
 
+        var color_v4: Vec4 = .{};
         const is_cue_upgrade = if (selected_upgrade) |si| si.is_cue_upgrade() else false;
         if (is_cue_upgrade) {
-            const object: Object2d = .{
-                .type = .{ .TextureId = texture_id },
-                .tint = UPGRADE_HILIGHT_COLOR,
-                .transform = .{
-                    .position = self.position.extend(0.0),
-                    .rotation = self.rotation,
-                },
-                .size = size.mul_f32(2.0),
-                .options = .{ .with_tint = true },
-            };
-            object.to_screen_quad(
-                &context.camera,
-                &context.texture_store,
-                &context.screen_quads,
+            self.accumulator += context.dt * 1.5;
+            color_v4 = color_v4.lerp(
+                Color.WHITE.to_vec4_norm(),
+                @abs(@sin(self.accumulator) * 0.6),
             );
         }
 
         result.hovered = self.hovered(context.input.mouse_pos_world);
         if (result.hovered) {
-            const object: Object2d = .{
-                .type = .{ .TextureId = texture_id },
-                .tint = HOVER_HILIGHT_COLOR,
-                .transform = .{
-                    .position = self.position.extend(0.0),
-                    .rotation = self.rotation,
-                },
-                .size = size.mul_f32(1.5),
-                .options = .{ .with_tint = true },
-            };
-            object.to_screen_quad(
-                &context.camera,
-                &context.texture_store,
-                &context.screen_quads,
-            );
+            color_v4 = color_v4.lerp(Color.WHITE.to_vec4_norm(), 0.5);
             if (is_cue_upgrade and context.input.lmb == .Released)
                 result.upgrade_applied = self.add_upgrade(selected_upgrade.?);
         }
 
+        const tint = Color.from_vec4_norm(color_v4);
         const object: Object2d = .{
             .type = .{ .TextureId = texture_id },
+            .tint = tint,
             .transform = .{
                 .position = self.position.extend(0.0),
                 .rotation = self.rotation,
             },
             .size = size,
-            .options = .{},
+            .options = .{
+                .with_tint = true,
+            },
         };
         object.to_screen_quad(
             &context.camera,
@@ -589,6 +574,116 @@ pub const CueInventory = struct {
     owner: Owner,
     selected_index: u8,
 
+    particles_effect: ParticleEffect,
+    selected_cue_particles: Particles,
+
+    const ParticleEffect = struct {
+        position: Vec2 = .{},
+        accumulator: f32 = 0.0,
+
+        const HORIZONTAL_NUM = 20;
+        const VERTICAL_NUM = 100;
+        const TOTAL_NUM = HORIZONTAL_NUM * 2 + VERTICAL_NUM * 2;
+
+        const HORIZONTAL_SPACING: f32 = AREA_WIDTH / HORIZONTAL_NUM;
+        const VERTICAL_SPACING: f32 = AREA_HEIGHT / VERTICAL_NUM;
+        const WAVE_AMP = 2.0;
+        const WAVE_SPEED = 10.0;
+        const LERP_SPEED = 0.3;
+        const AREA_HEIGHT = 500;
+        const AREA_WIDTH = 40;
+
+        const COLOR_1: Vec4 = .{ .x = 80.0, .y = 0.0, .z = 0.0, .w = 128.0 };
+        const COLOR_2: Vec4 = .{ .x = 180.0, .y = 32.0, .z = 16.0, .w = 255.0 };
+
+        fn update(
+            effect: *anyopaque,
+            particle_index: u32,
+            particle: *Particles.Particle,
+            rng: *std.rand.DefaultPrng,
+            dt: f32,
+        ) void {
+            _ = rng;
+            _ = dt;
+            const self: *const ParticleEffect = @alignCast(@ptrCast(effect));
+
+            var position: Vec3 = undefined;
+            var s: f32 = undefined;
+            // TOP
+            if (particle_index < HORIZONTAL_NUM) {
+                const pi = @as(f32, @floatFromInt(particle_index));
+
+                const top_left = self.position
+                    .add(.{ .x = -AREA_WIDTH / 2, .y = -AREA_HEIGHT / 2 });
+                s = @sin(self.accumulator + pi * 5.0);
+
+                const particle_position = top_left
+                    .add(.{
+                    .x = HORIZONTAL_SPACING / 2.0 + HORIZONTAL_SPACING *
+                        pi,
+                    .y = s * WAVE_AMP,
+                }).extend(0.0);
+                position = particle_position;
+            } else
+            // BOT
+            if (particle_index < HORIZONTAL_NUM * 2) {
+                const pi = @as(f32, @floatFromInt(particle_index - HORIZONTAL_NUM));
+
+                const bot_left = self.position
+                    .add(.{ .x = -AREA_WIDTH / 2, .y = AREA_HEIGHT / 2 });
+                s = @sin(-self.accumulator + pi * 5.0);
+
+                const particle_position = bot_left
+                    .add(.{
+                    .x = HORIZONTAL_SPACING / 2.0 + HORIZONTAL_SPACING *
+                        pi,
+                    .y = s * WAVE_AMP,
+                }).extend(0.0);
+                position = particle_position;
+            } else
+            // LEFT
+            if (particle_index < HORIZONTAL_NUM * 2 + VERTICAL_NUM) {
+                const pi = @as(f32, @floatFromInt(particle_index - HORIZONTAL_NUM * 2));
+
+                const top_left = self.position
+                    .add(.{ .x = -AREA_WIDTH / 2, .y = -AREA_HEIGHT / 2 });
+                s = @sin(-self.accumulator + pi * 5.0);
+
+                const particle_position = top_left
+                    .add(.{
+                    .x = s * WAVE_AMP,
+                    .y = VERTICAL_SPACING / 2.0 + VERTICAL_SPACING *
+                        pi,
+                }).extend(0.0);
+                position = particle_position;
+            } else
+            // RIGHT
+            {
+                const pi = @as(f32, @floatFromInt(particle_index -
+                    (HORIZONTAL_NUM * 2 +
+                    VERTICAL_NUM)));
+
+                const top_right = self.position
+                    .add(.{ .x = AREA_WIDTH / 2, .y = -AREA_HEIGHT / 2 });
+                s = @sin(self.accumulator + pi * 5.0);
+                const particle_position = top_right
+                    .add(.{
+                    .x = s * WAVE_AMP,
+                    .y = VERTICAL_SPACING / 2.0 + VERTICAL_SPACING *
+                        pi,
+                }).extend(0.0);
+                position = particle_position;
+            }
+
+            particle.object.transform.position =
+                particle.object.transform.position
+                .lerp(position, LERP_SPEED);
+
+            const color = COLOR_1.lerp(COLOR_2, (s + 1.0) / 2.0);
+            particle.object.type = .{ .Color = Color.from_vec4_unchecked(color) };
+        }
+    };
+
     const MAX_CUE = 2;
     const CUE_STORAGE_POSITION_PLAYER: Vec2 = .{ .x = -564.0 };
     const CUE_STORAGE_ROTATION_PLAYER = 0.0;
@@ -598,10 +693,27 @@ pub const CueInventory = struct {
     const CUE_STORAGE_HEIGHT = 500;
     const CUE_STORAGE_CUE_WIDTH = 60;
 
-    pub fn init(owner: Owner) CueInventory {
+    pub fn init(context: *GlobalContext, owner: Owner) CueInventory {
         var self: CueInventory = undefined;
         self.owner = owner;
+        self.reset();
 
+        self.particles_effect = .{};
+        self.selected_cue_particles = Particles.init(
+            context.memory,
+            ParticleEffect.TOTAL_NUM,
+            .{ .Color = Color.BLUE },
+            .{},
+            .{ .x = 5.0, .y = 5.0 },
+            0.0,
+            3.0,
+            true,
+        );
+
+        return self;
+    }
+
+    pub fn reset(self: *CueInventory) void {
         const p_r = self.cue_position_rotation(0);
         self.cues[0] =
             Cue.init(.CueDefault, p_r[0], p_r[1]);
@@ -609,7 +721,6 @@ pub const CueInventory = struct {
             Cue.init(.Invalid, p_r[0], p_r[1]);
         self.cues_n = 1;
         self.selected_index = 0;
-        return self;
     }
 
     pub fn cue_position_rotation(self: CueInventory, index: u32) struct { Vec2, f32 } {
@@ -686,6 +797,15 @@ pub const CueInventory = struct {
             null,
         );
         panel.to_screen_quad(context);
+
+        self.particles_effect.accumulator += context.dt * ParticleEffect.WAVE_SPEED;
+        self.particles_effect.position = self.cue_position_rotation(self.selected_index)[0];
+        self.selected_cue_particles.update(&self.particles_effect, &ParticleEffect.update, 0.0);
+        self.selected_cue_particles.to_screen_quad(
+            &context.camera,
+            &context.texture_store,
+            &context.screen_quads,
+        );
 
         var upgrade_applied: bool = false;
         for (self.cues[0..self.cues_n], 0..) |*cue, i| {

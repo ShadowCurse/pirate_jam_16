@@ -42,16 +42,16 @@ const PlayerContext = struct {
     item_inventory: ItemInventory,
     cue_inventory: CueInventory,
 
-    pub fn init(self: *PlayerContext, owner: Owner) void {
+    pub fn init(self: *PlayerContext, context: *GlobalContext, owner: Owner) void {
         self.hp = 100;
         self.hp_overhead = 100;
         self.item_inventory = ItemInventory.init(owner);
-        self.cue_inventory = CueInventory.init(owner);
+        self.cue_inventory = CueInventory.init(context, owner);
     }
 
     pub fn reset(self: *PlayerContext, owner: Owner) void {
         self.item_inventory = ItemInventory.init(owner);
-        self.cue_inventory = CueInventory.init(owner);
+        self.cue_inventory.reset();
         _ = self.cue_inventory.add(.CueKar98K);
         _ = self.cue_inventory.add(.CueCross);
         self.hp = 100;
@@ -95,8 +95,8 @@ pub const Owner = enum(u1) {
 const Self = @This();
 
 pub fn init(self: *Self, context: *GlobalContext) void {
-    self.player.init(.Player);
-    self.opponent.init(.Opponent);
+    self.player.init(context, .Player);
+    self.opponent.init(context, .Opponent);
     self.table = Table.init(context.assets.table);
     self.restart(context);
 }
