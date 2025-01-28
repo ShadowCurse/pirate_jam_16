@@ -25,8 +25,6 @@ pub const CAMERA_IN_GAME: Vec2 = .{};
 pub const CAMERA_IN_GAME_SHOP: Vec2 = .{ .y = 640 };
 pub const CAMERA_END_GAME: Vec2 = .{ .y = -1000.0 };
 
-pub const UI_HILIGHT_FONT_TINT = Color.from_parts(169, 47, 67, 255);
-pub const UI_HILIGHT_PANEL_TINT = Color.from_parts(172, 148, 46, 255);
 pub const UI_BACKGROUND_COLOR = Color.GREY;
 pub const UI_BACKGROUND_COLOR_PLAYING = Color.GREEN;
 
@@ -292,11 +290,7 @@ pub fn add_button(
     );
     const panel_hovered = panel.hovered(context);
     if (panel_hovered)
-        panel.tint = UI_HILIGHT_PANEL_TINT;
-    const text_tint: ?Color = if (panel_hovered)
-        UI_HILIGHT_FONT_TINT
-    else
-        null;
+        panel.texture_id = context.assets.button_hover;
     panel.to_screen_quad(context);
     UiText.to_screen_quads(
         context,
@@ -304,7 +298,7 @@ pub fn add_button(
         BUTTON_TEXT_SIZE,
         text,
         .{},
-        text_tint,
+        null,
     );
     if (panel_hovered and context.player_input.lmb == .Pressed) {
         on_press(args);

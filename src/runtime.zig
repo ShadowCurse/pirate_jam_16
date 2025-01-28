@@ -123,6 +123,7 @@ pub const Assets = struct {
     cue_kar98k: Textures.Texture.Id,
     cue_cross: Textures.Texture.Id,
     button: Textures.Texture.Id,
+    button_hover: Textures.Texture.Id,
     under_hp_bar: Textures.Texture.Id,
     under_hp_bar_turn: Textures.Texture.Id,
     cue_background: Textures.Texture.Id,
@@ -168,6 +169,7 @@ pub const GlobalContext = struct {
         self.assets.cue_kar98k = self.texture_store.load(memory, "assets/cue_kar98k.png");
         self.assets.cue_cross = self.texture_store.load(memory, "assets/cue_cross.png");
         self.assets.button = self.texture_store.load(memory, "assets/button.png");
+        self.assets.button_hover = self.texture_store.load(memory, "assets/button_hover.png");
         self.assets.under_hp_bar = self.texture_store.load(memory, "assets/under_hp_bar.png");
         self.assets.under_hp_bar_turn = self.texture_store.load(memory, "assets/under_hp_bar_turn.png");
         self.assets.cue_background = self.texture_store.load(memory, "assets/cue_background.png");
