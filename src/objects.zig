@@ -585,12 +585,12 @@ pub const CueInventory = struct {
         const VERTICAL_NUM = 100;
         const TOTAL_NUM = HORIZONTAL_NUM * 2 + VERTICAL_NUM * 2;
 
-        const HORIZONTAL_SPACING: f32 = AREA_WIDTH / HORIZONTAL_NUM;
-        const VERTICAL_SPACING: f32 = AREA_HEIGHT / VERTICAL_NUM;
+        const HORIZONTAL_SPACING: f32 = @as(f32, AREA_WIDTH) / @as(f32, HORIZONTAL_NUM);
+        const VERTICAL_SPACING: f32 = @as(f32, AREA_HEIGHT) / @as(f32, VERTICAL_NUM);
         const WAVE_AMP = 2.0;
         const WAVE_SPEED = 10.0;
         const LERP_SPEED = 0.3;
-        const AREA_HEIGHT = 500;
+        const AREA_HEIGHT = 520;
         const AREA_WIDTH = 40;
 
         const COLOR_1: Vec4 = .{ .x = 80.0, .y = 0.0, .z = 0.0, .w = 128.0 };
