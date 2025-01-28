@@ -626,14 +626,15 @@ pub const CueInventory = struct {
         position: Vec2 = .{},
         accumulator: f32 = 0.0,
 
-        const HORIZONTAL_NUM = 20;
-        const VERTICAL_NUM = 100;
+        const HORIZONTAL_NUM = 40;
+        const VERTICAL_NUM = 520;
         const TOTAL_NUM = HORIZONTAL_NUM * 2 + VERTICAL_NUM * 2;
 
         const HORIZONTAL_SPACING: f32 = @as(f32, AREA_WIDTH) / @as(f32, HORIZONTAL_NUM);
         const VERTICAL_SPACING: f32 = @as(f32, AREA_HEIGHT) / @as(f32, VERTICAL_NUM);
         const WAVE_AMP = 2.0;
         const WAVE_SPEED = 10.0;
+        const WAVE_LEN = 0.2;
         const LERP_SPEED = 0.3;
         const AREA_HEIGHT = 520;
         const AREA_WIDTH = 40;
@@ -660,7 +661,7 @@ pub const CueInventory = struct {
 
                 const top_left = self.position
                     .add(.{ .x = -AREA_WIDTH / 2, .y = -AREA_HEIGHT / 2 });
-                s = @sin(self.accumulator + pi * 5.0);
+                s = @sin(self.accumulator + pi * WAVE_LEN);
 
                 const particle_position = top_left
                     .add(.{
@@ -676,7 +677,7 @@ pub const CueInventory = struct {
 
                 const bot_left = self.position
                     .add(.{ .x = -AREA_WIDTH / 2, .y = AREA_HEIGHT / 2 });
-                s = @sin(-self.accumulator + pi * 5.0);
+                s = @sin(-self.accumulator + pi * WAVE_LEN);
 
                 const particle_position = bot_left
                     .add(.{
@@ -692,7 +693,7 @@ pub const CueInventory = struct {
 
                 const top_left = self.position
                     .add(.{ .x = -AREA_WIDTH / 2, .y = -AREA_HEIGHT / 2 });
-                s = @sin(-self.accumulator + pi * 5.0);
+                s = @sin(-self.accumulator + pi * WAVE_LEN);
 
                 const particle_position = top_left
                     .add(.{
@@ -710,7 +711,7 @@ pub const CueInventory = struct {
 
                 const top_right = self.position
                     .add(.{ .x = AREA_WIDTH / 2, .y = -AREA_HEIGHT / 2 });
-                s = @sin(self.accumulator + pi * 5.0);
+                s = @sin(self.accumulator + pi * WAVE_LEN);
                 const particle_position = top_right
                     .add(.{
                     .x = s * WAVE_AMP,
@@ -726,6 +727,7 @@ pub const CueInventory = struct {
 
             const color = COLOR_1.lerp(COLOR_2, (s + 1.0) / 2.0);
             particle.object.type = .{ .Color = Color.from_vec4_unchecked(color) };
+            particle.object.options = .{ .no_scale_rotate = true, .no_alpha_blend = true };
         }
     };
 
@@ -749,7 +751,7 @@ pub const CueInventory = struct {
             ParticleEffect.TOTAL_NUM,
             .{ .Color = Color.BLUE },
             .{},
-            .{ .x = 5.0, .y = 5.0 },
+            .{ .x = 2.0, .y = 2.0 },
             0.0,
             3.0,
             true,
