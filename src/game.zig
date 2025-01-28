@@ -191,11 +191,11 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
     }
 
     const entity = if (self.turn_owner == .Player) blk: {
-        _ = self.opponent.cue_inventory.update_and_draw(context, null, true);
+        _ = self.opponent.cue_inventory.update_and_draw(context, null, false);
         self.opponent.cue_inventory.selected().move_storage();
         break :blk &self.player;
     } else blk: {
-        _ = self.player.cue_inventory.update_and_draw(context, null, true);
+        _ = self.player.cue_inventory.update_and_draw(context, null, false);
         self.player.cue_inventory.selected().move_storage();
         break :blk &self.opponent;
     };
