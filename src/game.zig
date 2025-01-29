@@ -292,6 +292,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
 
                 const selected_cue = entity.cue_inventory.selected();
                 selected_cue.move_aiming(
+                    context,
                     ball.physics.body.position,
                     hit_vector,
                     strength,
@@ -309,6 +310,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                         ball.physics.body.position,
                     );
                     entity.cue_inventory.selected().move_aiming(
+                        context,
                         ball.physics.body.position,
                         hit_vector,
                         0.0,

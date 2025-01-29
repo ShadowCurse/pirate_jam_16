@@ -544,6 +544,7 @@ pub const Cue = struct {
 
     initial_hit_strength: f32 = 0.0,
 
+    dashed_line: UI.UiDashedLineStatic = undefined,
     scope: bool = false,
     silencer: bool = false,
     rocket_booster: bool = false,
@@ -857,6 +858,7 @@ pub const Cue = struct {
 
     pub fn move_aiming(
         self: *Cue,
+        context: *GlobalContext,
         ball_position: Vec2,
         hit_vector: Vec2,
         offset: f32,
@@ -874,13 +876,39 @@ pub const Cue = struct {
                 .mul_f32(AIM_BALL_OFFSET +
                 CUE_HEIGHT / 2 + use_offset),
         );
-        const c = hv_normalized.cross(.{ .y = 1 });
+        const cross = hv_normalized.cross(.{ .y = 1 });
         const d = hv_normalized.dot(.{ .y = 1 });
-        const cue_rotation = if (c < 0.0) -std.math.acos(d) else std.math.acos(d);
+        const cue_rotation = if (cross < 0.0) -std.math.acos(d) else std.math.acos(d);
 
         self.position =
             self.position.add(cue_postion.sub(self.position).mul_f32(0.2));
         self.rotation += (cue_rotation - self.rotation) * 0.2;
+
+        if (self.scope) {
+            const rect = Physics.Rectangle{
+                .size = .{ .x = 927, .y = 473 },
+            };
+
+            const c = @cos(-self.rotation);
+            const s = @sin(-self.rotation);
+            const along_the_cue: Vec2 = .{ .x = s, .y = -c };
+            const m: f32 = if (self.tag == .CueKar98K)
+                KAR98K_CUE_HEIGHT / 2.0
+            else
+                CUE_HEIGHT / 2.0;
+
+            const p = self.position.add(along_the_cue.mul_f32(m));
+            if (Physics.ray_rectangle_intersection(
+                p,
+                along_the_cue,
+                rect,
+                .{},
+            )) |intersection| {
+                self.dashed_line.start = p;
+                self.dashed_line.end = intersection;
+                self.dashed_line.to_screen_quads(context);
+            }
+        }
     }
 
     pub fn move_shoot(
