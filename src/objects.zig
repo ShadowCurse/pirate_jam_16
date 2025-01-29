@@ -764,6 +764,8 @@ pub const Cue = struct {
 
     pub const AIM_BALL_OFFSET = Ball.RADIUS + 5;
 
+    pub const SILENCER_LENGTH = 100.0;
+
     pub const MAX_STRENGTH = 150.0;
     pub const DEFAULT_STRENGTH_MUL = 4.0;
     pub const KAR98K_STRENGTH = 1000.0;
@@ -870,10 +872,11 @@ pub const Cue = struct {
         const hv_normalized = hit_vector.normalize();
 
         const use_offset = if (self.tag == .CueKar98K) 0 else offset;
+        const silencer_offset: f32 = if (self.silencer) SILENCER_LENGTH else 0.0;
         const cue_postion =
             ball_position.add(
             hv_normalized
-                .mul_f32(AIM_BALL_OFFSET +
+                .mul_f32(AIM_BALL_OFFSET + silencer_offset +
                 CUE_HEIGHT / 2 + use_offset),
         );
         const cross = hv_normalized.cross(.{ .y = 1 });
@@ -930,9 +933,10 @@ pub const Cue = struct {
                     self.position = v3.xy();
                 } else {
                     const hv_normalized = hit_vector.normalize();
+                    const silencer_offset: f32 = if (self.silencer) SILENCER_LENGTH else 0.0;
                     const end_postion = ball_position.add(
                         hv_normalized
-                            .mul_f32(AIM_BALL_OFFSET +
+                            .mul_f32(AIM_BALL_OFFSET + silencer_offset +
                             CUE_HEIGHT / 2),
                     );
 
@@ -1085,7 +1089,7 @@ pub const Cue = struct {
             const tid = context.assets.silencer;
             const c = @cos(-self.rotation);
             const s = @sin(-self.rotation);
-            const offset: Vec2 = .{ .x = -s, .y = c };
+            const offset: Vec2 = .{ .x = s, .y = -c };
             const m: f32 = if (self.tag == .CueKar98K)
                 KAR98K_CUE_HEIGHT / 2.0
             else
@@ -1095,7 +1099,9 @@ pub const Cue = struct {
                 .type = .{ .TextureId = tid },
                 .tint = tint,
                 .transform = .{
-                    .position = self.position.add(offset.mul_f32(-m)).extend(0.0),
+                    .position = self.position
+                        .add(offset.mul_f32(m + SILENCER_LENGTH / 2.0))
+                        .extend(0.0),
                     .rotation = self.rotation,
                 },
                 .size = .{

@@ -339,6 +339,10 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                 selected_ball.physics.body.velocity = selected_ball.physics.body.velocity
                     .add(cue_to_ball.mul_f32(hit_strength));
 
+                if (selected_cue.silencer) {
+                    selected_ball.physics.state.ghost = true;
+                }
+
                 if (selected_cue.tag == .CueKar98K) {
                     const ray_start = ball_position;
                     const ray_direction = cue_to_ball;
