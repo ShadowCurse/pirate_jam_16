@@ -196,9 +196,6 @@ pub const Ball = struct {
     // This is sprite size dependent because I don't scale balls for perf gains.
     pub const RADIUS = 10;
     pub const HP_TEXT_SIZE = 24;
-    pub const INFO_PANEL_TEXT_SIZE = 35;
-    pub const INFO_PANEL_OFFSET: Vec2 = .{ .y = -180.0 };
-    pub const INFO_PANEL_SIZE: Vec2 = .{ .x = 100.0, .y = 150.0 };
     pub const UPGRADE_HILIGHT_COLOR = Color.from_parts(255, 0, 0, 64);
     pub const HOVER_HILIGHT_COLOR = Color.from_parts(0, 0, 255, 64);
     pub const LOW_HP_COLOR_V4: Vec4 = Color.from_parts(12, 15, 21, 64).to_vec4_norm();
@@ -398,6 +395,9 @@ pub const Ball = struct {
     }
 
     pub fn draw_info_panel(self: Ball, context: *GlobalContext) void {
+        const INFO_PANEL_TEXT_SIZE = 35;
+        const INFO_PANEL_OFFSET: Vec2 = .{ .y = -180.0 };
+
         const panel_position = self.physics.body.position.add(INFO_PANEL_OFFSET);
         const info_panel = UiPanel.init(
             panel_position,
@@ -540,11 +540,9 @@ pub const Cue = struct {
     shoot_animation: ?SmoothStepAnimation,
     accumulator: f32,
 
-    hit_count: u8 = 1,
-    hit_strength: f32 = 1.0,
-    wiggle_ball: bool = false,
     scope: bool = false,
     silencer: bool = false,
+    rocket_booster: bool = false,
 
     pub const CUE_HEIGHT = 512;
     pub const CUE_WIDTH = 10;
@@ -567,14 +565,6 @@ pub const Cue = struct {
         };
     }
 
-    pub fn reset_upgrades(self: *Cue) void {
-        self.hit_count = 1;
-        self.hit_strength = 1.0;
-        self.wiggle_ball = false;
-        self.scope = false;
-        self.silencer = false;
-    }
-
     pub fn hovered(self: Cue, mouse_pos: Vec2) bool {
         const collision_rectangle: Physics.Rectangle = .{
             .size = .{
@@ -591,20 +581,11 @@ pub const Cue = struct {
 
     pub fn add_upgrade(self: *Cue, upgrade: Item.Tag) bool {
         switch (upgrade) {
-            .CueWiggleBall => {
-                if (self.wiggle_ball)
-                    return false
-                else
-                    self.wiggle_ball = true;
-            },
             .CueScope => {
                 if (self.scope)
                     return false
                 else
                     self.scope = true;
-            },
-            .CueSecondBarrel => {
-                self.hit_count += 1;
             },
             .CueSilencer => {
                 if (self.silencer)
@@ -613,9 +594,15 @@ pub const Cue = struct {
                     self.silencer = true;
             },
             .CueRocketBooster => {
-                self.hit_strength += 5.0;
+                if (self.rocket_booster)
+                    return false
+                else
+                    self.rocket_booster = true;
             },
-            else => unreachable,
+            else => {
+                log.err(@src(), "Trying to add unsupported ugrdate to cue: {any}", .{upgrade});
+                return false;
+            },
         }
 
         return true;
@@ -752,9 +739,7 @@ pub const Item = struct {
         BallRunner,
         BallRingOfLight,
 
-        CueWiggleBall,
         CueScope,
-        CueSecondBarrel,
         CueSilencer,
         CueRocketBooster,
 
@@ -764,7 +749,7 @@ pub const Item = struct {
 
         pub fn is_ball(self: Tag) bool {
             return self != .Invalid and
-                @intFromEnum(self) < @intFromEnum(Tag.CueWiggleBall);
+                @intFromEnum(self) < @intFromEnum(Tag.CueScope);
         }
 
         pub fn is_cue_upgrade(self: Tag) bool {
@@ -795,19 +780,17 @@ pub const Item = struct {
         // .BallHealthy,
         // .BallArmored,
 
-        .BallSpiky,
-        .BallHealthy,
-        .BallArmored,
-        .BallLight,
-        .BallHeavy,
-        .BallAntisocial,
-        .BallGravity,
-        .BallRunner,
-        .BallRingOfLight,
+        // .BallSpiky,
+        // .BallHealthy,
+        // .BallArmored,
+        // .BallLight,
+        // .BallHeavy,
+        // .BallAntisocial,
+        // .BallGravity,
+        // .BallRunner,
+        // .BallRingOfLight,
 
-        .CueWiggleBall,
         .CueScope,
-        .CueSecondBarrel,
         .CueSilencer,
         .CueRocketBooster,
 
@@ -821,9 +804,7 @@ pub const Item = struct {
         .BallAntisocial,
         .BallGravity,
         .BallRunner,
-        .CueWiggleBall,
         .CueScope,
-        .CueSecondBarrel,
     };
 
     pub const EpicItems = [_]Tag{
@@ -1115,7 +1096,80 @@ pub const CueInventory = struct {
                 self.selected_index = @intCast(i);
             upgrade_applied = upgrade_applied or r.upgrade_applied;
         }
+
+        self.draw_info_panel(context);
+
         return upgrade_applied;
+    }
+
+    pub fn draw_info_panel(self: *CueInventory, context: *GlobalContext) void {
+        const INFO_PANEL_PLAYER_POSITION: Vec2 = .{ .x = -370.0 };
+        const INFO_PANEL_OPPONENT_POSITION: Vec2 = .{ .x = 370.0 };
+        const INFO_PANEL_TEXT_SIZE = 35;
+
+        var hovered_cue_index: ?usize = null;
+        for (&self.cues, 0..) |*cue, i| {
+            if (!cue.hovered(context.input.mouse_pos_world) and
+                !cue.hovered(context.player_input.mouse_pos_world))
+            {
+                continue;
+            } else {
+                hovered_cue_index = i;
+                break;
+            }
+        }
+        if (hovered_cue_index == null)
+            return;
+
+        const hovered_cue = self.cues[hovered_cue_index.?];
+
+        const panel_position = if (self.owner == .Player)
+            INFO_PANEL_PLAYER_POSITION
+        else
+            INFO_PANEL_OPPONENT_POSITION;
+
+        const info_panel = UiPanel.init(
+            panel_position,
+            context.assets.ball_info_panel,
+            null,
+        );
+        info_panel.to_screen_quad(context);
+
+        {
+            const s = if (hovered_cue.scope) "yes" else "no";
+            _ = UiText.to_screen_quads(
+                context,
+                panel_position.add(.{ .x = -110.0, .y = -30.0 }),
+                INFO_PANEL_TEXT_SIZE,
+                "Scope: {s}",
+                .{s},
+                .{ .center = false },
+            );
+        }
+
+        {
+            const s = if (hovered_cue.silencer) "yes" else "no";
+            _ = UiText.to_screen_quads(
+                context,
+                panel_position.add(.{ .x = -110.0, .y = 0.0 }),
+                INFO_PANEL_TEXT_SIZE,
+                "Silencer: {s}",
+                .{s},
+                .{ .center = false },
+            );
+        }
+
+        {
+            const s = if (hovered_cue.rocket_booster) "yes" else "no";
+            _ = UiText.to_screen_quads(
+                context,
+                panel_position.add(.{ .x = -110.0, .y = 30.0 }),
+                INFO_PANEL_TEXT_SIZE,
+                "Rocket booster: {s}",
+                .{s},
+                .{ .center = false },
+            );
+        }
     }
 };
 

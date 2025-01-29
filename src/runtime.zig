@@ -275,15 +275,6 @@ pub const GlobalContext = struct {
             .price = 20,
         };
 
-        self.item_infos.get_mut(.CueWiggleBall).* = .{
-            .texture_id = Textures.Texture.ID_DEBUG,
-            .name = "Wiggle ball",
-            .description =
-            \\Makes the hit ball
-            \\to travel in a sin wave pattern
-            ,
-            .price = 20,
-        };
         self.item_infos.get_mut(.CueScope).* = .{
             .texture_id = Textures.Texture.ID_DEBUG,
             .name = "Sniper scope",
@@ -291,12 +282,6 @@ pub const GlobalContext = struct {
             \\Adds a trajectory line
             \\when aiming
             ,
-            .price = 20,
-        };
-        self.item_infos.get_mut(.CueSecondBarrel).* = .{
-            .texture_id = Textures.Texture.ID_DEBUG,
-            .name = "Second barrel",
-            .description = "",
             .price = 20,
         };
         self.item_infos.get_mut(.CueSilencer).* = .{
