@@ -756,8 +756,11 @@ pub const Cue = struct {
         }
     };
 
-    pub const CUE_HEIGHT = 512;
-    pub const CUE_WIDTH = 10;
+    pub const CUE_HEIGHT = 512.0;
+    pub const CUE_WIDTH = 10.0;
+    pub const KAR98K_CUE_HEIGHT = 448.0;
+    pub const KAR98K_CUE_WIDTH = 20.0;
+
     pub const AIM_BALL_OFFSET = Ball.RADIUS + 5;
 
     pub const MAX_STRENGTH = 150.0;
@@ -985,11 +988,6 @@ pub const Cue = struct {
         selected_upgrade: ?Item.Tag,
     ) ToScreenQuadsResult {
         var result: ToScreenQuadsResult = .{};
-        const size: Vec2 = .{
-            .x = @floatFromInt(context.texture_store.get_texture(texture_id).width),
-            .y = @floatFromInt(context.texture_store.get_texture(texture_id).height),
-        };
-
         var color_v4: Vec4 = .{};
         const is_cue_upgrade = if (selected_upgrade) |si| si.is_cue_upgrade() else false;
         if (is_cue_upgrade) {
@@ -1008,23 +1006,117 @@ pub const Cue = struct {
         }
 
         const tint = Color.from_vec4_norm(color_v4);
-        const object: Object2d = .{
-            .type = .{ .TextureId = texture_id },
-            .tint = tint,
-            .transform = .{
-                .position = self.position.extend(0.0),
-                .rotation = self.rotation,
-            },
-            .size = size,
-            .options = .{
-                .with_tint = true,
-            },
-        };
-        object.to_screen_quad(
-            &context.camera,
-            &context.texture_store,
-            &context.screen_quads,
-        );
+        {
+            const object: Object2d = .{
+                .type = .{ .TextureId = texture_id },
+                .tint = tint,
+                .transform = .{
+                    .position = self.position.extend(0.0),
+                    .rotation = self.rotation,
+                },
+                .size = .{
+                    .x = @floatFromInt(context.texture_store.get_texture(texture_id).width),
+                    .y = @floatFromInt(context.texture_store.get_texture(texture_id).height),
+                },
+                .options = .{
+                    .with_tint = true,
+                },
+            };
+            object.to_screen_quad(
+                &context.camera,
+                &context.texture_store,
+                &context.screen_quads,
+            );
+        }
+
+        if (self.scope) {
+            const tid = context.assets.scope;
+            const object: Object2d = .{
+                .type = .{ .TextureId = tid },
+                .tint = tint,
+                .transform = .{
+                    .position = self.position.extend(0.0),
+                    .rotation = self.rotation,
+                },
+                .size = .{
+                    .x = @floatFromInt(context.texture_store.get_texture(tid).width),
+                    .y = @floatFromInt(context.texture_store.get_texture(tid).height),
+                },
+                .options = .{
+                    .with_tint = true,
+                },
+            };
+            object.to_screen_quad(
+                &context.camera,
+                &context.texture_store,
+                &context.screen_quads,
+            );
+        }
+
+        if (self.silencer) {
+            const tid = context.assets.silencer;
+            const c = @cos(-self.rotation);
+            const s = @sin(-self.rotation);
+            const offset: Vec2 = .{ .x = -s, .y = c };
+            const m: f32 = if (self.tag == .CueKar98K)
+                KAR98K_CUE_HEIGHT / 2.0
+            else
+                CUE_HEIGHT / 2.0;
+
+            const object: Object2d = .{
+                .type = .{ .TextureId = tid },
+                .tint = tint,
+                .transform = .{
+                    .position = self.position.add(offset.mul_f32(-m)).extend(0.0),
+                    .rotation = self.rotation,
+                },
+                .size = .{
+                    .x = @floatFromInt(context.texture_store.get_texture(tid).width),
+                    .y = @floatFromInt(context.texture_store.get_texture(tid).height),
+                },
+                .options = .{
+                    .with_tint = true,
+                },
+            };
+            object.to_screen_quad(
+                &context.camera,
+                &context.texture_store,
+                &context.screen_quads,
+            );
+        }
+
+        if (self.rocket_booster) {
+            const tid = context.assets.rocket_booster;
+            const c = @cos(-self.rotation);
+            const s = @sin(-self.rotation);
+            const offset: Vec2 = .{ .x = -s, .y = c };
+            const m: f32 = if (self.tag == .CueKar98K)
+                KAR98K_CUE_HEIGHT / 2.0
+            else
+                CUE_HEIGHT / 2.0;
+
+            const object: Object2d = .{
+                .type = .{ .TextureId = tid },
+                .tint = tint,
+                .transform = .{
+                    .position = self.position.add(offset.mul_f32(m)).extend(0.0),
+                    .rotation = self.rotation,
+                },
+                .size = .{
+                    .x = @floatFromInt(context.texture_store.get_texture(tid).width),
+                    .y = @floatFromInt(context.texture_store.get_texture(tid).height),
+                },
+                .options = .{
+                    .with_tint = true,
+                },
+            };
+            object.to_screen_quad(
+                &context.camera,
+                &context.texture_store,
+                &context.screen_quads,
+            );
+        }
+
         return result;
     }
 };
