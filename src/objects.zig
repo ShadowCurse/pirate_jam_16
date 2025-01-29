@@ -765,6 +765,7 @@ pub const Cue = struct {
     pub const AIM_BALL_OFFSET = Ball.RADIUS + 5;
 
     pub const SILENCER_LENGTH = 100.0;
+    pub const ROCKET_BOOSTER_BONUS_STRENGTH = 500.0;
 
     pub const MAX_STRENGTH = 150.0;
     pub const DEFAULT_STRENGTH_MUL = 4.0;
@@ -807,6 +808,9 @@ pub const Cue = struct {
         self.shoot_animation = null;
         self.kar98k_animation = null;
         self.accumulator = 0.0;
+        self.scope = false;
+        self.silencer = false;
+        self.rocket_booster = false;
     }
 
     pub fn hovered(self: Cue, mouse_pos: Vec2) bool {
@@ -921,6 +925,11 @@ pub const Cue = struct {
         hit_vector: Vec2,
         dt: f32,
     ) ?f32 {
+        const booster_bonus_strength: f32 =
+            if (self.rocket_booster)
+            ROCKET_BOOSTER_BONUS_STRENGTH
+        else
+            0.0;
         switch (self.tag) {
             .CueDefault => {
                 if (self.shoot_animation) |*sm| {
@@ -928,7 +937,9 @@ pub const Cue = struct {
                     if (sm.update(&v3, dt)) {
                         self.shoot_animation = null;
                         self.position = v3.xy();
-                        return self.initial_hit_strength * DEFAULT_STRENGTH_MUL;
+                        return self.initial_hit_strength *
+                            DEFAULT_STRENGTH_MUL +
+                            booster_bonus_strength;
                     }
                     self.position = v3.xy();
                 } else {
@@ -953,7 +964,8 @@ pub const Cue = struct {
                     if (ka.update(context)) {
                         log.info(@src(), "kar98k_animation finished", .{});
                         self.kar98k_animation = null;
-                        return KAR98K_STRENGTH;
+                        return KAR98K_STRENGTH +
+                            booster_bonus_strength;
                     }
                 } else {
                     const hv_neg_normalized = hit_vector.neg().normalize();
@@ -984,7 +996,9 @@ pub const Cue = struct {
                     if (!self.cross_animation.finished()) {
                         if (self.cross_animation.update(context)) {
                             log.info(@src(), "Cross finished cross animation", .{});
-                            return self.initial_hit_strength * CROSS_STRENGTH_MUL;
+                            return self.initial_hit_strength *
+                                CROSS_STRENGTH_MUL +
+                                booster_bonus_strength;
                         }
                     } else {
                         log.info(@src(), "Cross creating shoot animation", .{});
@@ -1473,7 +1487,7 @@ pub const CueInventory = struct {
     pub fn remove(self: *CueInventory, cue: Item.Tag) void {
         if (cue == .CueDefault)
             return;
-        self.cues[1].tag = .Invalid;
+        self.cues[1].reset(.Invalid, .{}, 0.0);
         self.cues_n -= 1;
         self.selected_index = 0;
     }
