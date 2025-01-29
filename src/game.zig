@@ -58,8 +58,8 @@ const PlayerContext = struct {
         // _ = self.item_inventory.add(.BallRunner);
         // _ = self.item_inventory.add(.BallRingOfLight);
         self.cue_inventory.reset();
-        _ = self.cue_inventory.add(.CueCross);
         _ = self.cue_inventory.add(.CueKar98K);
+        // _ = self.cue_inventory.add(.CueCross);
         self.hp = 100;
         self.hp_overhead = 100;
     }
@@ -269,8 +269,9 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
 
     switch (self.turn_state) {
         .NotTaken => {
-            for (&self.balls) |*ball|
+            for (&self.balls) |*ball| {
                 ball.hit_by_ring_of_light = false;
+            }
 
             if (self.cue_aim_start_positon) |casp| {
                 const sb = self.selected_ball.?;
@@ -286,15 +287,15 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                     @min(Cue.MAX_STRENGTH, start_to_mouse.dot(ball_to_start)),
                 );
 
-                entity.cue_inventory.selected().move_aiming(
+                const selected_cue = entity.cue_inventory.selected();
+                selected_cue.move_aiming(
                     ball.physics.body.position,
                     hit_vector,
                     strength,
                 );
 
                 if (context.input.lmb == .Released) {
-                    ball.physics.body.velocity = ball.physics.body.velocity
-                        .add(ball_to_start.neg().mul_f32(strength * Cue.STRENGTH_MUL));
+                    selected_cue.initial_hit_strength = strength;
                     self.turn_state = .Shooting;
                     self.cue_aim_start_positon = null;
                 }
@@ -319,10 +320,37 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
         },
         .Shooting => {
             const sb = self.selected_ball.?;
-            const ball_position = self.balls[sb].physics.body.position;
+            const selected_ball = &self.balls[sb];
+            const ball_position = selected_ball.physics.body.position;
             const hit_vector = context.input.mouse_pos_world.sub(ball_position);
             const selected_cue = entity.cue_inventory.selected();
-            if (selected_cue.move_shoot(ball_position, hit_vector, context.dt)) {
+            if (selected_cue.move_shoot(
+                context,
+                ball_position,
+                hit_vector,
+                context.dt,
+            )) |hit_strength| {
+                const cue_to_ball = hit_vector.normalize().neg();
+                selected_ball.physics.body.velocity = selected_ball.physics.body.velocity
+                    .add(cue_to_ball.mul_f32(hit_strength));
+
+                if (selected_cue.tag == .CueKar98K) {
+                    const ray_start = ball_position;
+                    const ray_direction = cue_to_ball;
+                    for (&self.balls) |*ball| {
+                        if (ball.id == selected_ball.id)
+                            continue;
+                        if (Physics.ray_circle_intersect(
+                            ray_start,
+                            ray_direction,
+                            ball.physics.collider,
+                            ball.physics.body.position,
+                        )) {
+                            ball.hp -= Cue.Ka98KAnimation.DAMAGE;
+                        }
+                    }
+                }
+
                 entity.cue_inventory.remove(selected_cue.tag);
                 self.turn_state = .Taken;
             }

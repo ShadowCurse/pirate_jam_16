@@ -538,17 +538,114 @@ pub const Cue = struct {
     storage_position: Vec2,
     storage_rotation: f32,
     shoot_animation: ?SmoothStepAnimation,
+    kar98k_animation: ?Ka98KAnimation,
     accumulator: f32,
+
+    initial_hit_strength: f32 = 0.0,
 
     scope: bool = false,
     silencer: bool = false,
     rocket_booster: bool = false,
 
+    pub const Ka98KAnimation = struct {
+        duration: f32 = 0.0,
+        progress: f32 = 0.0,
+        position: Vec3 = .{},
+        rotation: f32 = 0.0,
+
+        pub const DURATION = 0.2;
+        pub const P_1 = 500.0;
+        pub const T_1 = DURATION * DURATION / 4.0 * P_1;
+        pub const P_2 = 250.0;
+        pub const T_2 = DURATION * DURATION / 4.0 * P_2;
+        pub const P_3 = 125.0;
+        pub const T_3 = DURATION * DURATION / 4.0 * P_3;
+        pub const WIDTH = 5.0;
+        pub const HEIGHT = 1000.0;
+        pub const DAMAGE = 5.0;
+
+        pub fn update(self: *Ka98KAnimation, context: *GlobalContext) bool {
+            const x = self.progress - self.duration / 2.0;
+            const x_sq = x * x;
+            const width_mul_1 = -(P_1 * x_sq) + T_1;
+            const width_mul_2 = -(P_2 * x_sq) + T_2;
+            const width_mul_3 = -(P_3 * x_sq) + T_3;
+            const transparency_1: u8 = @intFromFloat(width_mul_1 / T_1 * 255.0 * 0.3);
+            const transparency_2: u8 = @intFromFloat(width_mul_2 / T_2 * 255.0 * 0.5);
+            const transparency_3: u8 = @intFromFloat(width_mul_3 / T_3 * 255.0);
+            {
+                const color = Color.from_parts(255, 0, 0, transparency_1);
+                const trail: Object2d = .{
+                    .type = .{ .Color = color },
+                    .transform = .{
+                        .position = self.position,
+                        .rotation = self.rotation,
+                    },
+                    .size = .{
+                        .x = WIDTH * width_mul_1,
+                        .y = HEIGHT,
+                    },
+                    .options = .{},
+                };
+                trail.to_screen_quad(
+                    &context.camera,
+                    &context.texture_store,
+                    &context.screen_quads,
+                );
+            }
+            {
+                const color = Color.from_parts(252, 116, 0, transparency_2);
+                const trail: Object2d = .{
+                    .type = .{ .Color = color },
+                    .transform = .{
+                        .position = self.position,
+                        .rotation = self.rotation,
+                    },
+                    .size = .{
+                        .x = WIDTH * width_mul_2,
+                        .y = HEIGHT,
+                    },
+                    .options = .{},
+                };
+                trail.to_screen_quad(
+                    &context.camera,
+                    &context.texture_store,
+                    &context.screen_quads,
+                );
+            }
+            {
+                const color = Color.from_parts(252, 168, 0, transparency_3);
+                const trail: Object2d = .{
+                    .type = .{ .Color = color },
+                    .transform = .{
+                        .position = self.position,
+                        .rotation = self.rotation,
+                    },
+                    .size = .{
+                        .x = WIDTH * width_mul_3,
+                        .y = HEIGHT,
+                    },
+                    .options = .{},
+                };
+                trail.to_screen_quad(
+                    &context.camera,
+                    &context.texture_store,
+                    &context.screen_quads,
+                );
+            }
+
+            self.progress += context.dt;
+            return self.duration <= self.progress;
+        }
+    };
+
     pub const CUE_HEIGHT = 512;
     pub const CUE_WIDTH = 10;
     pub const AIM_BALL_OFFSET = Ball.RADIUS + 5;
+
     pub const MAX_STRENGTH = 150.0;
-    pub const STRENGTH_MUL = 4.0;
+    pub const DEFAULT_STRENGTH_MUL = 4.0;
+    pub const KAR98K_STRENGTH = 1000.0;
 
     pub const UPGRADE_HILIGHT_COLOR = Color.from_parts(255, 0, 0, 64);
     pub const HOVER_HILIGHT_COLOR = Color.from_parts(0, 0, 255, 64);
@@ -561,6 +658,7 @@ pub const Cue = struct {
             .storage_position = storage_position,
             .storage_rotation = storage_rotation,
             .shoot_animation = null,
+            .kar98k_animation = null,
             .accumulator = 0.0,
         };
     }
@@ -625,10 +723,13 @@ pub const Cue = struct {
             return;
 
         const hv_normalized = hit_vector.normalize();
-        const cue_postion = ball_position.add(
+
+        const use_offset = if (self.tag == .CueKar98K) 0 else offset;
+        const cue_postion =
+            ball_position.add(
             hv_normalized
                 .mul_f32(AIM_BALL_OFFSET +
-                CUE_HEIGHT / 2 + offset),
+                CUE_HEIGHT / 2 + use_offset),
         );
         const c = hv_normalized.cross(.{ .y = 1 });
         const d = hv_normalized.dot(.{ .y = 1 });
@@ -641,34 +742,62 @@ pub const Cue = struct {
 
     pub fn move_shoot(
         self: *Cue,
+        context: *GlobalContext,
         ball_position: Vec2,
         hit_vector: Vec2,
         dt: f32,
-    ) bool {
-        if (self.shoot_animation) |*sm| {
-            var v3 = self.position.extend(0.0);
-            if (sm.update(&v3, dt)) {
-                self.shoot_animation = null;
-                self.position = v3.xy();
-                return true;
-            }
-            self.position = v3.xy();
-        } else {
-            const hv_normalized = hit_vector.normalize();
-            const end_postion = ball_position.add(
-                hv_normalized
-                    .mul_f32(AIM_BALL_OFFSET +
-                    CUE_HEIGHT / 2),
-            );
+    ) ?f32 {
+        switch (self.tag) {
+            .CueDefault => {
+                if (self.shoot_animation) |*sm| {
+                    var v3 = self.position.extend(0.0);
+                    if (sm.update(&v3, dt)) {
+                        self.shoot_animation = null;
+                        self.position = v3.xy();
+                        return self.initial_hit_strength * DEFAULT_STRENGTH_MUL;
+                    }
+                    self.position = v3.xy();
+                } else {
+                    const hv_normalized = hit_vector.normalize();
+                    const end_postion = ball_position.add(
+                        hv_normalized
+                            .mul_f32(AIM_BALL_OFFSET +
+                            CUE_HEIGHT / 2),
+                    );
 
-            self.shoot_animation = .{
-                .start_position = self.position.extend(0.0),
-                .end_position = end_postion.extend(0.0),
-                .duration = 0.2,
-                .progress = 0.0,
-            };
+                    self.shoot_animation = .{
+                        .start_position = self.position.extend(0.0),
+                        .end_position = end_postion.extend(0.0),
+                        .duration = 0.2,
+                        .progress = 0.0,
+                    };
+                }
+            },
+            .CueKar98K => {
+                if (self.kar98k_animation) |*ka| {
+                    if (ka.update(context)) {
+                        log.info(@src(), "kar98k_animation finished", .{});
+                        self.kar98k_animation = null;
+                        return KAR98K_STRENGTH;
+                    }
+                } else {
+                    const hv_neg_normalized = hit_vector.neg().normalize();
+                    const beam_position = ball_position.add(
+                        hv_neg_normalized
+                            .mul_f32(Ka98KAnimation.HEIGHT / 2),
+                    );
+                    self.kar98k_animation = .{
+                        .duration = Ka98KAnimation.DURATION,
+                        .progress = 0.0,
+                        .position = beam_position.extend(0.0),
+                        .rotation = self.rotation,
+                    };
+                }
+            },
+            .CueCross => {},
+            else => unreachable,
         }
-        return false;
+        return null;
     }
 
     pub const ToScreenQuadsResult = struct {
