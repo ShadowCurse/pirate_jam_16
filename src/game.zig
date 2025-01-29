@@ -187,7 +187,7 @@ pub fn settings(self: *Self, context: *GlobalContext) void {
 }
 
 pub fn in_game(self: *Self, context: *GlobalContext) void {
-    if (self.turn_state == .NotTaken and self.turn_owner == .Opponent)
+    if (self.turn_owner == .Opponent)
         self.ai.update(context, self)
     else
         context.input = context.player_input;
@@ -269,6 +269,9 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
 
     switch (self.turn_state) {
         .NotTaken => {
+            if (self.turn_owner == .Opponent and self.ai.stage == .Wait)
+                self.ai.stage = .StartTurn;
+
             for (&self.balls) |*ball| {
                 ball.hit_by_ring_of_light = false;
             }

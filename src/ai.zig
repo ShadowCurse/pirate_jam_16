@@ -38,6 +38,7 @@ tasks_n: u32,
 
 const Stage = enum {
     Wait,
+    StartTurn,
     Act,
 };
 
@@ -73,7 +74,8 @@ pub fn update(
     game: *Game,
 ) void {
     switch (self.stage) {
-        .Wait => {
+        .Wait => {},
+        .StartTurn => {
             self.push_task(Shoot.init(self));
             self.push_task(SelectBall.init(self));
             self.push_task(SelectCue.init(self));
@@ -514,6 +516,7 @@ const Shoot = struct {
     const TIME_MIN = 0.5;
     const TIME_MAX = 1.5;
     const OFFSET_AIM = 120.0;
+    const MIN_STRENGTH = 50.0;
 
     pub fn init(ai: *Self) Task {
         const random = ai.rng.random();
@@ -546,7 +549,10 @@ const Shoot = struct {
         ai.push_task(ClickMouse.init(.None, .None));
         ai.push_task(ClickMouse.init(.Released, .None));
         const random = ai.rng.random();
-        const offset = OFFSET_AIM + Cue.MAX_STRENGTH * random.float(f32);
+        const offset = OFFSET_AIM +
+            MIN_STRENGTH +
+            Cue.MAX_STRENGTH *
+            random.float(f32);
         self.move_cue(offset, game, ai);
         ai.push_task(ClickMouse.init(.Pressed, .None));
 
