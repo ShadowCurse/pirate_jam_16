@@ -129,6 +129,9 @@ pub const Assets = struct {
     under_hp_bar_turn: Textures.Texture.Id,
     cue_background: Textures.Texture.Id,
     items_background: Textures.Texture.Id,
+    scope: Textures.Texture.Id,
+    silencer: Textures.Texture.Id,
+    rocket_booster: Textures.Texture.Id,
     shop_panel: Textures.Texture.Id,
     blood: Textures.Texture.Id,
     souls: Textures.Texture.Id,
@@ -179,6 +182,9 @@ pub const GlobalContext = struct {
         self.assets.cue_background = self.texture_store.load(memory, "assets/cue_background.png");
         self.assets.items_background =
             self.texture_store.load(memory, "assets/items_background.png");
+        self.assets.scope = self.texture_store.load(memory, "assets/scope_prototype.png");
+        self.assets.silencer = self.texture_store.load(memory, "assets/silencer_prototype.png");
+        self.assets.rocket_booster = self.texture_store.load(memory, "assets/rocket_booster_prototype.png");
         self.assets.shop_panel = self.texture_store.load(memory, "assets/shop_panel.png");
         self.assets.blood = self.texture_store.load(memory, "assets/blood.png");
         self.assets.souls = self.texture_store.load(memory, "assets/souls.png");
@@ -276,7 +282,7 @@ pub const GlobalContext = struct {
         };
 
         self.item_infos.get_mut(.CueScope).* = .{
-            .texture_id = Textures.Texture.ID_DEBUG,
+            .texture_id = self.assets.scope,
             .name = "Sniper scope",
             .description =
             \\Adds a trajectory line
@@ -285,7 +291,7 @@ pub const GlobalContext = struct {
             .price = 20,
         };
         self.item_infos.get_mut(.CueSilencer).* = .{
-            .texture_id = Textures.Texture.ID_DEBUG,
+            .texture_id = self.assets.silencer,
             .name = "Silencer",
             .description =
             \\The ball you hit will
@@ -296,7 +302,7 @@ pub const GlobalContext = struct {
             .price = 20,
         };
         self.item_infos.get_mut(.CueRocketBooster).* = .{
-            .texture_id = Textures.Texture.ID_DEBUG,
+            .texture_id = self.assets.rocket_booster,
             .name = "Rocket booster",
             .description =
             \\Increases the strength
