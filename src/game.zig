@@ -349,6 +349,10 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                             ball.physics.collider,
                             ball.physics.body.position,
                         )) {
+                            const str_mul =
+                                20.0 / (ball_position.sub(ball.physics.body.position).len());
+                            ball.physics.body.velocity = ball.physics.body.velocity
+                                .add(cue_to_ball.mul_f32(hit_strength * str_mul));
                             ball.hp -= Cue.Ka98KAnimation.DAMAGE;
                         }
                     }
