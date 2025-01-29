@@ -58,8 +58,8 @@ const PlayerContext = struct {
         // _ = self.item_inventory.add(.BallRunner);
         // _ = self.item_inventory.add(.BallRingOfLight);
         self.cue_inventory.reset();
-        _ = self.cue_inventory.add(.CueKar98K);
-        // _ = self.cue_inventory.add(.CueCross);
+        // _ = self.cue_inventory.add(.CueKar98K);
+        _ = self.cue_inventory.add(.CueCross);
         self.hp = 100;
         self.hp_overhead = 100;
     }
@@ -354,6 +354,21 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                             ball.physics.body.velocity = ball.physics.body.velocity
                                 .add(cue_to_ball.mul_f32(hit_strength * str_mul));
                             ball.hp -= Cue.Ka98KAnimation.DAMAGE;
+                        }
+                    }
+                }
+                if (selected_cue.tag == .CueCross) {
+                    for (&self.balls) |*ball| {
+                        if (ball.id == selected_ball.id)
+                            continue;
+                        const d =
+                            selected_ball.physics.body.position
+                            .sub(ball.physics.body.position).len();
+                        if (d < Cue.CrossAnimation.RADIUS) {
+                            if (ball.owner == self.turn_owner)
+                                ball.hp += Cue.CrossAnimation.HEAL
+                            else
+                                ball.hp -= Cue.CrossAnimation.DAMAGE;
                         }
                     }
                 }

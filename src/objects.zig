@@ -539,6 +539,7 @@ pub const Cue = struct {
     storage_rotation: f32,
     shoot_animation: ?SmoothStepAnimation,
     kar98k_animation: ?Ka98KAnimation,
+    cross_animation: CrossAnimation,
     accumulator: f32,
 
     initial_hit_strength: f32 = 0.0,
@@ -639,6 +640,122 @@ pub const Cue = struct {
         }
     };
 
+    pub const CrossAnimation = struct {
+        duration: f32 = 0.0,
+        progress: f32 = 0.0,
+        particles: Particles,
+        position: Vec2 = .{},
+
+        pub const DAMAGE = 5;
+        pub const HEAL = 15;
+        pub const NUM_ANIM = 300;
+        pub const NUM_STATIC = 100;
+        pub const NUM = NUM_ANIM + NUM_STATIC;
+        pub const RAYS = 20;
+        pub const RAY_LAYERS = NUM / RAYS;
+        pub const RADIUS = 60.0;
+        pub const DURATION = 0.4;
+        pub const P = 500.0;
+        pub const T = DURATION * DURATION / 4.0 * P;
+        const COLOR_ANIM: Color = Color.from_parts(249, 228, 0, 255);
+        const COLOR_STATIC: Color = Color.from_parts(255, 175, 0, 255);
+
+        pub fn init(context: *GlobalContext) CrossAnimation {
+            return .{
+                .particles = Particles.init(
+                    context.memory,
+                    NUM,
+                    .{ .Color = Color.BLUE },
+                    .{},
+                    .{ .x = 5.0, .y = 5.0 },
+                    0.0,
+                    3.0,
+                    true,
+                ),
+            };
+        }
+
+        pub fn start(self: *CrossAnimation, position: Vec2) void {
+            self.progress = 0.0;
+            self.duration = DURATION;
+            self.position = position;
+            for (self.particles.active_particles) |*ap| {
+                ap.object.transform.position = position.extend(0.0);
+            }
+        }
+
+        pub fn finished(self: CrossAnimation) bool {
+            return self.duration <= self.progress;
+        }
+
+        pub fn update(self: *CrossAnimation, context: *GlobalContext) bool {
+            self.particles.update(self, &CrossAnimation.particles_update, 0.0);
+            self.particles.to_screen_quad(
+                &context.camera,
+                &context.texture_store,
+                &context.screen_quads,
+            );
+            self.progress += context.dt;
+            return self.duration <= self.progress;
+        }
+
+        fn particles_update(
+            _self: *anyopaque,
+            particle_index: u32,
+            particle: *Particles.Particle,
+            rng: *std.rand.DefaultPrng,
+            dt: f32,
+        ) void {
+            _ = rng;
+            _ = dt;
+            const self: *const CrossAnimation = @alignCast(@ptrCast(_self));
+            if (particle_index < NUM_ANIM) {
+                const ray_index = particle_index % RAYS;
+                const ray_layer_index: f32 = @floatFromInt(@divFloor(particle_index, RAYS));
+                const ri: f32 = @floatFromInt(ray_index);
+                const p = self.progress / self.duration;
+                const pp = p * (RAY_LAYERS - ray_layer_index) / RAY_LAYERS;
+
+                const angle = std.math.pi * 2.0 / @as(f32, RAYS) *
+                    ri +
+                    std.math.pi / 16.0 * @sin(pp * ray_layer_index);
+                const c = @cos(angle);
+                const s = @sin(angle);
+                const offset: Vec2 = .{ .x = c, .y = s };
+                particle.object.transform.position =
+                    self.position
+                    .add(offset.mul_f32(p * RADIUS + ray_layer_index * 2.0))
+                    .extend(0.0);
+
+                const x = self.progress - self.duration / 2.0;
+                const x_sq = x * x;
+                const m = -(P * x_sq) + T;
+                const transparency: u8 = @intFromFloat(m / T * 255.0 * 0.5);
+                var color = COLOR_ANIM;
+                color.format.a = transparency;
+                particle.object.type = .{ .Color = color };
+            } else {
+                const pi: f32 = @floatFromInt(particle_index - NUM_ANIM);
+                const angle = std.math.pi * 2.0 / @as(f32, NUM_STATIC) * pi;
+                const c = @cos(angle);
+                const s = @sin(angle);
+                const offset: Vec2 = .{ .x = c, .y = s };
+                particle.object.transform.position =
+                    self.position
+                    .add(offset.mul_f32(RADIUS))
+                    .extend(0.0);
+
+                const x = self.progress - self.duration / 2.0;
+                const x_sq = x * x;
+                const m = -(P * x_sq) + T;
+                const transparency: u8 = @intFromFloat(m / T * 255.0);
+                var color = COLOR_STATIC;
+                color.format.a = transparency;
+                particle.object.type = .{ .Color = color };
+            }
+        }
+    };
+
     pub const CUE_HEIGHT = 512;
     pub const CUE_WIDTH = 10;
     pub const AIM_BALL_OFFSET = Ball.RADIUS + 5;
@@ -646,11 +763,17 @@ pub const Cue = struct {
     pub const MAX_STRENGTH = 150.0;
     pub const DEFAULT_STRENGTH_MUL = 4.0;
     pub const KAR98K_STRENGTH = 1000.0;
+    pub const CROSS_STRENGTH_MUL = 3.0;
 
     pub const UPGRADE_HILIGHT_COLOR = Color.from_parts(255, 0, 0, 64);
     pub const HOVER_HILIGHT_COLOR = Color.from_parts(0, 0, 255, 64);
 
-    pub fn init(tag: Item.Tag, storage_position: Vec2, storage_rotation: f32) Cue {
+    pub fn init(
+        context: *GlobalContext,
+        tag: Item.Tag,
+        storage_position: Vec2,
+        storage_rotation: f32,
+    ) Cue {
         return .{
             .tag = tag,
             .position = storage_position,
@@ -659,8 +782,25 @@ pub const Cue = struct {
             .storage_rotation = storage_rotation,
             .shoot_animation = null,
             .kar98k_animation = null,
+            .cross_animation = CrossAnimation.init(context),
             .accumulator = 0.0,
         };
+    }
+
+    pub fn reset(
+        self: *Cue,
+        tag: Item.Tag,
+        storage_position: Vec2,
+        storage_rotation: f32,
+    ) void {
+        self.tag = tag;
+        self.position = storage_position;
+        self.rotation = storage_rotation;
+        self.storage_position = storage_position;
+        self.storage_rotation = storage_rotation;
+        self.shoot_animation = null;
+        self.kar98k_animation = null;
+        self.accumulator = 0.0;
     }
 
     pub fn hovered(self: Cue, mouse_pos: Vec2) bool {
@@ -794,7 +934,41 @@ pub const Cue = struct {
                     };
                 }
             },
-            .CueCross => {},
+            .CueCross => {
+                if (self.shoot_animation) |*sm| {
+                    var v3 = self.position.extend(0.0);
+                    if (sm.update(&v3, dt)) {
+                        log.info(@src(), "Cross creating cross animation", .{});
+                        self.shoot_animation = null;
+                        self.position = v3.xy();
+                        self.cross_animation.start(ball_position);
+                        return null;
+                    }
+                    self.position = v3.xy();
+                } else {
+                    if (!self.cross_animation.finished()) {
+                        if (self.cross_animation.update(context)) {
+                            log.info(@src(), "Cross finished cross animation", .{});
+                            return self.initial_hit_strength * CROSS_STRENGTH_MUL;
+                        }
+                    } else {
+                        log.info(@src(), "Cross creating shoot animation", .{});
+                        const hv_normalized = hit_vector.normalize();
+                        const end_postion = ball_position.add(
+                            hv_normalized
+                                .mul_f32(AIM_BALL_OFFSET +
+                                CUE_HEIGHT / 2),
+                        );
+
+                        self.shoot_animation = .{
+                            .start_position = self.position.extend(0.0),
+                            .end_position = end_postion.extend(0.0),
+                            .duration = 0.2,
+                            .progress = 0.0,
+                        };
+                    }
+                }
+            },
             else => unreachable,
         }
         return null;
@@ -1099,7 +1273,12 @@ pub const CueInventory = struct {
     pub fn init(context: *GlobalContext, owner: Owner) CueInventory {
         var self: CueInventory = undefined;
         self.owner = owner;
-        self.reset();
+
+        const p_r = self.cue_position_rotation(0);
+        self.cues[0] = Cue.init(context, .CueDefault, p_r[0], p_r[1]);
+        self.cues[1] = Cue.init(context, .Invalid, p_r[0], p_r[1]);
+        self.cues_n = 1;
+        self.selected_index = 0;
 
         self.particles_effect = .{};
         self.selected_cue_particles = Particles.init(
@@ -1118,10 +1297,8 @@ pub const CueInventory = struct {
 
     pub fn reset(self: *CueInventory) void {
         const p_r = self.cue_position_rotation(0);
-        self.cues[0] =
-            Cue.init(.CueDefault, p_r[0], p_r[1]);
-        self.cues[1] =
-            Cue.init(.Invalid, p_r[0], p_r[1]);
+        self.cues[0].reset(.CueDefault, p_r[0], p_r[1]);
+        self.cues[1].reset(.Invalid, p_r[0], p_r[1]);
         self.cues_n = 1;
         self.selected_index = 0;
     }
@@ -1162,7 +1339,7 @@ pub const CueInventory = struct {
             return false;
 
         const p_r = self.cue_position_rotation(self.cues_n);
-        self.cues[self.cues_n] = Cue.init(cue, p_r[0], p_r[1]);
+        self.cues[self.cues_n].reset(cue, p_r[0], p_r[1]);
         self.cues_n += 1;
         return true;
     }
@@ -1588,19 +1765,16 @@ pub const Shop = struct {
         const random = self.rng.random();
         const rarity = random.float(f32);
         if (rarity < Item.NormalDropRate) {
-            const item_f32 = random.float(f32);
-            const item_index: u32 = @intFromFloat(item_f32 * Item.NormalItems.len - 1);
-            log.assert(@src(), item_index < Item.NormalItems.len - 1, "", .{});
+            const item_index = random.uintLessThan(u32, Item.NormalItems.len);
+            log.assert(@src(), item_index < Item.NormalItems.len, "", .{});
             return Item.NormalItems[item_index];
         } else if (rarity < Item.RareDropRate) {
-            const item_f32 = random.float(f32);
-            const item_index: u32 = @intFromFloat(item_f32 * Item.RareItems.len - 1);
-            log.assert(@src(), item_index < Item.RareItems.len - 1, "", .{});
+            const item_index = random.uintLessThan(u32, Item.RareItems.len);
+            log.assert(@src(), item_index < Item.RareItems.len, "", .{});
             return Item.RareItems[item_index];
         } else {
-            const item_f32 = random.float(f32);
-            const item_index: u32 = @intFromFloat(item_f32 * Item.EpicItems.len - 1);
-            log.assert(@src(), item_index < Item.EpicItems.len - 1, "", .{});
+            const item_index = random.uintLessThan(u32, Item.EpicItems.len);
+            log.assert(@src(), item_index < Item.EpicItems.len, "", .{});
             return Item.EpicItems[item_index];
         }
     }
