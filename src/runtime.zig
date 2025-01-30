@@ -140,6 +140,7 @@ pub const Assets = struct {
     blood: Textures.Texture.Id,
     souls: Textures.Texture.Id,
 
+    sound_background: SoundtrackId,
     sound_item_use: SoundtrackId,
     sound_ball_hit: SoundtrackId,
     sound_ball_pocket: SoundtrackId,
@@ -204,6 +205,7 @@ pub const GlobalContext = struct {
 
         self.assets.souls = self.texture_store.load(memory, "assets/souls.png");
 
+        self.assets.sound_background = self.audio.load_wav(memory, "assets/background.wav");
         self.assets.sound_item_use = self.audio.load_wav(memory, "assets/item_use.wav");
         self.assets.sound_ball_hit = self.audio.load_wav(memory, "assets/ball_hit.wav");
         self.assets.sound_ball_pocket = self.audio.load_wav(memory, "assets/ball_pocket.wav");
@@ -429,6 +431,13 @@ const Runtime = struct {
     ) void {
         const scratch_alloc = memory.scratch_alloc();
         self.context.reset();
+
+        if (!self.context.audio.is_playing(self.context.assets.sound_background))
+            self.context.audio.play(
+                self.context.assets.sound_background,
+                1.0,
+                1.0,
+            );
 
         self.context.update(
             events,
