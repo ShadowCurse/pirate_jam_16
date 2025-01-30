@@ -37,14 +37,14 @@ const _animations = @import("animations.zig");
 const BallAnimations = _animations.BallAnimations;
 
 const PlayerContext = struct {
-    hp: f32 = 100,
-    hp_overhead: f32 = 100,
+    hp: f32 = PLAYER_BALLS * 10,
+    hp_overhead: f32 = 0,
     item_inventory: ItemInventory,
     cue_inventory: CueInventory,
 
     pub fn init(self: *PlayerContext, context: *GlobalContext, owner: Owner) void {
-        self.hp = 100;
-        self.hp_overhead = 100;
+        self.hp = PLAYER_BALLS * 10;
+        self.hp_overhead = 0;
         self.item_inventory = ItemInventory.init(owner);
         self.cue_inventory = CueInventory.init(context, owner);
     }
@@ -58,8 +58,8 @@ const PlayerContext = struct {
         _ = self.item_inventory.add(.BallSpiky);
         self.cue_inventory.reset();
         _ = self.cue_inventory.add(.CueKar98K);
-        self.hp = 100;
-        self.hp_overhead = 100;
+        self.hp = PLAYER_BALLS * 10;
+        self.hp_overhead = 0;
     }
 };
 

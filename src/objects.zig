@@ -1917,7 +1917,7 @@ pub const Shop = struct {
     const REROLL_BUTTON_POSITION: Vec2 = CAMERA_IN_GAME_SHOP.add(.{ .y = 335.0 });
 
     const TEXT_SIZE_NAME = 60;
-    const TEXT_SIZE_DESCRIPTION = 50;
+    const TEXT_SIZE_DESCRIPTION = 35;
     const TEXT_SIZE_PRICE = 60;
 
     const ITEM_HILIGHT_TINT = Color.from_parts(128, 10, 10, 128);
@@ -2005,10 +2005,11 @@ pub const Shop = struct {
         );
         item_panel.to_screen_quad(context);
         const item_info = context.item_infos.get(item);
+        const item_offset: Vec2 = if (item.is_cue()) .{} else .{ .y = -100.0 };
         const object: Object2d = .{
             .type = .{ .TextureId = item_info.texture_id },
             .transform = .{
-                .position = position.extend(0.0),
+                .position = position.add(item_offset).extend(0.0),
             },
             .options = .{ .no_scale_rotate = true },
         };
@@ -2028,7 +2029,7 @@ pub const Shop = struct {
         );
         _ = UiText.to_screen_quads(
             context,
-            position.add(.{ .y = 0 }),
+            position.add(.{ .y = -30.0 }),
             TEXT_SIZE_DESCRIPTION,
             "{s}",
             .{item_info.description},

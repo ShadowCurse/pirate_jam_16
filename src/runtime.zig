@@ -321,22 +321,33 @@ pub const GlobalContext = struct {
         self.item_infos.get_mut(.BallGravity).* = .{
             .texture_id = Textures.Texture.ID_DEBUG,
             .name = "Antigravity ball",
-            .description = "Pushes all balls away",
+            .description =
+            \\Pushes all balls away
+            \\in a small radius
+            ,
             .price = 20,
         };
         self.item_infos.get_mut(.BallRunner).* = .{
             .texture_id = Textures.Texture.ID_DEBUG,
             .name = "Runner ball",
             .description =
-            \\Restores HP with the
-            \\distance traveled
+            \\Restores HP proportional
+            \\to the distance traveled
+            \\during the turn
             ,
             .price = 20,
         };
         self.item_infos.get_mut(.BallRingOfLight).* = .{
             .texture_id = Textures.Texture.ID_DEBUG,
             .name = "Ring of light",
-            .description = "TODO",
+            .description =
+            \\Adds a ring of light around 
+            \\the ball. Other balls can collide
+            \\with the ring once per turn.
+            \\All collisions follow same
+            \\heal/damage rules as if balls
+            \\did actually collide.
+            ,
             .price = 20,
         };
 
@@ -345,7 +356,7 @@ pub const GlobalContext = struct {
             .name = "Sniper scope",
             .description =
             \\Adds a trajectory line
-            \\when aiming
+            \\when aiming the cue
             ,
             .price = 20,
         };
@@ -353,8 +364,8 @@ pub const GlobalContext = struct {
             .texture_id = self.assets.silencer_icon,
             .name = "Silencer",
             .description =
-            \\The ball you hit will
-            \\ghost through allied
+            \\The ball you hit  will
+            \\ghost through friendly
             \\balls and only collide
             \\with the first enemy ball
             ,
@@ -381,7 +392,7 @@ pub const GlobalContext = struct {
             .name = "Kar98k",
             .description =
             \\In addition to hitting
-            \\the ball, deals 50 damage
+            \\the ball, deals 5 damage
             \\to all enemy balls in
             \\a straight line
             ,
@@ -393,8 +404,9 @@ pub const GlobalContext = struct {
             .description =
             \\In addition to hitting 
             \\the ball, heals all allied
-            \\balls and damages all
-            \\enemy balls in a small radius
+            \\balls by 15 and damages all
+            \\enemy balls by 5 in a small 
+            \\radius around the hit ball
             ,
             .price = 20,
         };

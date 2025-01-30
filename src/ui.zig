@@ -481,8 +481,7 @@ pub fn rules(context: *GlobalContext) void {
         \\during the game. Total player HP    is a sum of HP of all player balls.
         \\When total  player HP drops down to 0, player looses. 
         \\  During the turn, special collision rules apply for friendly (turn owners) and opponents balls:
-        \\- If a friendly ball collides with another friendly ball: both heal by the DAMAGE
-        \\value of the opposite ball
+        \\- If a friendly ball collides with another friendly ball: both heal 1 HP
         \\- If a friendly ball collides  with an opponent's ball: friendly ball heals by its
         \\DAMAGE value. Opponent's ball loses HP equat to the friendly ball DAMAGE.
         \\- If opponent's ball hits opponent's ball: nothing happens
@@ -506,7 +505,7 @@ pub fn rules(context: *GlobalContext) void {
         null,
     ).to_screen_quad(context);
     UiPanel.init(
-        CAMERA_RULES.add(.{ .x = 485, .y = 160.0 }),
+        CAMERA_RULES.add(.{ .x = 485, .y = 125.0 }),
         context.assets.souls,
         null,
     ).to_screen_quad(context);
