@@ -655,7 +655,7 @@ pub const Cue = struct {
         pub const RAYS = 20;
         pub const RAY_LAYERS = NUM / RAYS;
         pub const RADIUS = 60.0;
-        pub const DURATION = 0.4;
+        pub const DURATION = 1.0;
         pub const P = 500.0;
         pub const T = DURATION * DURATION / 4.0 * P;
         const COLOR_ANIM: Color = Color.from_parts(249, 228, 0, 255);
@@ -874,11 +874,24 @@ pub const Cue = struct {
         );
         const right_volume = (end_postion.x + 1280.0 / 2.0) / 1280.0;
         const left_volume = 1.0 - right_volume;
-        context.audio.play(
-            context.assets.sound_cue_hit,
-            left_volume * hit_volume,
-            right_volume * hit_volume,
-        );
+        switch (self.tag) {
+            .CueDefault => context.audio.play(
+                context.assets.sound_cue_hit,
+                left_volume * hit_volume,
+                right_volume * hit_volume,
+            ),
+            .CueKar98K => context.audio.play(
+                context.assets.sound_kar98k_fire,
+                left_volume * hit_volume * 0.15,
+                right_volume * hit_volume * 0.15,
+            ),
+            .CueCross => context.audio.play(
+                context.assets.sound_cross_hit,
+                left_volume,
+                right_volume,
+            ),
+            else => unreachable,
+        }
     }
 
     pub fn move_storage(self: *Cue) void {
@@ -1017,6 +1030,7 @@ pub const Cue = struct {
                         log.info(@src(), "Cross creating cross animation", .{});
                         self.shoot_animation = null;
                         self.position = v3.xy();
+                        self.play_hit_sound(context, 0.0);
                         self.cross_animation.start(ball_position);
                         return null;
                     }

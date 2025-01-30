@@ -144,6 +144,8 @@ pub const Assets = struct {
     sound_ball_hit: SoundtrackId,
     sound_ball_pocket: SoundtrackId,
     sound_cue_hit: SoundtrackId,
+    sound_kar98k_fire: SoundtrackId,
+    sound_cross_hit: SoundtrackId,
 };
 
 pub const GlobalContext = struct {
@@ -206,6 +208,8 @@ pub const GlobalContext = struct {
         self.assets.sound_ball_hit = self.audio.load_wav(memory, "assets/ball_hit.wav");
         self.assets.sound_ball_pocket = self.audio.load_wav(memory, "assets/ball_pocket.wav");
         self.assets.sound_cue_hit = self.audio.load_wav(memory, "assets/cue_hit.wav");
+        self.assets.sound_kar98k_fire = self.audio.load_wav(memory, "assets/kar98k_fire.wav");
+        self.assets.sound_cross_hit = self.audio.load_wav(memory, "assets/cross_hit.wav");
 
         self.state = .{};
         self.state_change_animation = .{
