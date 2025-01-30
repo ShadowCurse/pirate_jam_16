@@ -4,10 +4,20 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const game_memory_mb: u32 = 128;
+    const frame_memory_mb: u32 = 0;
+    const scratch_memory_pages: u32 = 4096;
+    const max_textures: u32 = 32;
+    const max_audio_tracks: u32 = 64;
     const unibuild: bool = target.result.os.tag == .emscripten;
     const stygian = b.dependency("stygian", .{
         .target = target,
         .optimize = optimize,
+        .game_memory_mb = game_memory_mb,
+        .frame_memory_mb = frame_memory_mb,
+        .scratch_memory_pages = scratch_memory_pages,
+        .max_textures = max_textures,
+        .max_audio_tracks = max_audio_tracks,
         .unibuild = unibuild,
         .software_render = true,
     });
