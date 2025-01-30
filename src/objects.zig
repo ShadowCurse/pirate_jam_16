@@ -1622,7 +1622,7 @@ pub const CueInventory = struct {
 
         const info_panel = UiPanel.init(
             panel_position,
-            context.assets.ball_info_panel,
+            context.assets.cue_info_panel,
             null,
         );
         info_panel.to_screen_quad(context);
@@ -1631,7 +1631,7 @@ pub const CueInventory = struct {
             const s = if (hovered_cue.scope) "yes" else "no";
             _ = UiText.to_screen_quads(
                 context,
-                panel_position.add(.{ .x = -110.0, .y = -30.0 }),
+                panel_position.add(.{ .x = -110.0, .y = -20.0 }),
                 INFO_PANEL_TEXT_SIZE,
                 "Scope: {s}",
                 .{s},
@@ -1643,7 +1643,7 @@ pub const CueInventory = struct {
             const s = if (hovered_cue.silencer) "yes" else "no";
             _ = UiText.to_screen_quads(
                 context,
-                panel_position.add(.{ .x = -110.0, .y = 0.0 }),
+                panel_position.add(.{ .x = -110.0, .y = 10.0 }),
                 INFO_PANEL_TEXT_SIZE,
                 "Silencer: {s}",
                 .{s},
@@ -1655,7 +1655,7 @@ pub const CueInventory = struct {
             const s = if (hovered_cue.rocket_booster) "yes" else "no";
             _ = UiText.to_screen_quads(
                 context,
-                panel_position.add(.{ .x = -110.0, .y = 30.0 }),
+                panel_position.add(.{ .x = -110.0, .y = 40.0 }),
                 INFO_PANEL_TEXT_SIZE,
                 "Rocket booster: {s}",
                 .{s},

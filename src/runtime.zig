@@ -123,6 +123,7 @@ pub const Assets = struct {
     ball_player: Textures.Texture.Id,
     ball_opponent: Textures.Texture.Id,
     ball_info_panel: Textures.Texture.Id,
+    cue_info_panel: Textures.Texture.Id,
     table: Textures.Texture.Id,
     button: Textures.Texture.Id,
     button_hover: Textures.Texture.Id,
@@ -203,6 +204,8 @@ pub const GlobalContext = struct {
         self.assets.ball_opponent = self.assets.ball_player;
         self.assets.ball_info_panel =
             self.texture_store.load(memory, "assets/ball_info_panel.png");
+        self.assets.cue_info_panel =
+            self.texture_store.load(memory, "assets/cue_info_panel.png");
 
         self.assets.table = self.texture_store.load(memory, "assets/table.png");
         self.assets.cue_default = self.texture_store.load(memory, "assets/cue_default.png");
