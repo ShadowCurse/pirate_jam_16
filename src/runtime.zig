@@ -126,6 +126,8 @@ pub const Assets = struct {
     table: Textures.Texture.Id,
     button: Textures.Texture.Id,
     button_hover: Textures.Texture.Id,
+    button_reroll: Textures.Texture.Id,
+    button_reroll_hover: Textures.Texture.Id,
     under_hp_bar: Textures.Texture.Id,
     under_hp_bar_turn: Textures.Texture.Id,
     blood: Textures.Texture.Id,
@@ -206,8 +208,13 @@ pub const GlobalContext = struct {
         self.assets.cue_default = self.texture_store.load(memory, "assets/cue_default.png");
         self.assets.cue_kar98k = self.texture_store.load(memory, "assets/cue_kar98k.png");
         self.assets.cue_cross = self.texture_store.load(memory, "assets/cue_cross.png");
+
         self.assets.button = self.texture_store.load(memory, "assets/button.png");
         self.assets.button_hover = self.texture_store.load(memory, "assets/button_hover.png");
+        self.assets.button_reroll = self.texture_store.load(memory, "assets/button_reroll.png");
+        self.assets.button_reroll_hover =
+            self.texture_store.load(memory, "assets/button_reroll_hover.png");
+
         self.assets.under_hp_bar = self.texture_store.load(memory, "assets/under_hp_bar.png");
         self.assets.under_hp_bar_turn =
             self.texture_store.load(memory, "assets/under_hp_bar_turn.png");

@@ -30,8 +30,8 @@ const _runtime = @import("runtime.zig");
 const InputState = _runtime.InputState;
 const GlobalContext = _runtime.GlobalContext;
 
-const _game = @import("game.zig");
-const Owner = _game.Owner;
+const Game = @import("game.zig");
+const Owner = Game.Owner;
 
 const _animations = @import("animations.zig");
 const SmoothStepAnimation = _animations.SmoothStepAnimation;
@@ -2052,7 +2052,7 @@ pub const Shop = struct {
         return is_hovered;
     }
 
-    pub fn update_and_draw(self: *Shop, context: *GlobalContext) ?Item.Tag {
+    pub fn update_and_draw(self: *Shop, context: *GlobalContext, game: *Game) ?Item.Tag {
         var item_clicked: ?Item.Tag = null;
         for (0..self.items.len) |i| {
             const hovered = self.draw_item(
@@ -2065,18 +2065,36 @@ pub const Shop = struct {
             }
         }
 
-        const S = struct {
-            fn on_press(s: anytype) void {
-                s.reroll();
-            }
-        };
-        UI.add_button(
-            context,
+        const BUTTON_TEXT_OFFSET: Vec2 = .{ .x = -10.0, .y = 13.0 };
+        var panel = UiPanel.init(
             REROLL_BUTTON_POSITION,
-            "Reroll",
-            S.on_press,
-            self,
+            context.assets.button_reroll,
+            null,
         );
+        const panel_hovered = panel.hovered(context);
+        if (panel_hovered)
+            panel.texture_id = context.assets.button_reroll_hover;
+        panel.to_screen_quad(context);
+        UiText.to_screen_quads(
+            context,
+            REROLL_BUTTON_POSITION.add(BUTTON_TEXT_OFFSET),
+            50.0,
+            "Reroll: 5",
+            .{},
+            .{},
+        );
+        UiPanel.init(
+            REROLL_BUTTON_POSITION.add(.{ .x = 77.0, .y = 3.0 }),
+            context.assets.souls,
+            null,
+        ).to_screen_quad(context);
+
+        if (panel_hovered and context.player_input.lmb == .Pressed) {
+            if (5 < game.player.hp_overhead) {
+                game.player.hp_overhead -= 5;
+                self.reroll();
+            }
+        }
         return item_clicked;
     }
 };

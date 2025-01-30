@@ -571,7 +571,7 @@ pub fn in_game_shop(self: *Self, context: *GlobalContext) void {
     const item_inventory = &self.player.item_inventory;
     const cue_inventory = &self.player.cue_inventory;
 
-    if (self.shop.update_and_draw(context)) |item| {
+    if (self.shop.update_and_draw(context, self)) |item| {
         const item_info = context.item_infos.get(item);
         if (item_info.price <= self.player.hp_overhead) {
             if (item.is_cue()) {
