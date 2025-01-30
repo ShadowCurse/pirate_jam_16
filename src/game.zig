@@ -52,10 +52,10 @@ const PlayerContext = struct {
     pub fn reset(self: *PlayerContext, owner: Owner) void {
         self.item_inventory = ItemInventory.init(owner);
         _ = self.item_inventory.add(.BallLight);
-        // _ = self.item_inventory.add(.BallHeavy);
-        // _ = self.item_inventory.add(.BallArmored);
-        // _ = self.item_inventory.add(.BallHealthy);
-        // _ = self.item_inventory.add(.BallSpiky);
+        _ = self.item_inventory.add(.BallHeavy);
+        _ = self.item_inventory.add(.BallArmored);
+        _ = self.item_inventory.add(.BallHealthy);
+        _ = self.item_inventory.add(.BallSpiky);
         self.cue_inventory.reset();
         // _ = self.cue_inventory.add(.CueKar98K);
         self.hp = PLAYER_BALLS * 10;
@@ -163,10 +163,10 @@ pub fn update_and_draw(
         self.main_menu(context);
     if (context.state.rules)
         self.rules(context);
-    if (context.state.in_game)
-        self.in_game(context);
     if (context.state.in_game_shop)
         self.in_game_shop(context);
+    if (context.state.in_game)
+        self.in_game(context);
     if (context.state.won)
         UI.in_end_game_won(self, context);
     if (context.state.lost)
@@ -185,6 +185,8 @@ pub fn rules(self: *Self, context: *GlobalContext) void {
 }
 
 pub fn in_game(self: *Self, context: *GlobalContext) void {
+    UI.in_game(self, context);
+
     if (self.turn_owner == .Opponent)
         self.ai.update(context, self)
     else
@@ -197,14 +199,19 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
     }
 
     const entity = if (self.turn_owner == .Player) blk: {
-        _ = self.opponent.cue_inventory.update_and_draw(context, null, false);
-        self.opponent.cue_inventory.selected().move_storage();
         break :blk &self.player;
     } else blk: {
-        _ = self.player.cue_inventory.update_and_draw(context, null, false);
-        self.player.cue_inventory.selected().move_storage();
         break :blk &self.opponent;
     };
+    defer {
+        if (self.turn_owner == .Player) {
+            _ = self.opponent.cue_inventory.update_and_draw(context, null, false);
+            self.opponent.cue_inventory.selected().move_storage();
+        } else {
+            _ = self.player.cue_inventory.update_and_draw(context, null, false);
+            self.player.cue_inventory.selected().move_storage();
+        }
+    }
 
     const selected_item = entity.item_inventory.selected();
     var new_ball_selected: bool = false;
@@ -251,13 +258,6 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
         self.selected_ball = null;
     }
 
-    // need to do this separatelly to draw info panel on top of
-    // other things
-    if (new_ball_hovered) |hb| {
-        const ball = &self.balls[hb];
-        _ = ball.draw_info_panel(context);
-    }
-
     if (entity.cue_inventory.update_and_draw(
         context,
         selected_item,
@@ -275,6 +275,13 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
     self.opponent.item_inventory.to_screen_quads(context);
     self.player.item_inventory.update(context, self.turn_owner);
     self.player.item_inventory.to_screen_quads(context);
+
+    // need to do this separatelly to draw info panel on top of
+    // other things
+    if (new_ball_hovered) |hb| {
+        const ball = &self.balls[hb];
+        _ = ball.draw_info_panel(context);
+    }
 
     switch (self.turn_state) {
         .NotTaken => {
@@ -563,8 +570,6 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             }
         },
     }
-
-    UI.in_game(self, context);
 }
 
 pub fn in_game_shop(self: *Self, context: *GlobalContext) void {
