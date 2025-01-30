@@ -192,7 +192,7 @@ pub const GlobalContext = struct {
         self.texture_store.init(memory) catch unreachable;
         self.audio.init(memory, 1.0) catch unreachable;
         self.global_audio_volume = 0.3;
-        self.font = Font.init(memory, &self.texture_store, "assets/rm-albion.regular.ttf", 64);
+        self.font = Font.init(memory, &self.texture_store, "assets/NewRocker-Regular.ttf", 64);
 
         self.assets.ball_player = self.texture_store.load(
             self.memory,
