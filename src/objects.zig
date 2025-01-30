@@ -1046,9 +1046,10 @@ pub const Cue = struct {
                     } else {
                         log.info(@src(), "Cross creating shoot animation", .{});
                         const hv_normalized = hit_vector.normalize();
+                        const silencer_offset: f32 = if (self.silencer) SILENCER_LENGTH else 0.0;
                         const end_postion = ball_position.add(
                             hv_normalized
-                                .mul_f32(AIM_BALL_OFFSET +
+                                .mul_f32(AIM_BALL_OFFSET + silencer_offset +
                                 CUE_HEIGHT / 2),
                         );
 
