@@ -49,7 +49,7 @@ const GamePhysics = @import("physics.zig");
 
 pub const State = packed struct(u8) {
     main_menu: bool = true,
-    settings: bool = false,
+    rules: bool = false,
     in_game: bool = false,
     in_game_shop: bool = false,
     won: bool = false,

@@ -20,7 +20,7 @@ const GlobalContext = _runtime.GlobalContext;
 const Game = @import("game.zig");
 
 pub const CAMERA_MAIN_MENU: Vec2 = .{ .x = -1280.0 };
-pub const CAMERA_SETTINGS: Vec2 = .{ .x = -1280.0, .y = 1000.0 };
+pub const CAMERA_RULES: Vec2 = .{ .x = -1280.0, .y = 1000.0 };
 pub const CAMERA_IN_GAME: Vec2 = .{};
 pub const CAMERA_IN_GAME_SHOP: Vec2 = .{ .y = 640 };
 pub const CAMERA_END_GAME: Vec2 = .{ .y = -1000.0 };
@@ -414,10 +414,28 @@ pub fn main_menu(game: *Game, context: *GlobalContext) void {
         );
     }
     {
+        const S = struct {
+            fn on_press(args: anytype) void {
+                args.context.state.rules = true;
+                args.context.state_change_animation.set(CAMERA_RULES, .{
+                    .rules = true,
+                    .debug = args.context.state.debug,
+                });
+            }
+        };
+        add_button(
+            context,
+            CAMERA_MAIN_MENU.add(.{ .y = 88.0 }),
+            "Rules",
+            S.on_press,
+            .{ .context = context },
+        );
+    }
+    {
         _ = UiText.to_screen_quads(
             context,
-            CAMERA_MAIN_MENU.add(.{ .x = 5.0, .y = 88.0 }),
-            60.0,
+            CAMERA_MAIN_MENU.add(.{ .x = 5.0, .y = 168.0 }),
+            50.0,
             "Volume",
             .{},
             .{},
@@ -431,7 +449,7 @@ pub fn main_menu(game: *Game, context: *GlobalContext) void {
         };
         add_button(
             context,
-            CAMERA_MAIN_MENU.add(.{ .x = 180.0, .y = 80.0 }),
+            CAMERA_MAIN_MENU.add(.{ .x = 180.0, .y = 160.0 }),
             "+",
             S.on_press,
             .{ .context = context },
@@ -445,7 +463,7 @@ pub fn main_menu(game: *Game, context: *GlobalContext) void {
         };
         add_button(
             context,
-            CAMERA_MAIN_MENU.add(.{ .x = -180.0, .y = 80.0 }),
+            CAMERA_MAIN_MENU.add(.{ .x = -180.0, .y = 160.0 }),
             "-",
             S.on_press,
             .{ .context = context },
@@ -453,7 +471,46 @@ pub fn main_menu(game: *Game, context: *GlobalContext) void {
     }
 }
 
-pub fn settings(context: *GlobalContext) void {
+pub fn rules(context: *GlobalContext) void {
+    const game_rules =
+        \\ This is an unnatural game of pool.
+        \\  There are 2 players in the game. Each one starts with 15 balls.
+        \\Players take turns and use cues to hit any of their balls. The goal of the game is to
+        \\destroy all opponents balls.
+        \\  Each ball starts with 10 HP, 5 DAMAGE and 0 ARMOR. These values can by upgraded
+        \\during the game. Total player HP    is a sum of HP of all player balls.
+        \\When total  player HP drops down to 0, player looses. 
+        \\  During the turn, special collision rules apply for friendly (turn owners) and opponents balls:
+        \\- If a friendly ball collides with another friendly ball: both heal by the DAMAGE
+        \\value of the opposite ball
+        \\- If a friendly ball collides  with an opponent's ball: friendly ball heals by its
+        \\DAMAGE value. Opponent's ball loses HP equat to the friendly ball DAMAGE.
+        \\- If opponent's ball hits opponent's ball: nothing happens
+        \\  If player's ball looses all  HP or is pocketted, it is permenantly removed from the field.
+        \\If player's ball  HP was full  when it was healed, the heal amount is converted into souls     .
+        \\Souls act as a currency in the game. Players can buy upgrades and other cue in the shop.
+        \\Each player starts with a default cue. There is one slot for an additional one. 
+        \\Additional cues can be used only once.
+    ;
+    _ = UiText.to_screen_quads(
+        context,
+        CAMERA_RULES.add(.{ .x = -615, .y = -320.0 }),
+        35.0,
+        game_rules,
+        .{},
+        .{ .center = false },
+    );
+    UiPanel.init(
+        CAMERA_RULES.add(.{ .x = -195, .y = -155.0 }),
+        context.assets.blood,
+        null,
+    ).to_screen_quad(context);
+    UiPanel.init(
+        CAMERA_RULES.add(.{ .x = 485, .y = 160.0 }),
+        context.assets.souls,
+        null,
+    ).to_screen_quad(context);
+
     {
         const S = struct {
             fn on_press(args: anytype) void {
@@ -466,7 +523,7 @@ pub fn settings(context: *GlobalContext) void {
         };
         add_button(
             context,
-            CAMERA_SETTINGS,
+            CAMERA_RULES.add(.{ .y = 320.0 }),
             "Back",
             S.on_press,
             .{ .context = context },

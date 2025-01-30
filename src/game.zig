@@ -161,8 +161,8 @@ pub fn update_and_draw(
 ) void {
     if (context.state.main_menu)
         self.main_menu(context);
-    if (context.state.settings)
-        self.settings(context);
+    if (context.state.rules)
+        self.rules(context);
     if (context.state.in_game)
         self.in_game(context);
     if (context.state.in_game_shop)
@@ -179,9 +179,9 @@ pub fn main_menu(self: *Self, context: *GlobalContext) void {
     UI.main_menu(self, context);
 }
 
-pub fn settings(self: *Self, context: *GlobalContext) void {
+pub fn rules(self: *Self, context: *GlobalContext) void {
     _ = self;
-    UI.settings(context);
+    UI.rules(context);
 }
 
 pub fn in_game(self: *Self, context: *GlobalContext) void {
