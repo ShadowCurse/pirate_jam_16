@@ -22,6 +22,10 @@ const ScreenQuads = stygian.screen_quads;
 
 const Object2d = stygian.objects.Object2d;
 
+const _audio = stygian.audio;
+const Audio = _audio.Audio;
+const SoundtrackId = _audio.SoundtrackId;
+
 const Font = stygian.font;
 const Memory = stygian.memory;
 const Textures = stygian.textures;
@@ -135,12 +139,18 @@ pub const Assets = struct {
     shop_panel: Textures.Texture.Id,
     blood: Textures.Texture.Id,
     souls: Textures.Texture.Id,
+
+    sound_item_use: SoundtrackId,
+    sound_ball_hit: SoundtrackId,
+    sound_ball_pocket: SoundtrackId,
+    sound_cue_hit: SoundtrackId,
 };
 
 pub const GlobalContext = struct {
     memory: *Memory,
     screen_quads: ScreenQuads,
     texture_store: Textures.Store,
+    audio: Audio,
     font: Font,
     assets: Assets,
     state: State,
@@ -160,6 +170,7 @@ pub const GlobalContext = struct {
         self.memory = memory;
         self.screen_quads = ScreenQuads.init(memory, 8192) catch unreachable;
         self.texture_store.init(memory) catch unreachable;
+        self.audio.init(memory, 1.0) catch unreachable;
         self.font = Font.init(memory, &self.texture_store, "assets/rm-albion.regular.ttf", 64);
 
         self.assets.ball_player = self.texture_store.load(
@@ -188,6 +199,13 @@ pub const GlobalContext = struct {
         self.assets.shop_panel = self.texture_store.load(memory, "assets/shop_panel.png");
         self.assets.blood = self.texture_store.load(memory, "assets/blood.png");
         self.assets.souls = self.texture_store.load(memory, "assets/souls.png");
+
+        self.assets.souls = self.texture_store.load(memory, "assets/souls.png");
+
+        self.assets.sound_item_use = self.audio.load_wav(memory, "assets/item_use.wav");
+        self.assets.sound_ball_hit = self.audio.load_wav(memory, "assets/ball_hit.wav");
+        self.assets.sound_ball_pocket = self.audio.load_wav(memory, "assets/ball_pocket.wav");
+        self.assets.sound_cue_hit = self.audio.load_wav(memory, "assets/cue_hit.wav");
 
         self.state = .{};
         self.state_change_animation = .{

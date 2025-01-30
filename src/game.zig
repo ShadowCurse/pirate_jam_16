@@ -230,6 +230,11 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             break :blk r;
         };
         if (r.upgrade_applied) {
+            context.audio.play(
+                context.assets.sound_item_use,
+                0.2,
+                0.2,
+            );
             entity.item_inventory.item_used();
         }
         if (!r.upgrade_applied and r.selected and
@@ -259,8 +264,14 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
         context,
         selected_item,
         self.selected_ball == null,
-    ))
+    )) {
+        context.audio.play(
+            context.assets.sound_item_use,
+            0.2,
+            0.2,
+        );
         entity.item_inventory.item_used();
+    }
 
     self.opponent.item_inventory.update(context, self.turn_owner);
     self.opponent.item_inventory.to_screen_quads(context);
@@ -463,6 +474,19 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                             }
                         },
                         .Ball => |ball_2_id| {
+                            const hit_volume = std.math.clamp(
+                                ball.physics.body.velocity.len() / 500.0,
+                                0.0,
+                                1.0,
+                            );
+                            const right_volume = (c.collision.position.x + 1280.0 / 2.0) / 1280.0;
+                            const left_volume = 1.0 - right_volume;
+                            context.audio.play(
+                                context.assets.sound_ball_hit,
+                                left_volume * hit_volume,
+                                right_volume * hit_volume,
+                            );
+
                             const ball_2 = &self.balls[ball_2_id];
                             if (ball.owner == self.turn_owner) {
                                 if (ball_2.owner == self.turn_owner) {
@@ -488,9 +512,18 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                         },
                         .Border => |_| {},
                         .Pocket => |pocket_id| {
+                            ball.physics.state.pocketted = true;
                             const pocket = &self.physics.pockets[pocket_id];
                             ball.physics.state.pocketted = true;
                             self.ball_animations.add(ball, pocket.body.position, 1.0);
+
+                            const rv = (pocket.body.position.x + 1280.0 / 2.0) / 1280.0;
+                            const lv = 1.0 - rv;
+                            context.audio.play(
+                                context.assets.sound_ball_pocket,
+                                lv * 2.0,
+                                rv * 2.0,
+                            );
                         },
                     }
                 }

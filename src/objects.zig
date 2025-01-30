@@ -856,6 +856,31 @@ pub const Cue = struct {
         return true;
     }
 
+    pub fn play_hit_sound(self: Cue, context: *GlobalContext, strength: f32) void {
+        const c = @cos(-self.rotation);
+        const s = @sin(-self.rotation);
+        const along_the_cue: Vec2 = .{ .x = s, .y = -c };
+        const silencer_offset: f32 = if (self.silencer) SILENCER_LENGTH else 0.0;
+        const end_postion = self.position.add(
+            along_the_cue
+                .mul_f32(AIM_BALL_OFFSET + silencer_offset +
+                CUE_HEIGHT / 2),
+        );
+
+        const hit_volume = std.math.clamp(
+            strength / 800.0,
+            0.0,
+            1.0,
+        );
+        const right_volume = (end_postion.x + 1280.0 / 2.0) / 1280.0;
+        const left_volume = 1.0 - right_volume;
+        context.audio.play(
+            context.assets.sound_cue_hit,
+            left_volume * hit_volume,
+            right_volume * hit_volume,
+        );
+    }
+
     pub fn move_storage(self: *Cue) void {
         self.position =
             self.position.add(self.storage_position.sub(self.position).mul_f32(0.2));
@@ -937,9 +962,11 @@ pub const Cue = struct {
                     if (sm.update(&v3, dt)) {
                         self.shoot_animation = null;
                         self.position = v3.xy();
-                        return self.initial_hit_strength *
+                        const strength = self.initial_hit_strength *
                             DEFAULT_STRENGTH_MUL +
                             booster_bonus_strength;
+                        self.play_hit_sound(context, strength);
+                        return strength;
                     }
                     self.position = v3.xy();
                 } else {
@@ -964,8 +991,10 @@ pub const Cue = struct {
                     if (ka.update(context)) {
                         log.info(@src(), "kar98k_animation finished", .{});
                         self.kar98k_animation = null;
-                        return KAR98K_STRENGTH +
+                        const strength = KAR98K_STRENGTH +
                             booster_bonus_strength;
+                        self.play_hit_sound(context, strength);
+                        return strength;
                     }
                 } else {
                     const hv_neg_normalized = hit_vector.neg().normalize();

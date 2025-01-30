@@ -458,9 +458,7 @@ pub fn update(self: *Self, context: *GlobalContext) UpdateResult {
                         collision.collision,
                     );
                 },
-                .Pocket => |_| {
-                    ball.state.pocketted = true;
-                },
+                .Pocket => |_| {},
             }
         }
         prev_collisions_n = collisions.items.len;
