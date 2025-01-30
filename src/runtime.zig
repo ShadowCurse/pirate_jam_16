@@ -124,21 +124,37 @@ pub const Assets = struct {
     ball_opponent: Textures.Texture.Id,
     ball_info_panel: Textures.Texture.Id,
     table: Textures.Texture.Id,
-    cue_default: Textures.Texture.Id,
-    cue_kar98k: Textures.Texture.Id,
-    cue_cross: Textures.Texture.Id,
     button: Textures.Texture.Id,
     button_hover: Textures.Texture.Id,
     under_hp_bar: Textures.Texture.Id,
     under_hp_bar_turn: Textures.Texture.Id,
+    blood: Textures.Texture.Id,
+    souls: Textures.Texture.Id,
+
     cue_background: Textures.Texture.Id,
+    shop_panel: Textures.Texture.Id,
     items_background: Textures.Texture.Id,
+
+    ball_spiky: Textures.Texture.Id,
+    ball_healthy: Textures.Texture.Id,
+    ball_armored: Textures.Texture.Id,
+    ball_light: Textures.Texture.Id,
+    ball_heavy: Textures.Texture.Id,
+    ball_antisocial: Textures.Texture.Id,
+    ball_gravity: Textures.Texture.Id,
+    ball_runner: Textures.Texture.Id,
+    ball_ring_of_light: Textures.Texture.Id,
+
+    scope_icon: Textures.Texture.Id,
+    silencer_icon: Textures.Texture.Id,
+    rocket_booster_icon: Textures.Texture.Id,
     scope: Textures.Texture.Id,
     silencer: Textures.Texture.Id,
     rocket_booster: Textures.Texture.Id,
-    shop_panel: Textures.Texture.Id,
-    blood: Textures.Texture.Id,
-    souls: Textures.Texture.Id,
+
+    cue_default: Textures.Texture.Id,
+    cue_kar98k: Textures.Texture.Id,
+    cue_cross: Textures.Texture.Id,
 
     sound_background: SoundtrackId,
     sound_item_use: SoundtrackId,
@@ -195,17 +211,34 @@ pub const GlobalContext = struct {
         self.assets.under_hp_bar = self.texture_store.load(memory, "assets/under_hp_bar.png");
         self.assets.under_hp_bar_turn =
             self.texture_store.load(memory, "assets/under_hp_bar_turn.png");
-        self.assets.cue_background = self.texture_store.load(memory, "assets/cue_background.png");
-        self.assets.items_background =
-            self.texture_store.load(memory, "assets/items_background.png");
-        self.assets.scope = self.texture_store.load(memory, "assets/scope_prototype.png");
-        self.assets.silencer = self.texture_store.load(memory, "assets/silencer_prototype.png");
-        self.assets.rocket_booster = self.texture_store.load(memory, "assets/rocket_booster_prototype.png");
-        self.assets.shop_panel = self.texture_store.load(memory, "assets/shop_panel.png");
         self.assets.blood = self.texture_store.load(memory, "assets/blood.png");
         self.assets.souls = self.texture_store.load(memory, "assets/souls.png");
 
-        self.assets.souls = self.texture_store.load(memory, "assets/souls.png");
+        self.assets.cue_background = self.texture_store.load(memory, "assets/cue_background.png");
+        self.assets.shop_panel = self.texture_store.load(memory, "assets/shop_panel.png");
+        self.assets.items_background =
+            self.texture_store.load(memory, "assets/items_background.png");
+
+        self.assets.ball_spiky = self.texture_store.load(memory, "assets/ball_spiky.png");
+        self.assets.ball_healthy = self.texture_store.load(memory, "assets/ball_healthy.png");
+        self.assets.ball_armored = self.texture_store.load(memory, "assets/ball_armored.png");
+        self.assets.ball_light = self.texture_store.load(memory, "assets/ball_light.png");
+        self.assets.ball_heavy = self.texture_store.load(memory, "assets/ball_heavy.png");
+        // self.assets.ball_antisocial = self.texture_store.load(memory, "assets/ball_bouncy.png");
+        // self.assets.ball_gravity = self.texture_store.load(memory, "assets/ball_gravity.png");
+        // self.assets.ball_runner = self.texture_store.load(memory, "assets/ball_runner.png");
+        // self.assets.ball_ring_of_light =
+        //     self.texture_store.load(memory, "assets/ball_ring_of_light.png");
+
+        self.assets.scope_icon = self.texture_store.load(memory, "assets/scope_icon.png");
+        self.assets.silencer_icon =
+            self.texture_store.load(memory, "assets/silencer_icon.png");
+        self.assets.rocket_booster_icon =
+            self.texture_store.load(memory, "assets/rocket_booster_icon.png");
+        self.assets.scope = self.texture_store.load(memory, "assets/scope_prototype.png");
+        self.assets.silencer = self.texture_store.load(memory, "assets/silencer_prototype.png");
+        self.assets.rocket_booster =
+            self.texture_store.load(memory, "assets/rocket_booster_prototype.png");
 
         self.assets.sound_background = self.audio.load_wav(memory, "assets/background.wav");
         self.assets.sound_item_use = self.audio.load_wav(memory, "assets/item_use.wav");
@@ -237,7 +270,7 @@ pub const GlobalContext = struct {
             };
         }
         self.item_infos.get_mut(.BallSpiky).* = .{
-            .texture_id = Textures.Texture.ID_DEBUG,
+            .texture_id = self.assets.ball_spiky,
             .name = "Spiky ball",
             .description =
             \\Increases the ball
@@ -246,16 +279,16 @@ pub const GlobalContext = struct {
             .price = 20,
         };
         self.item_infos.get_mut(.BallHealthy).* = .{
-            .texture_id = Textures.Texture.ID_DEBUG,
+            .texture_id = self.assets.ball_healthy,
             .name = "Healthy ball",
             .description =
             \\Increases the ball
-            \\hp by 5
+            \\HP by 5
             ,
             .price = 20,
         };
         self.item_infos.get_mut(.BallArmored).* = .{
-            .texture_id = Textures.Texture.ID_DEBUG,
+            .texture_id = self.assets.ball_armored,
             .name = "Armored ball",
             .description =
             \\Increases the armor
@@ -264,13 +297,13 @@ pub const GlobalContext = struct {
             .price = 20,
         };
         self.item_infos.get_mut(.BallLight).* = .{
-            .texture_id = Textures.Texture.ID_DEBUG,
+            .texture_id = self.assets.ball_light,
             .name = "Light ball",
             .description = "Makes a ball lighter",
             .price = 20,
         };
         self.item_infos.get_mut(.BallHeavy).* = .{
-            .texture_id = Textures.Texture.ID_DEBUG,
+            .texture_id = self.assets.ball_heavy,
             .name = "Heavy ball",
             .description = "Makes a ball heavier",
             .price = 20,
@@ -308,7 +341,7 @@ pub const GlobalContext = struct {
         };
 
         self.item_infos.get_mut(.CueScope).* = .{
-            .texture_id = self.assets.scope,
+            .texture_id = self.assets.scope_icon,
             .name = "Sniper scope",
             .description =
             \\Adds a trajectory line
@@ -317,7 +350,7 @@ pub const GlobalContext = struct {
             .price = 20,
         };
         self.item_infos.get_mut(.CueSilencer).* = .{
-            .texture_id = self.assets.silencer,
+            .texture_id = self.assets.silencer_icon,
             .name = "Silencer",
             .description =
             \\The ball you hit will
@@ -328,7 +361,7 @@ pub const GlobalContext = struct {
             .price = 20,
         };
         self.item_infos.get_mut(.CueRocketBooster).* = .{
-            .texture_id = self.assets.rocket_booster,
+            .texture_id = self.assets.rocket_booster_icon,
             .name = "Rocket booster",
             .description =
             \\Increases the strength
