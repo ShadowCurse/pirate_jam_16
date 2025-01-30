@@ -51,13 +51,13 @@ const PlayerContext = struct {
 
     pub fn reset(self: *PlayerContext, owner: Owner) void {
         self.item_inventory = ItemInventory.init(owner);
-        _ = self.item_inventory.add(.BallLight);
-        _ = self.item_inventory.add(.BallHeavy);
-        _ = self.item_inventory.add(.BallArmored);
-        _ = self.item_inventory.add(.BallHealthy);
-        _ = self.item_inventory.add(.BallSpiky);
+        // _ = self.item_inventory.add(.BallLight);
+        // _ = self.item_inventory.add(.BallHeavy);
+        // _ = self.item_inventory.add(.BallArmored);
+        // _ = self.item_inventory.add(.BallHealthy);
+        // _ = self.item_inventory.add(.BallSpiky);
         self.cue_inventory.reset();
-        _ = self.cue_inventory.add(.CueKar98K);
+        // _ = self.cue_inventory.add(.CueKar98K);
         self.hp = PLAYER_BALLS * 10;
         self.hp_overhead = 0;
     }

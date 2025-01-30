@@ -272,7 +272,9 @@ pub const Ball = struct {
                 self.max_hp += 5;
             },
             .BallArmored => {
-                self.armor += 0.5;
+                if (self.armor == 0.9)
+                    return false;
+                self.armor = @min(0.9, self.armor + 0.05);
             },
             .BallLight => {
                 self.physics.body.inv_mass += 0.1;
