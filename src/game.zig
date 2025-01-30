@@ -51,7 +51,7 @@ const PlayerContext = struct {
 
     pub fn reset(self: *PlayerContext, owner: Owner) void {
         self.item_inventory = ItemInventory.init(owner);
-        // _ = self.item_inventory.add(.BallLight);
+        _ = self.item_inventory.add(.BallLight);
         // _ = self.item_inventory.add(.BallHeavy);
         // _ = self.item_inventory.add(.BallArmored);
         // _ = self.item_inventory.add(.BallHealthy);

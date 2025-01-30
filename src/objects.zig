@@ -1682,7 +1682,7 @@ pub const ItemInventory = struct {
     const ITEM_HEIGHT = 53;
     const ITEM_GAP = 9;
 
-    pub const INFO_PANEL_OFFSET: Vec2 = .{ .y = -180.0 };
+    pub const INFO_PANEL_OFFSET: Vec2 = .{ .y = -300.0 };
     pub const INFO_PANEL_SIZE: Vec2 = .{ .x = 280.0, .y = 300.0 };
 
     pub fn init(owner: Owner) ItemInventory {
@@ -1851,7 +1851,7 @@ pub const ItemInventory = struct {
                 if (hi == i) {
                     object.tint = Color.from_parts(250, 250, 250, 32);
                     object.options.with_tint = true;
-                    add_info_panel(context, self.owner, ip, item_info);
+                    info_panel(context, self.owner, ip, item);
                 }
             }
             if (self.selected_index) |si| {
@@ -1869,39 +1869,18 @@ pub const ItemInventory = struct {
         }
     }
 
-    fn add_info_panel(
+    fn info_panel(
         context: *GlobalContext,
         owner: Owner,
         ip: Vec2,
-        item_info: Item.Info,
+        item: Item.Tag,
     ) void {
         const panel_position = if (!context.state.in_game_shop and owner == .Player)
             ip.add(INFO_PANEL_OFFSET)
         else
             ip.add(INFO_PANEL_OFFSET.neg());
-        const info_panel = UiPanel.init(
-            panel_position,
-            context.assets.button,
-            null,
-        );
-        info_panel.to_screen_quad(context);
 
-        _ = UiText.to_screen_quads(
-            context,
-            panel_position.add(.{ .y = -40.0 }),
-            32.0,
-            "{s}",
-            .{item_info.name},
-            .{},
-        );
-        _ = UiText.to_screen_quads(
-            context,
-            panel_position.add(.{ .y = -20.0 }),
-            32.0,
-            "{s}",
-            .{item_info.description},
-            .{},
-        );
+        _ = Shop.draw_item(context, item, panel_position, false);
     }
 };
 
@@ -1975,20 +1954,24 @@ pub const Shop = struct {
         self.items[self.selected_item.?] = .Invalid;
     }
 
-    pub fn draw_item(
-        self: Shop,
-        context: *GlobalContext,
+    pub fn item_position(
         index: u8,
-    ) bool {
-        const item = self.items[index];
-        if (item == .Invalid)
-            return false;
-
-        const position = CAMERA_IN_GAME_SHOP.add(.{
+    ) Vec2 {
+        return CAMERA_IN_GAME_SHOP.add(.{
             .x = -ITEM_PANEL_DIFF / 2.0 * (MAX_ITEMS - 1) +
                 @as(f32, @floatFromInt(index)) * ITEM_PANEL_DIFF,
             .y = 20.0,
         });
+    }
+
+    pub fn draw_item(
+        context: *GlobalContext,
+        item: Item.Tag,
+        position: Vec2,
+        show_price: bool,
+    ) bool {
+        if (item == .Invalid)
+            return false;
 
         const collision_rectangle: Physics.Rectangle = .{
             .size = ITEM_PANEL_SIZE,
@@ -2037,19 +2020,21 @@ pub const Shop = struct {
             .{item_info.description},
             .{},
         );
-        _ = UiText.to_screen_quads(
-            context,
-            position.add(.{ .x = -10.0, .y = 220 }),
-            TEXT_SIZE_PRICE,
-            "Cost: {d}",
-            .{item_info.price},
-            .{},
-        );
-        UiPanel.init(
-            position.add(.{ .x = 90.0, .y = 205 }),
-            context.assets.souls,
-            null,
-        ).to_screen_quad(context);
+        if (show_price) {
+            _ = UiText.to_screen_quads(
+                context,
+                position.add(.{ .x = -10.0, .y = 220 }),
+                TEXT_SIZE_PRICE,
+                "Cost: {d}",
+                .{item_info.price},
+                .{},
+            );
+            UiPanel.init(
+                position.add(.{ .x = 90.0, .y = 205 }),
+                context.assets.souls,
+                null,
+            ).to_screen_quad(context);
+        }
 
         return is_hovered;
     }
@@ -2057,9 +2042,13 @@ pub const Shop = struct {
     pub fn update_and_draw(self: *Shop, context: *GlobalContext, game: *Game) ?Item.Tag {
         var item_clicked: ?Item.Tag = null;
         for (0..self.items.len) |i| {
-            const hovered = self.draw_item(
+            const ip = item_position(@intCast(i));
+            const item = self.items[i];
+            const hovered = draw_item(
                 context,
-                @intCast(i),
+                item,
+                ip,
+                true,
             );
             if (hovered and context.input.lmb == .Pressed) {
                 item_clicked = self.items[i];
