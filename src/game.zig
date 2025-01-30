@@ -337,9 +337,11 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
         .Shooting => {
             const sb = self.selected_ball.?;
             const selected_ball = &self.balls[sb];
-            const ball_position = selected_ball.physics.body.position;
-            const hit_vector = context.input.mouse_pos_world.sub(ball_position);
             const selected_cue = entity.cue_inventory.selected();
+
+            const ball_position = selected_ball.physics.body.position;
+            const cue_position = selected_cue.position;
+            const hit_vector = cue_position.sub(ball_position);
             if (selected_cue.move_shoot(
                 context,
                 ball_position,
