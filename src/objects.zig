@@ -1847,14 +1847,14 @@ pub const ItemInventory = struct {
             };
             if (self.hovered_index) |hi| {
                 if (hi == i) {
-                    object.tint = Color.BLUE;
+                    object.tint = Color.from_parts(250, 250, 250, 32);
                     object.options.with_tint = true;
                     add_info_panel(context, self.owner, ip, item_info);
                 }
             }
             if (self.selected_index) |si| {
                 if (si == i) {
-                    object.tint = Color.GREEN;
+                    object.tint = Color.from_parts(186, 149, 17, 128);
                     object.options.with_tint = true;
                 }
                 self.dashed_line.to_screen_quads(context);

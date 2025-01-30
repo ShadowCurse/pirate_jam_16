@@ -25,9 +25,6 @@ pub const CAMERA_IN_GAME: Vec2 = .{};
 pub const CAMERA_IN_GAME_SHOP: Vec2 = .{ .y = 640 };
 pub const CAMERA_END_GAME: Vec2 = .{ .y = -1000.0 };
 
-pub const UI_BACKGROUND_COLOR = Color.GREY;
-pub const UI_BACKGROUND_COLOR_PLAYING = Color.GREEN;
-
 pub const UiPanel = struct {
     position: Vec2,
     tint: ?Color,
