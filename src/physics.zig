@@ -155,11 +155,11 @@ pub fn layout_balls(
 pub fn layout_table(self: *Self) void {
     const WIDTH = 998;
     const HEIGTH = 545;
-    const BORDER = 36;
-    const POCKET_GAP = 52;
-    const POCKET_CENTER_GAP = 42;
+    const BORDER = 43;
+    const POCKET_GAP = 67;
+    const POCKET_CENTER_GAP = 47;
     const POCKET_RADIUS = 35;
-    const POCKET_CORNER_OFFSET = 15;
+    const POCKET_CORNER_OFFSET = 25;
 
     self.borders = .{
         // left
