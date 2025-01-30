@@ -417,19 +417,39 @@ pub fn main_menu(game: *Game, context: *GlobalContext) void {
         );
     }
     {
+        _ = UiText.to_screen_quads(
+            context,
+            CAMERA_MAIN_MENU.add(.{ .x = 5.0, .y = 88.0 }),
+            60.0,
+            "Volume",
+            .{},
+            .{},
+        );
+    }
+    {
         const S = struct {
             fn on_press(args: anytype) void {
-                args.context.state.settings = true;
-                args.context.state_change_animation.set(CAMERA_SETTINGS, .{
-                    .settings = true,
-                    .debug = args.context.state.debug,
-                });
+                args.context.adjust_volume(0.05);
             }
         };
         add_button(
             context,
-            CAMERA_MAIN_MENU.add(.{ .y = 80.0 }),
-            "Settings",
+            CAMERA_MAIN_MENU.add(.{ .x = 180.0, .y = 80.0 }),
+            "+",
+            S.on_press,
+            .{ .context = context },
+        );
+    }
+    {
+        const S = struct {
+            fn on_press(args: anytype) void {
+                args.context.adjust_volume(-0.05);
+            }
+        };
+        add_button(
+            context,
+            CAMERA_MAIN_MENU.add(.{ .x = -180.0, .y = 80.0 }),
+            "-",
             S.on_press,
             .{ .context = context },
         );

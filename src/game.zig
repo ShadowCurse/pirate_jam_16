@@ -479,12 +479,12 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                                 0.0,
                                 1.0,
                             );
-                            const right_volume = (c.collision.position.x + 1280.0 / 2.0) / 1280.0;
-                            const left_volume = 1.0 - right_volume;
-                            context.audio.play(
+                            const rv = (c.collision.position.x + 1280.0 / 2.0) / 1280.0;
+                            const lv = 1.0 - rv;
+                            context.play_audio(
                                 context.assets.sound_ball_hit,
-                                left_volume * hit_volume,
-                                right_volume * hit_volume,
+                                lv * hit_volume,
+                                rv * hit_volume,
                             );
 
                             const ball_2 = &self.balls[ball_2_id];
@@ -519,7 +519,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
 
                             const rv = (pocket.body.position.x + 1280.0 / 2.0) / 1280.0;
                             const lv = 1.0 - rv;
-                            context.audio.play(
+                            context.play_audio(
                                 context.assets.sound_ball_pocket,
                                 lv * 2.0,
                                 rv * 2.0,

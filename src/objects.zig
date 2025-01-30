@@ -875,17 +875,17 @@ pub const Cue = struct {
         const right_volume = (end_postion.x + 1280.0 / 2.0) / 1280.0;
         const left_volume = 1.0 - right_volume;
         switch (self.tag) {
-            .CueDefault => context.audio.play(
+            .CueDefault => context.play_audio(
                 context.assets.sound_cue_hit,
                 left_volume * hit_volume,
                 right_volume * hit_volume,
             ),
-            .CueKar98K => context.audio.play(
+            .CueKar98K => context.play_audio(
                 context.assets.sound_kar98k_fire,
                 left_volume * hit_volume * 0.15,
                 right_volume * hit_volume * 0.15,
             ),
-            .CueCross => context.audio.play(
+            .CueCross => context.play_audio(
                 context.assets.sound_cross_hit,
                 left_volume,
                 right_volume,

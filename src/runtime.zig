@@ -154,6 +154,7 @@ pub const GlobalContext = struct {
     screen_quads: ScreenQuads,
     texture_store: Textures.Store,
     audio: Audio,
+    global_audio_volume: f32,
     font: Font,
     assets: Assets,
     state: State,
@@ -174,6 +175,7 @@ pub const GlobalContext = struct {
         self.screen_quads = ScreenQuads.init(memory, 8192) catch unreachable;
         self.texture_store.init(memory) catch unreachable;
         self.audio.init(memory, 1.0) catch unreachable;
+        self.global_audio_volume = 0.3;
         self.font = Font.init(memory, &self.texture_store, "assets/rm-albion.regular.ttf", 64);
 
         self.assets.ball_player = self.texture_store.load(
@@ -375,6 +377,33 @@ pub const GlobalContext = struct {
         self.screen_quads.reset();
     }
 
+    pub fn play_audio(
+        self: *GlobalContext,
+        audio_id: SoundtrackId,
+        left_volume: f32,
+        right_volume: f32,
+    ) void {
+        self.audio.play(
+            audio_id,
+            left_volume * self.global_audio_volume,
+            right_volume * self.global_audio_volume,
+        );
+    }
+
+    pub fn adjust_volume(self: *GlobalContext, delta: f32) void {
+        self.global_audio_volume += delta;
+        self.global_audio_volume = std.math.clamp(self.global_audio_volume, 0.0, 1.0);
+
+        if (self.audio.is_playing(self.assets.sound_background))
+            self.audio.set_volume(
+                self.assets.sound_background,
+                self.global_audio_volume,
+                0.1,
+                self.global_audio_volume,
+                0.1,
+            );
+    }
+
     pub fn update(
         self: *GlobalContext,
         events: []const Events.Event,
@@ -433,7 +462,7 @@ const Runtime = struct {
         self.context.reset();
 
         if (!self.context.audio.is_playing(self.context.assets.sound_background))
-            self.context.audio.play(
+            self.context.play_audio(
                 self.context.assets.sound_background,
                 1.0,
                 1.0,
