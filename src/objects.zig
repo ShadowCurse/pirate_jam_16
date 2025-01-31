@@ -2025,7 +2025,7 @@ pub const Shop = struct {
                 context,
                 position.add(.{ .x = -10.0, .y = 220 }),
                 TEXT_SIZE_PRICE,
-                "Cost: {d}",
+                "Cost: {d:.0}",
                 .{item_info.price},
                 .{},
             );
@@ -2070,7 +2070,7 @@ pub const Shop = struct {
             context,
             REROLL_BUTTON_POSITION.add(BUTTON_TEXT_OFFSET),
             50.0,
-            "Reroll: 5",
+            "Reroll: 1",
             .{},
             .{},
         );
@@ -2081,7 +2081,7 @@ pub const Shop = struct {
         ).to_screen_quad(context);
 
         if (panel_hovered and context.player_input.lmb == .Pressed) {
-            if (5 < game.player.hp_overhead) {
+            if (1 < game.player.hp_overhead) {
                 game.player.hp_overhead -= 5;
                 self.reroll();
             }

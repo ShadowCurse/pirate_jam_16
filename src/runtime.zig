@@ -294,7 +294,7 @@ pub const GlobalContext = struct {
             \\Increases the ball
             \\damage by 5
             ,
-            .price = 15,
+            .price = 2,
         };
         self.item_infos.get_mut(.BallHealthy).* = .{
             .texture_id = self.assets.ball_healthy,
@@ -303,7 +303,7 @@ pub const GlobalContext = struct {
             \\Increases the ball
             \\HP by 5
             ,
-            .price = 10,
+            .price = 1,
         };
         self.item_infos.get_mut(.BallArmored).* = .{
             .texture_id = self.assets.ball_armored,
@@ -312,19 +312,19 @@ pub const GlobalContext = struct {
             \\Increases the damage 
             \\negation of the ball by 5%
             ,
-            .price = 15,
+            .price = 2,
         };
         self.item_infos.get_mut(.BallLight).* = .{
             .texture_id = self.assets.ball_light,
             .name = "Light ball",
             .description = "Makes a ball lighter",
-            .price = 5,
+            .price = 1,
         };
         self.item_infos.get_mut(.BallHeavy).* = .{
             .texture_id = self.assets.ball_heavy,
             .name = "Heavy ball",
             .description = "Makes a ball heavier",
-            .price = 5,
+            .price = 1,
         };
         self.item_infos.get_mut(.BallAntisocial).* = .{
             .texture_id = Textures.Texture.ID_DEBUG,
@@ -334,7 +334,7 @@ pub const GlobalContext = struct {
             \\velocity when collides
             \\with other balls
             ,
-            .price = 20,
+            .price = 10,
         };
         self.item_infos.get_mut(.BallGravity).* = .{
             .texture_id = Textures.Texture.ID_DEBUG,
@@ -343,7 +343,7 @@ pub const GlobalContext = struct {
             \\Pushes all balls away
             \\in a small radius
             ,
-            .price = 100,
+            .price = 10,
         };
         self.item_infos.get_mut(.BallRunner).* = .{
             .texture_id = Textures.Texture.ID_DEBUG,
@@ -353,7 +353,7 @@ pub const GlobalContext = struct {
             \\to the distance traveled
             \\during the turn
             ,
-            .price = 150,
+            .price = 15,
         };
         self.item_infos.get_mut(.BallRingOfLight).* = .{
             .texture_id = Textures.Texture.ID_DEBUG,
@@ -366,7 +366,7 @@ pub const GlobalContext = struct {
             \\heal/damage rules as if balls
             \\did actually collide.
             ,
-            .price = 80,
+            .price = 10,
         };
 
         self.item_infos.get_mut(.CueScope).* = .{
@@ -376,7 +376,7 @@ pub const GlobalContext = struct {
             \\Adds a trajectory line
             \\when aiming the cue
             ,
-            .price = 15,
+            .price = 2,
         };
         self.item_infos.get_mut(.CueSilencer).* = .{
             .texture_id = self.assets.silencer_icon,
@@ -387,7 +387,7 @@ pub const GlobalContext = struct {
             \\balls and only collide
             \\with the first enemy ball
             ,
-            .price = 40,
+            .price = 4,
         };
         self.item_infos.get_mut(.CueRocketBooster).* = .{
             .texture_id = self.assets.rocket_booster_icon,
@@ -396,7 +396,7 @@ pub const GlobalContext = struct {
             \\Increases the strength
             \\of the hit
             ,
-            .price = 25,
+            .price = 3,
         };
 
         self.item_infos.get_mut(.CueDefault).* = .{
@@ -414,7 +414,7 @@ pub const GlobalContext = struct {
             \\to all enemy balls in
             \\a straight line
             ,
-            .price = 100,
+            .price = 10,
         };
         self.item_infos.get_mut(.CueCross).* = .{
             .texture_id = self.assets.cue_cross,
@@ -426,7 +426,7 @@ pub const GlobalContext = struct {
             \\enemy balls by 5 in a small 
             \\radius around the hit ball
             ,
-            .price = 100,
+            .price = 10,
         };
 
         self.dt = 0.0;

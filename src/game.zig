@@ -53,7 +53,8 @@ const PlayerContext = struct {
 
     pub fn reset(self: *PlayerContext, owner: Owner) void {
         self.item_inventory = ItemInventory.init(owner);
-        _ = self.item_inventory.add(.BallLight);
+        _ = self.item_inventory.add(.CueRocketBooster);
+        // _ = self.item_inventory.add(.BallLight);
         _ = self.item_inventory.add(.BallHeavy);
         _ = self.item_inventory.add(.BallArmored);
         _ = self.item_inventory.add(.BallHealthy);
@@ -188,8 +189,6 @@ pub fn rules(self: *Self, context: *GlobalContext) void {
 }
 
 pub fn in_game(self: *Self, context: *GlobalContext) void {
-    UI.in_game(self, context);
-
     if (self.turn_owner == .Opponent) {
         self.ai.update(context, self);
     } else context.input = context.player_input;
@@ -213,6 +212,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             _ = self.player.cue_inventory.update_and_draw(context, null, false);
             self.player.cue_inventory.selected().move_storage();
         }
+        UI.in_game(self, context);
         const mouse_rect: Object2d = .{
             .type = .{ .TextureId = context.assets.opponent_hand },
             .transform = .{
