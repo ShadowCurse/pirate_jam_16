@@ -870,7 +870,7 @@ pub const Cue = struct {
         );
 
         const hit_volume = std.math.clamp(
-            strength / 800.0,
+            strength / 100.0,
             0.0,
             1.0,
         );
@@ -884,8 +884,8 @@ pub const Cue = struct {
             ),
             .CueKar98K => context.play_audio(
                 context.assets.sound_kar98k_fire,
-                left_volume * hit_volume * 0.15,
-                right_volume * hit_volume * 0.15,
+                left_volume,
+                right_volume,
             ),
             .CueCross => context.play_audio(
                 context.assets.sound_cross_hit,

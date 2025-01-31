@@ -60,7 +60,8 @@ const PlayerContext = struct {
         _ = self.item_inventory.add(.BallHealthy);
         _ = self.item_inventory.add(.BallSpiky);
         self.cue_inventory.reset();
-        // _ = self.cue_inventory.add(.CueKar98K);
+        _ = self.cue_inventory.add(.CueKar98K);
+        // _ = self.cue_inventory.add(.CueCross);
         self.hp = PLAYER_BALLS * 10;
         self.hp_overhead = 0;
     }
@@ -256,10 +257,10 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             break :blk r;
         };
         if (r.upgrade_applied) {
-            context.audio.play(
+            context.play_audio(
                 context.assets.sound_item_use,
-                0.2,
-                0.2,
+                1.0,
+                1.0,
             );
             entity.item_inventory.item_used();
         }
@@ -284,10 +285,10 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
         selected_item,
         self.selected_ball == null,
     )) {
-        context.audio.play(
+        context.play_audio(
             context.assets.sound_item_use,
-            0.2,
-            0.2,
+            1.0,
+            1.0,
         );
         entity.item_inventory.item_used();
     }
@@ -503,7 +504,7 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                         },
                         .Ball => |ball_2_id| {
                             const hit_volume = std.math.clamp(
-                                ball.physics.body.velocity.len() / 500.0,
+                                ball.physics.body.velocity.len() / 50.0,
                                 0.0,
                                 1.0,
                             );
