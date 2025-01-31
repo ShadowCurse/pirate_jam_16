@@ -508,9 +508,9 @@ pub fn rules(context: *GlobalContext) void {
         \\  During the turn, special collision rules apply for friendly (turn owners) and opponents balls:
         \\- If a friendly ball collides with another friendly ball: both heal 1 HP
         \\- If a friendly ball collides  with an opponent's ball: friendly ball heals by its
-        \\DAMAGE value. Opponent's ball loses HP equat to the friendly ball DAMAGE.
+        \\DAMAGE value. Opponent's ball loses HP equal to the friendly ball DAMAGE.
         \\- If opponent's ball hits opponent's ball: nothing happens
-        \\  If player's ball looses all  HP or is pocketted, it is permenantly removed from the field.
+        \\  If player's ball looses all  HP or is pocketed, it is permanently removed from the field.
         \\If player's ball  HP was full  when it was healed, the heal amount is converted into souls     .
         \\Souls act as a currency in the game. Players can buy upgrades and other cue in the shop.
         \\Each player starts with a default cue. There is one slot for an additional one. 
