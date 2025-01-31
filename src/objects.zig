@@ -400,7 +400,10 @@ pub const Ball = struct {
         const INFO_PANEL_TEXT_SIZE = 35;
         const INFO_PANEL_OFFSET: Vec2 = .{ .y = -180.0 };
 
-        const panel_position = self.physics.body.position.add(INFO_PANEL_OFFSET);
+        const panel_position = if (self.physics.body.position.y < 0.0)
+            self.physics.body.position.add(INFO_PANEL_OFFSET.neg())
+        else
+            self.physics.body.position.add(INFO_PANEL_OFFSET);
         const info_panel = UiPanel.init(
             panel_position,
             context.assets.ball_info_panel,
@@ -435,8 +438,8 @@ pub const Ball = struct {
                 context,
                 panel_position.add(.{ .x = -110.0, .y = -40.0 }),
                 INFO_PANEL_TEXT_SIZE,
-                "Armor: {d:.0}",
-                .{self.armor},
+                "Armor: {d:.0}%",
+                .{self.armor * 100.0},
                 .{ .center = false },
             );
         }
@@ -2082,7 +2085,7 @@ pub const Shop = struct {
 
         if (panel_hovered and context.player_input.lmb == .Pressed) {
             if (1 < game.player.hp_overhead) {
-                game.player.hp_overhead -= 5;
+                game.player.hp_overhead -= 1;
                 self.reroll();
             }
         }

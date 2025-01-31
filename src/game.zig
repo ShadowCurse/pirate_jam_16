@@ -397,8 +397,10 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                 }
                 if (selected_cue.tag == .CueCross) {
                     for (&self.balls) |*ball| {
-                        if (ball.id == selected_ball.id)
+                        if (ball.id == selected_ball.id) {
+                            ball.hp += Cue.CrossAnimation.HEAL;
                             continue;
+                        }
                         const d =
                             selected_ball.physics.body.position
                             .sub(ball.physics.body.position).len();
@@ -454,10 +456,6 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                         new_opponent_hp += ball.hp;
                     },
                 }
-                if (ball.hp <= 0) {
-                    ball.physics.state.dead = true;
-                }
-
                 for (pr.collisions) |c| {
                     if (c.ball_id != ball.id)
                         continue;
@@ -547,6 +545,9 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
                             );
                         },
                     }
+                }
+                if (ball.hp <= 0) {
+                    ball.physics.state.dead = true;
                 }
             }
             self.player.hp = new_player_hp;

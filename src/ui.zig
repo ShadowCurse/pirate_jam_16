@@ -396,6 +396,31 @@ pub fn add_button(
 pub fn main_menu(game: *Game, context: *GlobalContext) void {
     {
         const S = struct {
+            var a: f32 = 0;
+        };
+        S.a += context.dt;
+
+        const s = @sin(S.a);
+        const text =
+            Text.init(
+            &context.font,
+            "THE  POO L  OF  DESTI NY",
+            80.0,
+            CAMERA_MAIN_MENU.add(.{ .x = 10.0 + s * 2.0, .y = -170.0 - s * 3.0 }).extend(0.0),
+            s * 0.02,
+            .{ .x = 400.0, .y = 0.0 },
+            .{ .dont_clip = true, .center = true },
+        );
+
+        text.to_screen_quads_world_space(
+            context.alloc(),
+            &context.camera,
+            &context.screen_quads,
+        );
+    }
+
+    {
+        const S = struct {
             fn on_press(args: anytype) void {
                 args.game.restart(args.context);
                 args.context.state.in_game = true;
@@ -686,7 +711,7 @@ pub fn in_end_game_won(game: *Game, context: *GlobalContext) void {
         add_button(
             context,
             CAMERA_END_GAME,
-            "Go Again",
+            "Again",
             S.on_press,
             .{ .game = game, .context = context },
         );
@@ -704,7 +729,7 @@ pub fn in_end_game_won(game: *Game, context: *GlobalContext) void {
         add_button(
             context,
             CAMERA_END_GAME.add(.{ .y = 100.0 }),
-            "I'VE HAD ENOUGH",
+            "Exit",
             S.on_press,
             .{ .context = context },
         );
@@ -735,7 +760,7 @@ pub fn in_end_game_lost(game: *Game, context: *GlobalContext) void {
         add_button(
             context,
             CAMERA_END_GAME,
-            "Try Again",
+            "Again",
             S.on_press,
             .{
                 .game = game,
