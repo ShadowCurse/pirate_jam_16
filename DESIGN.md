@@ -47,10 +47,12 @@ opponents balls.
 during the game. Total player HP is a sum of HP of all player balls.
 When total  player HP drops down to 0, player looses. 
   During the turn, special collision rules apply for friendly (turn owners) and opponents balls:
+
 - If a friendly ball collides with another friendly ball: both heal 1 HP
 - If a friendly ball collides  with an opponent's ball: friendly ball heals by its
 DAMAGE value. Opponent's ball loses HP equal to the friendly ball DAMAGE.
 - If opponent's ball hits opponent's ball: nothing happens
+
   If player's ball looses all HP or is pocketed, it is permanently removed from the field.
 If player's ball  HP was full when it was healed, the heal amount is converted into souls     .
 Souls act as a currency in the game. Players can buy upgrades and other cue in the shop.
@@ -118,6 +120,7 @@ Mouse and LMB arm only inputs the game needs to operate.
 01/17/2025
 - Brain storm ideas for the jam
 - Setup new repo for the project
+
 01/18/2025
 - Create a debug poll table and draw it
 - Create debug circle texture and draw some balls
@@ -128,6 +131,7 @@ Mouse and LMB arm only inputs the game needs to operate.
 - Add ball colliders
 - Add multiple balls
 - Hit balls with mouse drag
+
 01/19/2025
 - Add pocket colliders
 - Make balls selectable with (use texture with white outline for selected one)
@@ -136,6 +140,7 @@ Mouse and LMB arm only inputs the game needs to operate.
 - And more physics
 - Button map
 - State transition animations
+
 01/20/2025
 - Impulse based collision resolution
 - Game states
@@ -143,6 +148,7 @@ Mouse and LMB arm only inputs the game needs to operate.
 - Game state transitions
 - Basic in game UI
 - Basic game play loop (turns, score, restart)
+
 01/21/2025
 - More gameplay mechanics around HP
 - Basic cue implementation
@@ -151,6 +157,7 @@ Mouse and LMB arm only inputs the game needs to operate.
 - Make cue hit the ball with constant force
 - Make hit force adjustable
 - Basic shop menu
+
 01/22/2025
 - Basic item usage
 - Figure out inventory and item usage
@@ -159,6 +166,7 @@ Mouse and LMB arm only inputs the game needs to operate.
 - Item/Cue highlight
 - Window resolution change
 - Basic shop item reroll and buy logic
+
 01/23/2025
 - Refactor game to use global context
 - Use custom UiText instead of default Text
@@ -167,16 +175,19 @@ Mouse and LMB arm only inputs the game needs to operate.
 - Create initial poll ball layout
 - Opponent AI
 - Ball can die, win/lost conditions
+
 01/25/2025
 - Fix physics
 - Fix physics friction (at 60 FPS it is too high)
 - Fix balls clipping through the borders
 - Not allow player to use opponent's items
+
 01/26/2025
 - Fix ordering of drawable objects + add proper Z levels
 - Maybe remove sorting of quads as they are quite big in size
 - Add basic item description
 - Add a new line handling to the text rendering
+
 01/27/2025
 - Add basic sprites for panels
 - Select new font
@@ -184,6 +195,7 @@ Mouse and LMB arm only inputs the game needs to operate.
 - Create panels for shop
 - Cue controls update
 - Ball selection input update
+
 01/28/2025
 - Better selected/upgradable cue visuals
 - One time use cues
@@ -193,17 +205,23 @@ Mouse and LMB arm only inputs the game needs to operate.
 - Create panels for ball info
 - Add bouncy,antigrav and runner ball upgrades
 - Add ring of light and ghost ball upgrades/mods
+
 01/29/2025
 - Kar98k hit animation + damage effect
 - Cross hit animation + damage effect
 - Fix AI hitting in opposite direction
 - All cue upgrades
+
 01/30/2025
 - Add proper item icons
 - Add sounds + SFX
 - Cue hitting adjustments
 - Add screen with rules
 - Proper item descriptions
+
+01/31/2025
+- Add remaining ball upgrade icons
+- Finalize design doc
 
 ### Assets used:
 
