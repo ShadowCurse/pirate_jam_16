@@ -60,8 +60,8 @@ const PlayerContext = struct {
         _ = self.item_inventory.add(.BallHealthy);
         _ = self.item_inventory.add(.BallSpiky);
         self.cue_inventory.reset();
-        _ = self.cue_inventory.add(.CueKar98K);
-        // _ = self.cue_inventory.add(.CueCross);
+        // _ = self.cue_inventory.add(.CueKar98K);
+        _ = self.cue_inventory.add(.CueCross);
         self.hp = PLAYER_BALLS * 10;
         self.hp_overhead = 0;
     }

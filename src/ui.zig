@@ -764,15 +764,21 @@ pub fn in_end_game_lost(game: *Game, context: *GlobalContext) void {
 }
 
 pub fn debug(context: *GlobalContext) void {
-    _ = UiText.to_screen_quads(
-        context,
+    const text_fps = Text.init(
+        &context.font,
+        std.fmt.allocPrint(
+            context.alloc(),
+            "FPS: {d:.1}\nFT: {d:.3}s",
+            .{ 1.0 / context.dt, context.dt },
+        ) catch unreachable,
+        32.0,
         .{
             .x = 1280.0 / 2.0,
-            .y = 720.0 / 2.0 + 300.0,
+            .y = 720 / 2.0 + 300.0,
         },
-        32.0,
-        "FPS: {d:.1} FT: {d:.3}s",
-        .{ 1.0 / context.dt, context.dt },
+        0.0,
         .{},
+        .{ .dont_clip = true },
     );
+    text_fps.to_screen_quads(context.alloc(), &context.screen_quads);
 }

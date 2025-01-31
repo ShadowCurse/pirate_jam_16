@@ -523,7 +523,10 @@ pub const Table = struct {
                 .x = @floatFromInt(context.texture_store.get_texture(self.texture_id).width),
                 .y = @floatFromInt(context.texture_store.get_texture(self.texture_id).height),
             },
-            .options = .{ .no_alpha_blend = true },
+            .options = .{
+                .no_alpha_blend = true,
+                .no_scale_rotate = true,
+            },
         };
         table_object.to_screen_quad(
             &context.camera,
@@ -756,6 +759,7 @@ pub const Cue = struct {
                 color.format.a = transparency;
                 particle.object.type = .{ .Color = color };
             }
+            particle.object.options = .{ .no_scale_rotate = true, .no_alpha_blend = true };
         }
     };
 

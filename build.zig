@@ -4,6 +4,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const limit_fps: u32 = 240;
     const game_memory_mb: u32 = 128;
     const frame_memory_mb: u32 = 0;
     const scratch_memory_pages: u32 = 4096;
@@ -13,6 +14,7 @@ pub fn build(b: *std.Build) void {
     const stygian = b.dependency("stygian", .{
         .target = target,
         .optimize = optimize,
+        .limit_fps = limit_fps,
         .game_memory_mb = game_memory_mb,
         .frame_memory_mb = frame_memory_mb,
         .scratch_memory_pages = scratch_memory_pages,
