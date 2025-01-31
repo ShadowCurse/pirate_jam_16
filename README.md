@@ -1,5 +1,6 @@
 # Game for the PirateJam16
 
+Itch.io link: https://shadowcurse.itch.io/the-pool-of-destiny
 The design document is [here](DESIGN.md).
 
 ### Assets used
