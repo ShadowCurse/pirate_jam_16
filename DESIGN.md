@@ -4,9 +4,9 @@
 
 ## Game idea / pitch
 
-The game is a non standard pool game where player needs to destroy opponent balls by dealing damage
-to them. Players can use alternative cues and apply upgrades to their cues and balls in order to 
-enhance the gameplay.
+The game is a non-standard pool game where the player needs to destroy opponent balls by dealing 
+damage to them. Players can use alternative cues and apply upgrades to their cues and balls 
+in order to enhance the gameplay.
 
 # Inspiration
 
@@ -17,20 +17,20 @@ This prompts the player to seek more advanced strategies to win the game.
 
 ## Player experience
 
-The whole game happens at a pool table. There is only 1 game to play. Players take turns and can
-hit any single ball assigned to them. Additionally players can buy cue/ball upgrades from the shop
-in order to deal more damage to the opponent or heal their balls. Players need to apply strategy
-and learn shop items effects in order to have more chances of winning. 
+The whole game happens at a pool table. There is only 1 game to play. Players take turns and can 
+hit any single ball assigned to them. Additionally players can buy cue/ball upgrades from the shop 
+in order to deal more damage to the opponent or heal their balls. Players need to apply strategy 
+and learn shop items effects in order to have more chances of winning.
 
 ## Platform
 
-The game is developed on Linux, but also capable of running in the Web.
+The game is developed on Linux, but also capable of running on the Web.
 
 # Development Software
 
-- Game is build from scratch and uses software renderering.
+- Game is built from scratch with a custom software renderer
 - Aseprite for 2D textures
-- Audacity for soundtrack conversions.
+- Audacity for soundtrack conversions
 
 ## Genre
 
@@ -40,54 +40,48 @@ Action, Casual, Simulation
 
 ## Gameplay overview
 
-There are 2 players in the game. Each one starts with 15 balls.
+There are 2 players in the game. Each one starts with 15 balls. 
 Players take turns and use cues to hit any of their balls. The goal of the game is to destroy all
 opponents balls.
 
-Each ball starts with 10 HP, 5 DAMAGE and 0 ARMOR. These values can by upgraded
-during the game. Total player HP is a sum of HP of all player balls.
-When total  player HP drops down to 0, player looses. 
-  During the turn, special collision rules apply for friendly (turn owners) and opponents balls:
+Each ball starts with 10 HP, 5 DAMAGE and 0 ARMOR. These values can be upgraded during the game. 
+Total player HP is a sum of HP of all player balls. When total player HP drops down to 0, player 
+loses. During the turn, special collision rules apply for friendly (turn owners) and opponents balls:
 
 - If a friendly ball collides with another friendly ball: both heal 1 HP
-- If a friendly ball collides  with an opponent's ball: friendly ball heals by its
-DAMAGE value. Opponent's ball loses HP equal to the friendly ball DAMAGE.
+- If a friendly ball collides with an opponent's ball: friendly ball heals by its DAMAGE value. 
+  Opponent's ball loses HP equal to the friendly ball DAMAGE.
 - If opponent's ball hits opponent's ball: nothing happens
 
-If player's ball looses all HP or is pocketed, it is permanently removed from the field.
-If player's ball  HP was full when it was healed, the heal amount is converted into souls     .
-Souls act as a currency in the game. Players can buy upgrades and other cue in the shop.
-Each player starts with a default cue. There is one slot for an additional one. 
+If a player's ball loses all HP or is pocketed, it is permanently removed from the field. 
+If the player's ball HP was full when it was healed, the heal amount is converted into souls.
+Souls act as a currency in the game. Players can buy upgrades and other cues in the shop.
+Each player starts with a default cue. There is one slot for an additional one.
 Additional cues can be used only once.
 
 ## Theme interpretation (You are the weapon)
 
-The game is a game of life and death. Player's life is infused into balls and these balls
+The game is a game of life and death. Player's life is infused into balls and these balls 
 are used to kill the opponent by destroying all his balls.
 
 ## Primary mechanics
 
-- Ball hit:
-    Standard pool mechanic. Player hits the ball with a cue. This applies an instantaneous velocity
-    change in the ball which propels it forward.
-- Ball collision
+ - Ball hit:
+    Standard pool mechanic. Player hits the ball with a cue. This applies an instantaneous velocity change in the ball which propels it forward.
+ - Ball collision:
     Standard pool mechanic. Balls collide with other balls, table borders or table pockets.
-- Ball interactions
+ - Ball interactions:
     Balls have special rules when it comes to the collision with other balls:
-    - If 2 friendly balls collide they heal each other
-    - If friendly and opponent's ball collide, friendly ball is healed and opponent's ball take 
-    damage.
-- Souls
-    When friendly balls receive heal in any form, but their HP are already full, the heal value 
-    is converted into souls. Souls act as a currency in the game to buy items.
-- Ball upgrades
-    Balls have characteristics such as HP, DAMAGE, ARMOR and effects like Bouncy etc. Balls can
-    be upgrade with items bought from the shop.
-- Cue upgrades
-    Cues can be upgraded with items from the shop. The example is the scope upgrade that shows the
-    hit ball trajectory.
-- Alternative cues
-    In addition to the default pool cue, player can buy alternative cues each with special effects.
+     - If 2 friendly balls collide they heal each other
+     - If a friendly and opponent's ball collide, the friendly ball is healed and the opponent's ball takes damage.
+ - Souls:
+    When friendly balls receive heal in any form, but their HP are already full, the heal value is converted into souls. Souls act as a currency in the game to buy items.
+ - Ball upgrades:
+    Balls have characteristics such as HP, DAMAGE, ARMOR and effects like Bouncy etc. Balls can be upgraded with items bought from the shop.
+ - Cue upgrades:
+    Cues can be upgraded with items from the shop. The example is the scope upgrade that shows the hit ball trajectory.
+ - Alternative cues:
+    In addition to the default pool cue, players can buy alternative cues each with special effects.
 
 # Art
 
@@ -123,7 +117,7 @@ Mouse and LMB arm only inputs the game needs to operate.
 - Setup new repo for the project
 
 01/18/2025
-- Create a debug poll table and draw it
+- Create a debug pool table and draw it
 - Create debug circle texture and draw some balls
 - Create basic physics
 	- Ball <-> Rectangle collision
@@ -172,8 +166,9 @@ Mouse and LMB arm only inputs the game needs to operate.
 - Refactor game to use global context
 - Use custom UiText instead of default Text
 - opponent item and cue inventories
+
 01/24/2025
-- Create initial poll ball layout
+- Create initial pool ball layout
 - Opponent AI
 - Ball can die, win/lost conditions
 
