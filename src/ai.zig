@@ -36,6 +36,8 @@ stage: Stage,
 tasks: [32]Task,
 tasks_n: u32,
 
+const DEFAULT_POSITION: Vec2 = .{ .x = 300.0, .y = -320.0 };
+
 const Stage = enum {
     Wait,
     StartTurn,
@@ -56,7 +58,9 @@ const Self = @This();
 
 pub fn init(self: *Self) void {
     self.rng = std.rand.DefaultPrng.init(@intCast(std.time.microTimestamp()));
-    self.input = .{};
+    self.input = .{
+        .mouse_pos_world = DEFAULT_POSITION,
+    };
     self.stage = .Wait;
     self.tasks_n = 0;
 }
@@ -76,11 +80,13 @@ pub fn update(
     switch (self.stage) {
         .Wait => {},
         .StartTurn => {
+            self.push_task(MoveMouse.init(self, DEFAULT_POSITION));
             self.push_task(Shoot.init(self));
             self.push_task(SelectBall.init(self));
             self.push_task(SelectCue.init(self));
             self.push_task(UseItem.init(self));
             self.push_task(TryBuyItem.init(self));
+
             self.stage = .Act;
         },
         .Act => {

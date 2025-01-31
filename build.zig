@@ -7,7 +7,7 @@ pub fn build(b: *std.Build) void {
     const game_memory_mb: u32 = 128;
     const frame_memory_mb: u32 = 0;
     const scratch_memory_pages: u32 = 4096;
-    const max_textures: u32 = 32;
+    const max_textures: u32 = 33;
     const max_audio_tracks: u32 = 64;
     const unibuild: bool = target.result.os.tag == .emscripten;
     const stygian = b.dependency("stygian", .{

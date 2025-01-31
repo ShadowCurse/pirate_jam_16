@@ -120,6 +120,9 @@ pub const Input = struct {
 };
 
 pub const Assets = struct {
+    player_hand: Textures.Texture.Id,
+    opponent_hand: Textures.Texture.Id,
+
     ball_player: Textures.Texture.Id,
     ball_opponent: Textures.Texture.Id,
     ball_info_panel: Textures.Texture.Id,
@@ -196,6 +199,11 @@ pub const GlobalContext = struct {
         self.audio.init(memory, 1.0) catch unreachable;
         self.global_audio_volume = 0.3;
         self.font = Font.init(memory, &self.texture_store, "assets/NewRocker-Regular.ttf", 64);
+
+        self.assets.player_hand =
+            self.texture_store.load(self.memory, "assets/player_hand.png");
+        self.assets.opponent_hand =
+            self.texture_store.load(self.memory, "assets/opponent_hand.png");
 
         self.assets.ball_player = self.texture_store.load(
             self.memory,
@@ -551,40 +559,25 @@ const Runtime = struct {
             Tracing.zero_current(TaceableTypes);
         }
 
-        {
-            const mouse_rect: Object2d = .{
-                .type = .{ .Color = Color.ORANGE },
-                .transform = .{
-                    .position = self.context.input.mouse_pos_world.extend(0.0),
-                },
-                .size = .{
-                    .x = 20.0,
-                    .y = 20.0,
-                },
-            };
-            mouse_rect.to_screen_quad(
-                &self.context.camera,
-                &self.context.texture_store,
-                &self.context.screen_quads,
-            );
-        }
-        {
-            const mouse_rect: Object2d = .{
-                .type = .{ .Color = Color.BLUE },
-                .transform = .{
-                    .position = self.context.player_input.mouse_pos_world.extend(0.0),
-                },
-                .size = .{
-                    .x = 10.0,
-                    .y = 10.0,
-                },
-            };
-            mouse_rect.to_screen_quad(
-                &self.context.camera,
-                &self.context.texture_store,
-                &self.context.screen_quads,
-            );
-        }
+        const mouse_rect: Object2d = .{
+            .type = .{ .TextureId = self.context.assets.player_hand },
+            .transform = .{
+                .position = self.context.player_input.mouse_pos_world.extend(0.0),
+            },
+            .size = .{
+                .x = @floatFromInt(
+                    self.context.texture_store.get_texture(self.context.assets.player_hand).width,
+                ),
+                .y = @floatFromInt(
+                    self.context.texture_store.get_texture(self.context.assets.player_hand).height,
+                ),
+            },
+        };
+        mouse_rect.to_screen_quad(
+            &self.context.camera,
+            &self.context.texture_store,
+            &self.context.screen_quads,
+        );
 
         self.soft_renderer.start_rendering();
         self.context.screen_quads.render(
@@ -631,6 +624,7 @@ pub export fn runtime_main(
         const game_alloc = memory.game_alloc();
         runtime_ptr = game_alloc.create(Runtime) catch unreachable;
         runtime_ptr.?.init(window, memory, window_width_u32, window_height_u32) catch unreachable;
+        _ = sdl.SDL_ShowCursor(0);
     } else {
         var runtime = runtime_ptr.?;
         runtime.run(

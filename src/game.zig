@@ -24,6 +24,8 @@ const GamePhysics = @import("physics.zig");
 const UI = @import("ui.zig");
 const AI = @import("ai.zig");
 
+const Object2d = stygian.objects.Object2d;
+
 const _objects = @import("objects.zig");
 const Ball = _objects.Ball;
 const Table = _objects.Table;
@@ -107,6 +109,7 @@ pub fn init(self: *Self, context: *GlobalContext) void {
 
 pub fn restart(self: *Self, context: *GlobalContext) void {
     self.turn_owner = .Player;
+    // self.turn_owner = .Opponent;
     self.turn_state = .NotTaken;
 
     self.player.reset(.Player);
@@ -187,10 +190,9 @@ pub fn rules(self: *Self, context: *GlobalContext) void {
 pub fn in_game(self: *Self, context: *GlobalContext) void {
     UI.in_game(self, context);
 
-    if (self.turn_owner == .Opponent)
-        self.ai.update(context, self)
-    else
-        context.input = context.player_input;
+    if (self.turn_owner == .Opponent) {
+        self.ai.update(context, self);
+    } else context.input = context.player_input;
 
     self.table.to_screen_quad(context);
     if (context.state.debug) {
@@ -211,6 +213,25 @@ pub fn in_game(self: *Self, context: *GlobalContext) void {
             _ = self.player.cue_inventory.update_and_draw(context, null, false);
             self.player.cue_inventory.selected().move_storage();
         }
+        const mouse_rect: Object2d = .{
+            .type = .{ .TextureId = context.assets.opponent_hand },
+            .transform = .{
+                .position = self.ai.input.mouse_pos_world.extend(0.0),
+            },
+            .size = .{
+                .x = @floatFromInt(
+                    context.texture_store.get_texture(context.assets.opponent_hand).width,
+                ),
+                .y = @floatFromInt(
+                    context.texture_store.get_texture(context.assets.opponent_hand).height,
+                ),
+            },
+        };
+        mouse_rect.to_screen_quad(
+            &context.camera,
+            &context.texture_store,
+            &context.screen_quads,
+        );
     }
 
     const selected_item = entity.item_inventory.selected();
