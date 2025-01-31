@@ -242,11 +242,11 @@ pub const GlobalContext = struct {
         self.assets.ball_armored = self.texture_store.load(memory, "assets/ball_armored.png");
         self.assets.ball_light = self.texture_store.load(memory, "assets/ball_light.png");
         self.assets.ball_heavy = self.texture_store.load(memory, "assets/ball_heavy.png");
-        // self.assets.ball_antisocial = self.texture_store.load(memory, "assets/ball_bouncy.png");
-        // self.assets.ball_gravity = self.texture_store.load(memory, "assets/ball_gravity.png");
-        // self.assets.ball_runner = self.texture_store.load(memory, "assets/ball_runner.png");
-        // self.assets.ball_ring_of_light =
-        //     self.texture_store.load(memory, "assets/ball_ring_of_light.png");
+        self.assets.ball_antisocial = self.texture_store.load(memory, "assets/ball_bouncy.png");
+        self.assets.ball_gravity = self.texture_store.load(memory, "assets/ball_gravity.png");
+        self.assets.ball_runner = self.texture_store.load(memory, "assets/ball_runner.png");
+        self.assets.ball_ring_of_light =
+            self.texture_store.load(memory, "assets/ball_ring_of_light.png");
 
         self.assets.scope_icon = self.texture_store.load(memory, "assets/scope_icon.png");
         self.assets.silencer_icon =
@@ -327,7 +327,7 @@ pub const GlobalContext = struct {
             .price = 1,
         };
         self.item_infos.get_mut(.BallAntisocial).* = .{
-            .texture_id = Textures.Texture.ID_DEBUG,
+            .texture_id = self.assets.ball_antisocial,
             .name = "Bouncy ball",
             .description =
             \\Ball gains additional
@@ -337,7 +337,7 @@ pub const GlobalContext = struct {
             .price = 10,
         };
         self.item_infos.get_mut(.BallGravity).* = .{
-            .texture_id = Textures.Texture.ID_DEBUG,
+            .texture_id = self.assets.ball_gravity,
             .name = "Antigravity ball",
             .description =
             \\Pushes all balls away
@@ -346,7 +346,7 @@ pub const GlobalContext = struct {
             .price = 10,
         };
         self.item_infos.get_mut(.BallRunner).* = .{
-            .texture_id = Textures.Texture.ID_DEBUG,
+            .texture_id = self.assets.ball_runner,
             .name = "Runner ball",
             .description =
             \\Restores HP proportional
@@ -356,7 +356,7 @@ pub const GlobalContext = struct {
             .price = 15,
         };
         self.item_infos.get_mut(.BallRingOfLight).* = .{
-            .texture_id = Textures.Texture.ID_DEBUG,
+            .texture_id = self.assets.ball_ring_of_light,
             .name = "Ring of light",
             .description =
             \\Adds a ring of light around 
