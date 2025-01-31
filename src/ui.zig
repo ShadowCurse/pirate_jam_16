@@ -512,9 +512,9 @@ pub fn rules(context: *GlobalContext) void {
         \\- If opponent's ball hits opponent's ball: nothing happens
         \\  If player's ball looses all  HP or is pocketed, it is permanently removed from the field.
         \\If player's ball  HP was full  when it was healed, the heal amount is converted into souls     .
-        \\Souls act as a currency in the game. Players can buy upgrades and other cue in the shop.
-        \\Each player starts with a default cue. There is one slot for an additional one. 
-        \\Additional cues can be used only once.
+        \\Souls act as a currency in the game.  Players can buy upgrades and other cues in the shop.
+        \\Each player starts with a default cue. There is one slot for an additional  one. 
+        \\Additional  cues can be used only once.
     ;
     _ = UiText.to_screen_quads(
         context,
