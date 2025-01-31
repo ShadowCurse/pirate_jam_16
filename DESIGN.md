@@ -40,10 +40,11 @@ Action, Casual, Simulation
 
 ## Gameplay overview
 
-  There are 2 players in the game. Each one starts with 15 balls.
+There are 2 players in the game. Each one starts with 15 balls.
 Players take turns and use cues to hit any of their balls. The goal of the game is to destroy all
 opponents balls.
-  Each ball starts with 10 HP, 5 DAMAGE and 0 ARMOR. These values can by upgraded
+
+Each ball starts with 10 HP, 5 DAMAGE and 0 ARMOR. These values can by upgraded
 during the game. Total player HP is a sum of HP of all player balls.
 When total  player HP drops down to 0, player looses. 
   During the turn, special collision rules apply for friendly (turn owners) and opponents balls:
@@ -53,7 +54,7 @@ When total  player HP drops down to 0, player looses.
 DAMAGE value. Opponent's ball loses HP equal to the friendly ball DAMAGE.
 - If opponent's ball hits opponent's ball: nothing happens
 
-  If player's ball looses all HP or is pocketed, it is permanently removed from the field.
+If player's ball looses all HP or is pocketed, it is permanently removed from the field.
 If player's ball  HP was full when it was healed, the heal amount is converted into souls     .
 Souls act as a currency in the game. Players can buy upgrades and other cue in the shop.
 Each player starts with a default cue. There is one slot for an additional one. 
