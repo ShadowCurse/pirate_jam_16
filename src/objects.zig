@@ -265,7 +265,7 @@ pub const Ball = struct {
     pub fn add_upgrade(self: *Ball, upgrade: Item.Tag) bool {
         switch (upgrade) {
             .BallSpiky => {
-                self.damage += 5;
+                self.damage += 2;
             },
             .BallHealthy => {
                 self.hp += 5;
@@ -1269,10 +1269,6 @@ pub const Item = struct {
     pub const EpicDropRate = 0.2;
 
     pub const NormalItems = [_]Tag{
-        // .BallSpiky,
-        // .BallHealthy,
-        // .BallArmored,
-
         .BallSpiky,
         .BallHealthy,
         .BallArmored,

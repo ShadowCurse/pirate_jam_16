@@ -292,7 +292,7 @@ pub const GlobalContext = struct {
             .name = "Spiky ball",
             .description =
             \\Increases the ball
-            \\damage by 5
+            \\damage by 2
             ,
             .price = 2,
         };
