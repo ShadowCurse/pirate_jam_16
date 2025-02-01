@@ -199,6 +199,7 @@ pub const GlobalContext = struct {
         self.audio.init(memory, 1.0) catch unreachable;
         self.global_audio_volume = 0.3;
         self.font = Font.init(memory, &self.texture_store, "assets/NewRocker-Regular.ttf", 64);
+        self.font.line_gap = -200;
 
         self.assets.player_hand =
             self.texture_store.load(self.memory, "assets/player_hand.png");
@@ -382,7 +383,7 @@ pub const GlobalContext = struct {
             .texture_id = self.assets.silencer_icon,
             .name = "Silencer",
             .description =
-            \\The ball you hit  will
+            \\The ball you hit will
             \\ghost through friendly
             \\balls and only collide
             \\with the first enemy ball

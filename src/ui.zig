@@ -370,7 +370,7 @@ pub fn add_button(
     args: anytype,
 ) void {
     const BUTTON_TEXT_SIZE: f32 = 50.0;
-    const BUTTON_TEXT_OFFSET: Vec2 = .{ .x = 10.0, .y = 10.0 };
+    const BUTTON_TEXT_OFFSET: Vec2 = .{ .x = 0.0, .y = 10.0 };
     var panel = UiPanel.init(
         position,
         context.assets.button,
@@ -503,18 +503,18 @@ pub fn rules(context: *GlobalContext) void {
         \\Players take turns and use cues to hit any of their balls. The goal of the game is to
         \\destroy all opponents balls.
         \\  Each ball starts with 10 HP, 5 DAMAGE and 0 ARMOR. These values can by upgraded
-        \\during the game. Total player HP    is a sum of HP of all player balls.
-        \\When total  player HP drops down to 0, player looses. 
+        \\during the game. Total player HP     is a sum of HP of all player balls.
+        \\When total player HP drops down to 0, player looses. 
         \\  During the turn, special collision rules apply for friendly (turn owners) and opponents balls:
         \\- If a friendly ball collides with another friendly ball: both heal 1 HP
-        \\- If a friendly ball collides  with an opponent's ball: friendly ball heals by its
+        \\- If a friendly ball collides with an opponent's ball: friendly ball heals by its
         \\DAMAGE value. Opponent's ball loses HP equal to the friendly ball DAMAGE.
         \\- If opponent's ball hits opponent's ball: nothing happens
-        \\  If player's ball looses all  HP or is pocketed, it is permanently removed from the field.
-        \\If player's ball  HP was full  when it was healed, the heal amount is converted into souls     .
-        \\Souls act as a currency in the game.  Players can buy upgrades and other cues in the shop.
-        \\Each player starts with a default cue. There is one slot for an additional  one. 
-        \\Additional  cues can be used only once.
+        \\  If player's ball looses all HP or is pocketed, it is permanently removed from the field.
+        \\If player's ball HP was full when it was healed, the heal amount is converted into souls      .
+        \\Souls act as a currency in the game. Players can buy upgrades and other cues in the shop.
+        \\Each player starts with a default cue.There is one slot for an additional one. 
+        \\Additional cues can be used only once.
     ;
     _ = UiText.to_screen_quads(
         context,
@@ -525,12 +525,12 @@ pub fn rules(context: *GlobalContext) void {
         .{ .center = false },
     );
     UiPanel.init(
-        CAMERA_RULES.add(.{ .x = -195, .y = -155.0 }),
+        CAMERA_RULES.add(.{ .x = -205, .y = -140.0 }),
         context.assets.blood,
         null,
     ).to_screen_quad(context);
     UiPanel.init(
-        CAMERA_RULES.add(.{ .x = 485, .y = 125.0 }),
+        CAMERA_RULES.add(.{ .x = 435, .y = 170.0 }),
         context.assets.souls,
         null,
     ).to_screen_quad(context);
