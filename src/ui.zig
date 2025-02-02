@@ -560,9 +560,9 @@ pub fn in_game(game: *Game, context: *GlobalContext) void {
     const PANEL_OPPONENT_INFO_POSITION: Vec2 = .{ .x = 520.0, .y = -310.0 };
 
     const PANEL_TEXT_SIZE = 60;
-    const PANEL_BLOOD_OFFSET = .{ .x = -100.0, .y = -15.0 };
+    const PANEL_BLOOD_OFFSET = .{ .x = -90.0, .y = -15.0 };
     const PANEL_HP_OFFSET = .{ .x = -40.0 };
-    const PANEL_SOULS_OFFSET = .{ .x = 10.0, .y = -10.0 };
+    const PANEL_SOULS_OFFSET = .{ .x = 20.0, .y = -10.0 };
     const PANEL_OVERHEAL_OFFSET = .{ .x = 70.0 };
     const PANEL_BAR_OFFSET = .{ .x = -12.0, .y = 20.0 };
 
