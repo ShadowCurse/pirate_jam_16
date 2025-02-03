@@ -3,7 +3,8 @@
     .version = "0.0.0",
     .dependencies = .{
         .stygian = .{
-            .path = "../stygian",
+            .url = "https://github.com/ShadowCurse/stygian/archive/refs/heads/master.zip",
+            .hash = "1220af370ac6375e5158e1c0ae73864a6b6e79b46b368fcd807f16f7780f8cb59e12",
         },
     },
     .paths = .{
