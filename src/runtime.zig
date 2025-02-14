@@ -6,13 +6,13 @@ const Allocator = std.mem.Allocator;
 const log = stygian.log;
 // This configures log level for the runtime
 pub const log_options = log.Options{
-    .level = .Info,
+    .level = .Err,
 };
 
 const Tracing = stygian.tracing;
 pub const tracing_options = Tracing.Options{
-    .max_measurements = 256,
-    .enabled = true,
+    .max_measurements = 0,
+    .enabled = false,
 };
 
 const sdl = stygian.bindings.sdl;
@@ -485,8 +485,6 @@ pub const GlobalContext = struct {
             mouse_y,
             &self.camera,
         );
-        if (self.input.space == .Pressed)
-            self.state.debug = !self.state.debug;
         self.dt = dt;
         self.state_change_animation.update(dt);
     }

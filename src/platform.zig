@@ -11,7 +11,7 @@ pub const os = if (builtin.os.tag != .emscripten) std.os else struct {
 
 // This configures log level for the platform
 pub const log_options = log.Options{
-    .level = .Info,
+    .level = .Err,
 };
 
 const platform_start = stygian.platform.start.platform_start;
